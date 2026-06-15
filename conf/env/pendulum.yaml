@@ -1,0 +1,3 @@
+id: Pendulum-v1
+max_steps: 200
+continuous_action: true

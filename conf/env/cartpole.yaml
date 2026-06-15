@@ -1,0 +1,3 @@
+id: CartPole-v1
+max_steps: 500
+continuous_action: false

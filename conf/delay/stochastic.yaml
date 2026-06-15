@@ -1,0 +1,5 @@
+name: stochastic
+distribution: uniform  # or normal, exponential, lognormal
+min: 10.0
+max: 500.0
+seed: ${seed}

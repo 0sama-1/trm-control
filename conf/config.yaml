@@ -1,0 +1,9 @@
+seed: 42
+env: Pendulum-v1
+print_stat_every: 10
+video_folder: videos
+model_folder: models
+defaults:
+  - arch: ddpg
+  - delay: stochastic
+  - _self_

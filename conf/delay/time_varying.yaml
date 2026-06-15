@@ -1,0 +1,14 @@
+name: time_varying
+
+schedule:
+  - start: 0
+    delay: 0.0
+
+  - start: 10000
+    delay: 1.0
+
+  - start: 20000
+    delay: 3.0
+
+  - start: 30000
+    delay: 0.0
