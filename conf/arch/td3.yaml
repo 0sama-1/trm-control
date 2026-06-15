@@ -1,0 +1,27 @@
+name: td3
+model_name: td3_pendulum.pt
+
+total_episodes: 200
+
+gamma: 0.99
+tau: 0.005
+
+actor_lr: 1e-3
+critic_lr: 1e-3
+
+buffer_size: 200000
+batch_size: 256
+warmup_steps: 10000
+updates_per_step: 1
+
+hidden_dim: 256
+
+# delayed actor update
+policy_delay: 2
+
+# target policy smoothing
+target_noise: 0.2
+noise_clip: 0.5
+
+# Gaussian exploration noise (std as fraction of action range)
+expl_noise: 0.1

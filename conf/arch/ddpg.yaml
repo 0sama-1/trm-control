@@ -1,4 +1,5 @@
 name: ddpg
+model_name: ddpg_pendulum.pt
 
 total_episodes: 200
 
