@@ -1,16 +1,15 @@
-import os
-from pathlib import Path
-
-import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from omegaconf import DictConfig
 
-from utils import atanh, get_device, layer_init, set_seed
-from delays import build_delay, DelayedEnv
+from trainer import OnPolicyTrainer
+from utils import atanh, layer_init
 
+
+# ---------------------------------------------------------------------------
+# Model / buffer components
+# ---------------------------------------------------------------------------
 
 class Actor(nn.Module):
     def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int):
@@ -35,13 +34,11 @@ class Actor(nn.Module):
         dist = torch.distributions.Normal(mu, std)
         u = dist.rsample()
         a_norm = torch.tanh(u)
-
         action_scale = (action_high - action_low) / 2.0
-        action_bias = (action_high + action_low) / 2.0
-        action_env = a_norm * action_scale + action_bias
-
+        action_bias  = (action_high + action_low) / 2.0
+        action_env   = a_norm * action_scale + action_bias
         log_prob = (dist.log_prob(u) - torch.log(1 - a_norm.pow(2) + 1e-6)).sum(dim=-1)
-        entropy = dist.entropy().sum(dim=-1)
+        entropy  = dist.entropy().sum(dim=-1)
         return action_env, a_norm, log_prob, entropy
 
     def evaluate_actions(self, obs: torch.Tensor, action_normalized: torch.Tensor):
@@ -105,146 +102,151 @@ class RolloutBuffer:
         self.returns = self.advantages + self.values
 
 
-def train(cfg: DictConfig):
-    arch = cfg.arch
-    env_cfg = cfg.env
-    device = get_device()
+# ---------------------------------------------------------------------------
+# Trainer
+# ---------------------------------------------------------------------------
 
-    set_seed(cfg.seed)
+class PPOTrainer(OnPolicyTrainer):
+    def _build_agent(self) -> None:
+        obs_dim = self.env.observation_space.shape[0]
+        act_dim = self.env.action_space.shape[0]
 
-    model_path = os.path.join(cfg.model_folder, arch.model_name)
-    os.makedirs(cfg.model_folder, exist_ok=True)
-    os.makedirs(cfg.video_folder, exist_ok=True)
+        self.actor  = Actor(obs_dim, act_dim, self.arch.hidden_dim).to(self.device)
+        self.critic = Critic(obs_dim, self.arch.hidden_dim).to(self.device)
+        self.actor_optim  = optim.Adam(self.actor.parameters(),  lr=self.arch.actor_lr)
+        self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.arch.critic_lr)
+        self.buffer = RolloutBuffer(self.arch.rollout_steps, obs_dim, act_dim, self.device)
 
-    env = gym.make(env_cfg.id, render_mode="rgb_array")
-    env = DelayedEnv(env, build_delay(cfg.delay))
-    env = gym.wrappers.RecordVideo(
-        env,
-        video_folder=cfg.video_folder,
-        episode_trigger=lambda ep: (ep + 1) % cfg.record_every == 0,
-        name_prefix="ppo",
-    )
-    env = gym.wrappers.RecordEpisodeStatistics(env)
+        self.action_low  = torch.tensor(self.env.action_space.low,  dtype=torch.float32, device=self.device)
+        self.action_high = torch.tensor(self.env.action_space.high, dtype=torch.float32, device=self.device)
 
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-    action_low  = torch.tensor(env.action_space.low,  dtype=torch.float32, device=device)
-    action_high = torch.tensor(env.action_space.high, dtype=torch.float32, device=device)
+        self._pg_losses:      list[float] = []
+        self._value_losses:   list[float] = []
+        self._entropy_values: list[float] = []
+        self._last_obs: torch.Tensor | None = None
 
-    actor  = Actor(obs_dim, act_dim, arch.hidden_dim).to(device)
-    critic = Critic(obs_dim, arch.hidden_dim).to(device)
-    actor_optim  = optim.Adam(actor.parameters(),  lr=arch.actor_lr)
-    critic_optim = optim.Adam(critic.parameters(), lr=arch.critic_lr)
+    def _initial_obs(self) -> torch.Tensor:
+        obs, _ = self.env.reset(seed=self.cfg.seed)
+        return torch.tensor(obs, dtype=torch.float32, device=self.device)
 
-    buffer = RolloutBuffer(arch.rollout_steps, obs_dim, act_dim, device)
+    def _collect_rollout(self, obs: torch.Tensor) -> torch.Tensor:
+        self.buffer.ptr = 0
 
-    episode_count = 0
-    if Path(model_path).exists():
-        ckpt = torch.load(model_path, map_location=device)
-        actor.load_state_dict(ckpt["actor_state_dict"])
-        critic.load_state_dict(ckpt["critic_state_dict"])
-        actor_optim.load_state_dict(ckpt["actor_optimiser"])
-        critic_optim.load_state_dict(ckpt["critic_optimiser"])
-        episode_count = ckpt.get("episode_count", 0)
-        print(f"Loaded checkpoint from episode {episode_count}")
-
-    obs, _ = env.reset(seed=cfg.seed)
-    obs = torch.tensor(obs, dtype=torch.float32, device=device)
-    recent_returns: list[float] = []
-
-    while episode_count < arch.total_episodes:
-        buffer.ptr = 0
-
-        for _ in range(arch.rollout_steps):
+        for _ in range(self.arch.rollout_steps):
             with torch.no_grad():
-                value = critic(obs.unsqueeze(0)).squeeze(0)
-                action_env, action_norm, logprob, _ = actor.sample(obs.unsqueeze(0), action_low, action_high)
+                value = self.critic(obs.unsqueeze(0)).squeeze(0)
+                action_env, action_norm, logprob, _ = self.actor.sample(
+                    obs.unsqueeze(0), self.action_low, self.action_high
+                )
 
-            next_obs, reward, terminated, truncated, info = env.step(action_env.squeeze(0).cpu().numpy())
+            next_obs_np, reward, terminated, truncated, info = self.env.step(
+                action_env.squeeze(0).cpu().numpy()
+            )
             done = terminated or truncated
+            self.total_steps += 1
 
-            buffer.add(
+            self.buffer.add(
                 obs=obs,
                 action_norm=action_norm.squeeze(0),
                 logprob=logprob.squeeze(0),
-                reward=torch.tensor(reward, dtype=torch.float32, device=device),
-                done=torch.tensor(float(done), dtype=torch.float32, device=device),
+                reward=torch.tensor(reward, dtype=torch.float32, device=self.device),
+                done=torch.tensor(float(done), dtype=torch.float32, device=self.device),
                 value=value,
             )
 
-            obs = torch.tensor(next_obs, dtype=torch.float32, device=device)
+            obs = torch.tensor(next_obs_np, dtype=torch.float32, device=self.device)
 
             if done:
-                episode_count += 1
+                self.episode_count += 1
                 ep_return = float(info["episode"]["r"])
-                recent_returns.append(ep_return)
-                if len(recent_returns) > 100:
-                    recent_returns.pop(0)
+                avg100 = self._record_return(ep_return)
 
-                if episode_count % cfg.print_stat_every == 0:
-                    avg100 = np.mean(recent_returns) if recent_returns else 0.0
+                if self.episode_count % self.cfg.print_stat_every == 0:
                     print(
-                        f"Episode {episode_count}/{arch.total_episodes} | "
-                        f"Last Return: {ep_return:8.2f} | Avg(100): {avg100:8.2f}"
+                        f"Episode {self.episode_count}/{self.arch.total_episodes} | "
+                        f"Return: {ep_return:8.2f} | Avg(100): {avg100:8.2f}"
                     )
 
-                if episode_count >= arch.total_episodes:
+                if self.episode_count >= self.arch.total_episodes:
                     break
 
-                next_obs, _ = env.reset()
-                obs = torch.tensor(next_obs, dtype=torch.float32, device=device)
+                next_obs_np, _ = self.env.reset()
+                obs = torch.tensor(next_obs_np, dtype=torch.float32, device=self.device)
 
+        self._last_obs = obs
+        return obs
+
+    def _update_policy(self) -> None:
         with torch.no_grad():
-            last_value = critic(obs.unsqueeze(0)).squeeze(0)
-            last_done = torch.tensor(0.0, dtype=torch.float32, device=device)
+            last_value = self.critic(self._last_obs.unsqueeze(0)).squeeze(0)
+            last_done  = torch.tensor(0.0, dtype=torch.float32, device=self.device)
 
-        buffer.compute_gae(last_value, last_done, arch.gamma, arch.gae_lambda)
+        self.buffer.compute_gae(last_value, last_done, self.arch.gamma, self.arch.gae_lambda)
 
-        b_obs, b_actions_norm, b_logprobs, b_advantages, b_returns = (
-            buffer.obs, buffer.actions_norm, buffer.logprobs, buffer.advantages, buffer.returns
-        )
+        b_obs        = self.buffer.obs
+        b_actions    = self.buffer.actions_norm
+        b_logprobs   = self.buffer.logprobs
+        b_advantages = self.buffer.advantages
+        b_returns    = self.buffer.returns
         b_advantages = (b_advantages - b_advantages.mean()) / (b_advantages.std() + 1e-8)
 
-        batch_size = buffer.ptr
+        batch_size = self.buffer.ptr
         inds = np.arange(batch_size)
 
-        for _ in range(arch.ppo_epochs):
-            np.random.shuffle(inds)
-            for start in range(0, batch_size, arch.minibatch_size):
-                mb = inds[start : start + arch.minibatch_size]
+        self._pg_losses      = []
+        self._value_losses   = []
+        self._entropy_values = []
 
-                new_logprobs, entropy = actor.evaluate_actions(b_obs[mb], b_actions_norm[mb])
-                new_values = critic(b_obs[mb])
+        for _ in range(self.arch.ppo_epochs):
+            np.random.shuffle(inds)
+            for start in range(0, batch_size, self.arch.minibatch_size):
+                mb = inds[start : start + self.arch.minibatch_size]
+
+                new_logprobs, entropy = self.actor.evaluate_actions(b_obs[mb], b_actions[mb])
+                new_values = self.critic(b_obs[mb])
 
                 ratio = (new_logprobs - b_logprobs[mb]).exp()
-                adv = b_advantages[mb]
-                pg_loss = torch.max(
-                    -adv * ratio,
-                    -adv * torch.clamp(ratio, 1.0 - arch.clip_coef, 1.0 + arch.clip_coef),
-                ).mean()
-
+                adv   = b_advantages[mb]
+                pg_loss    = torch.max(-adv * ratio, -adv * ratio.clamp(1 - self.arch.clip_coef, 1 + self.arch.clip_coef)).mean()
                 value_loss = 0.5 * ((new_values - b_returns[mb]) ** 2).mean()
                 entropy_loss = entropy.mean()
 
-                actor_optim.zero_grad()
-                (pg_loss - arch.ent_coef * entropy_loss).backward()
-                nn.utils.clip_grad_norm_(actor.parameters(), arch.max_grad_norm)
-                actor_optim.step()
+                self.actor_optim.zero_grad()
+                (pg_loss - self.arch.ent_coef * entropy_loss).backward()
+                nn.utils.clip_grad_norm_(self.actor.parameters(), self.arch.max_grad_norm)
+                self.actor_optim.step()
 
-                critic_optim.zero_grad()
-                (arch.vf_coef * value_loss).backward()
-                nn.utils.clip_grad_norm_(critic.parameters(), arch.max_grad_norm)
-                critic_optim.step()
+                self.critic_optim.zero_grad()
+                (self.arch.vf_coef * value_loss).backward()
+                nn.utils.clip_grad_norm_(self.critic.parameters(), self.arch.max_grad_norm)
+                self.critic_optim.step()
 
-    torch.save(
-        {
-            "actor_state_dict":  actor.state_dict(),
-            "critic_state_dict": critic.state_dict(),
-            "actor_optimiser":   actor_optim.state_dict(),
-            "critic_optimiser":  critic_optim.state_dict(),
-            "episode_count":     episode_count,
-        },
-        model_path,
-    )
-    env.close()
-    print(f"\nTraining complete. Model: {model_path} | Videos: {cfg.video_folder}/")
+                self._pg_losses.append(pg_loss.item())
+                self._value_losses.append(value_loss.item())
+                self._entropy_values.append(entropy_loss.item())
+
+    def _update_metrics(self) -> dict:
+        if not self._pg_losses:
+            return {}
+        return {
+            "pg_loss":    float(np.mean(self._pg_losses)),
+            "value_loss": float(np.mean(self._value_losses)),
+            "entropy":    float(np.mean(self._entropy_values)),
+        }
+
+    def _save_checkpoint(self) -> None:
+        torch.save({
+            "actor_state_dict":  self.actor.state_dict(),
+            "critic_state_dict": self.critic.state_dict(),
+            "actor_optimiser":   self.actor_optim.state_dict(),
+            "critic_optimiser":  self.critic_optim.state_dict(),
+            "episode_count":     self.episode_count,
+        }, self.model_path)
+
+    def _load_checkpoint(self) -> int:
+        ckpt = torch.load(self.model_path, map_location=self.device)
+        self.actor.load_state_dict(ckpt["actor_state_dict"])
+        self.critic.load_state_dict(ckpt["critic_state_dict"])
+        self.actor_optim.load_state_dict(ckpt["actor_optimiser"])
+        self.critic_optim.load_state_dict(ckpt["critic_optimiser"])
+        return ckpt.get("episode_count", 0)

@@ -9,3 +9,8 @@ print_stat_every: 10
 record_every: 25
 video_folder: videos
 model_folder: models
+
+wandb:
+  enabled: true
+  project: trm-control
+  entity: null

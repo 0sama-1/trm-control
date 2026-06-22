@@ -1,19 +1,20 @@
 import copy
-import os
 import random
 from collections import deque
-from pathlib import Path
 
-import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
 
-from utils import fanin_init, get_device, set_seed, soft_update
-from delays import build_delay, DelayedEnv
+from trainer import OffPolicyTrainer
+from utils import fanin_init, soft_update
 
+
+# ---------------------------------------------------------------------------
+# Model / agent components
+# ---------------------------------------------------------------------------
 
 class ReplayBuffer:
     def __init__(self, capacity: int):
@@ -80,7 +81,7 @@ class TD3Agent:
         self._critic_update_count = 0
 
         h = arch_cfg.hidden_dim
-        self.actor  = Actor(obs_dim, act_dim, action_limit, h).to(device)
+        self.actor   = Actor(obs_dim, act_dim, action_limit, h).to(device)
         self.critic1 = Critic(obs_dim, act_dim, h).to(device)
         self.critic2 = Critic(obs_dim, act_dim, h).to(device)
 
@@ -103,24 +104,18 @@ class TD3Agent:
     def update(self, replay: ReplayBuffer) -> tuple[float, float]:
         cfg = self.cfg
         s, a, r, ns, d = replay.sample(cfg.batch_size)
-
         s  = torch.tensor(s,  dtype=torch.float32, device=self.device)
         a  = torch.tensor(a,  dtype=torch.float32, device=self.device)
         r  = torch.tensor(r,  dtype=torch.float32, device=self.device)
         ns = torch.tensor(ns, dtype=torch.float32, device=self.device)
         d  = torch.tensor(d,  dtype=torch.float32, device=self.device)
 
-        # Target policy smoothing
         with torch.no_grad():
-            noise = (torch.randn_like(a) * cfg.target_noise).clamp(-cfg.noise_clip, cfg.noise_clip)
+            noise  = (torch.randn_like(a) * cfg.target_noise).clamp(-cfg.noise_clip, cfg.noise_clip)
             next_a = (self.target_actor(ns) + noise).clamp(-self.action_limit, self.action_limit)
-            target_q = torch.min(
-                self.target_critic1(ns, next_a),
-                self.target_critic2(ns, next_a),
-            )
+            target_q = torch.min(self.target_critic1(ns, next_a), self.target_critic2(ns, next_a))
             y = r + cfg.gamma * (1.0 - d) * target_q
 
-        # Critic updates
         c1_loss = nn.functional.mse_loss(self.critic1(s, a), y)
         self.critic1_opt.zero_grad(); c1_loss.backward(); self.critic1_opt.step()
 
@@ -130,12 +125,10 @@ class TD3Agent:
         self._critic_update_count += 1
         actor_loss = 0.0
 
-        # Delayed actor update
         if self._critic_update_count % cfg.policy_delay == 0:
             actor_loss = -self.critic1(s, self.actor(s)).mean()
             self.actor_opt.zero_grad(); actor_loss.backward(); self.actor_opt.step()
             actor_loss = actor_loss.item()
-
             soft_update(self.target_actor,   self.actor,   cfg.tau)
             soft_update(self.target_critic1, self.critic1, cfg.tau)
             soft_update(self.target_critic2, self.critic2, cfg.tau)
@@ -143,21 +136,18 @@ class TD3Agent:
         return actor_loss, c1_loss.item()
 
     def save(self, path: str, episode_count: int):
-        torch.save(
-            {
-                "actor":          self.actor.state_dict(),
-                "critic1":        self.critic1.state_dict(),
-                "critic2":        self.critic2.state_dict(),
-                "target_actor":   self.target_actor.state_dict(),
-                "target_critic1": self.target_critic1.state_dict(),
-                "target_critic2": self.target_critic2.state_dict(),
-                "actor_opt":      self.actor_opt.state_dict(),
-                "critic1_opt":    self.critic1_opt.state_dict(),
-                "critic2_opt":    self.critic2_opt.state_dict(),
-                "episode_count":  episode_count,
-            },
-            path,
-        )
+        torch.save({
+            "actor":          self.actor.state_dict(),
+            "critic1":        self.critic1.state_dict(),
+            "critic2":        self.critic2.state_dict(),
+            "target_actor":   self.target_actor.state_dict(),
+            "target_critic1": self.target_critic1.state_dict(),
+            "target_critic2": self.target_critic2.state_dict(),
+            "actor_opt":      self.actor_opt.state_dict(),
+            "critic1_opt":    self.critic1_opt.state_dict(),
+            "critic2_opt":    self.critic2_opt.state_dict(),
+            "episode_count":  episode_count,
+        }, path)
 
     def load(self, path: str) -> int:
         ckpt = torch.load(path, map_location=self.device)
@@ -173,90 +163,58 @@ class TD3Agent:
         return ckpt.get("episode_count", 0)
 
 
-def train(cfg: DictConfig):
-    arch = cfg.arch
-    env_cfg = cfg.env
-    device = get_device()
+# ---------------------------------------------------------------------------
+# Trainer
+# ---------------------------------------------------------------------------
 
-    set_seed(cfg.seed)
+class TD3Trainer(OffPolicyTrainer):
+    def _build_agent(self) -> None:
+        obs_dim      = self.env.observation_space.shape[0]
+        act_dim      = self.env.action_space.shape[0]
+        action_limit = float(self.env.action_space.high[0])
 
-    model_path = os.path.join(cfg.model_folder, arch.model_name)
-    os.makedirs(cfg.model_folder, exist_ok=True)
-    os.makedirs(cfg.video_folder, exist_ok=True)
+        self.agent          = TD3Agent(obs_dim, act_dim, action_limit, self.arch, self.device)
+        self.replay         = ReplayBuffer(self.arch.buffer_size)
+        self._expl_noise    = self.arch.expl_noise * action_limit
+        self._actor_losses:  list[float] = []
+        self._critic_losses: list[float] = []
 
-    env = gym.make(env_cfg.id, render_mode="rgb_array")
-    env = DelayedEnv(env, build_delay(cfg.delay))
-    env = gym.wrappers.RecordVideo(
-        env,
-        video_folder=cfg.video_folder,
-        episode_trigger=lambda ep: (ep + 1) % cfg.record_every == 0,
-        name_prefix="td3",
-    )
-    env = gym.wrappers.RecordEpisodeStatistics(env)
+    def _on_episode_start(self) -> None:
+        self._actor_losses  = []
+        self._critic_losses = []
 
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-    action_limit = float(env.action_space.high[0])
-    expl_noise_std = arch.expl_noise * action_limit
+    def _select_action(self, obs: np.ndarray) -> np.ndarray:
+        if self.total_steps < self.arch.warmup_steps:
+            return self.env.action_space.sample()
+        return self.agent.act(obs, noise_std=self._expl_noise)
 
-    agent = TD3Agent(obs_dim, act_dim, action_limit, arch, device)
-    replay = ReplayBuffer(arch.buffer_size)
+    def _store_transition(self, obs, action, reward, next_obs, done) -> None:
+        self.replay.add(obs, action, reward, next_obs, done)
 
-    episode_start = 0
-    if Path(model_path).exists():
-        episode_start = agent.load(model_path)
-        print(f"Loaded checkpoint from episode {episode_start}")
+    def _maybe_update(self) -> None:
+        if len(self.replay) >= self.arch.batch_size:
+            for _ in range(self.arch.updates_per_step):
+                a_loss, c_loss = self.agent.update(self.replay)
+                if a_loss != 0.0:
+                    self._actor_losses.append(a_loss)
+                self._critic_losses.append(c_loss)
 
-    total_steps = 0
-    recent_returns: list[float] = []
+    def _episode_metrics(self) -> dict:
+        return {
+            "actor_loss":  float(np.mean(self._actor_losses))  if self._actor_losses  else 0.0,
+            "critic_loss": float(np.mean(self._critic_losses)) if self._critic_losses else 0.0,
+            "buffer_size": len(self.replay),
+        }
 
-    for ep in range(episode_start, arch.total_episodes):
-        obs, _ = env.reset(seed=cfg.seed + ep)
-        ep_return = 0.0
-        actor_losses: list[float] = []
-        critic_losses: list[float] = []
+    def _print_stats(self, ep_return: float, avg100: float, metrics: dict) -> None:
+        print(
+            f"Episode {self.episode_count:4d}/{self.arch.total_episodes} | "
+            f"Return: {ep_return:8.2f} | Avg100: {avg100:8.2f} | "
+            f"ActorLoss: {metrics['actor_loss']:9.4f} | CriticLoss: {metrics['critic_loss']:9.4f}"
+        )
 
-        for _ in range(env_cfg.max_steps):
-            if total_steps < arch.warmup_steps:
-                action = env.action_space.sample()
-            else:
-                action = agent.act(obs, noise_std=expl_noise_std)
+    def _save_checkpoint(self) -> None:
+        self.agent.save(self.model_path, self.episode_count)
 
-            next_obs, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
-            replay.add(obs, action, reward, next_obs, done)
-
-            obs = next_obs
-            ep_return += reward
-            total_steps += 1
-
-            if len(replay) >= arch.batch_size:
-                for _ in range(arch.updates_per_step):
-                    a_loss, c_loss = agent.update(replay)
-                    if a_loss != 0.0:
-                        actor_losses.append(a_loss)
-                    critic_losses.append(c_loss)
-
-            if done:
-                break
-
-        recent_returns.append(ep_return)
-        if len(recent_returns) > 100:
-            recent_returns.pop(0)
-
-        if (ep + 1) % cfg.print_stat_every == 0:
-            avg100 = float(np.mean(recent_returns))
-            mean_a = float(np.mean(actor_losses)) if actor_losses else 0.0
-            mean_c = float(np.mean(critic_losses)) if critic_losses else 0.0
-            print(
-                f"Episode {ep+1:4d}/{arch.total_episodes} | "
-                f"Return: {ep_return:8.2f} | Avg100: {avg100:8.2f} | "
-                f"ActorLoss: {mean_a:9.4f} | CriticLoss: {mean_c:9.4f}"
-            )
-
-        if (ep + 1) % cfg.record_every == 0:
-            agent.save(model_path, ep + 1)
-
-    agent.save(model_path, arch.total_episodes)
-    env.close()
-    print(f"\nTraining complete. Model: {model_path} | Videos: {cfg.video_folder}/")
+    def _load_checkpoint(self) -> int:
+        return self.agent.load(self.model_path)

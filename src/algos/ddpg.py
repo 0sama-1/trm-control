@@ -1,19 +1,20 @@
 import copy
-import os
 import random
 from collections import deque
-from pathlib import Path
 
-import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
 
-from utils import fanin_init, get_device, set_seed, soft_update
-from delays import build_delay, DelayedEnv
+from trainer import OffPolicyTrainer
+from utils import fanin_init, soft_update
 
+
+# ---------------------------------------------------------------------------
+# Model / agent components
+# ---------------------------------------------------------------------------
 
 class OUNoise:
     def __init__(self, action_dim: int, theta: float, sigma: float, dt: float):
@@ -44,11 +45,11 @@ class ReplayBuffer:
         batch = random.sample(self.buffer, batch_size)
         s, a, r, ns, d = map(np.array, zip(*batch))
         return (
-            np.asarray(s, dtype=np.float32),
-            np.asarray(a, dtype=np.float32),
-            np.asarray(r, dtype=np.float32).reshape(-1, 1),
+            np.asarray(s,  dtype=np.float32),
+            np.asarray(a,  dtype=np.float32),
+            np.asarray(r,  dtype=np.float32).reshape(-1, 1),
             np.asarray(ns, dtype=np.float32),
-            np.asarray(d, dtype=np.float32).reshape(-1, 1),
+            np.asarray(d,  dtype=np.float32).reshape(-1, 1),
         )
 
     def __len__(self):
@@ -63,7 +64,7 @@ class Actor(nn.Module):
         self.fc2 = fanin_init(nn.Linear(hidden_dim1, hidden_dim2))
         self.fc3 = nn.Linear(hidden_dim2, act_dim)
         nn.init.uniform_(self.fc3.weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.fc3.bias, -3e-3, 3e-3)
+        nn.init.uniform_(self.fc3.bias,   -3e-3, 3e-3)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         x = torch.relu(self.fc1(obs))
@@ -78,7 +79,7 @@ class Critic(nn.Module):
         self.fc2 = fanin_init(nn.Linear(hidden_dim1, hidden_dim2))
         self.fc3 = nn.Linear(hidden_dim2, 1)
         nn.init.uniform_(self.fc3.weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.fc3.bias, -3e-3, 3e-3)
+        nn.init.uniform_(self.fc3.bias,   -3e-3, 3e-3)
 
     def forward(self, obs: torch.Tensor, act: torch.Tensor) -> torch.Tensor:
         x = torch.cat([obs, act], dim=-1)
@@ -93,12 +94,12 @@ class DDPGAgent:
         self.action_limit = action_limit
         self.cfg = arch_cfg
 
-        self.actor = Actor(obs_dim, act_dim, action_limit, arch_cfg.hidden_dim1, arch_cfg.hidden_dim2).to(device)
+        self.actor  = Actor(obs_dim, act_dim, action_limit, arch_cfg.hidden_dim1, arch_cfg.hidden_dim2).to(device)
         self.critic = Critic(obs_dim, act_dim, arch_cfg.hidden_dim1, arch_cfg.hidden_dim2).to(device)
-        self.target_actor = copy.deepcopy(self.actor)
+        self.target_actor  = copy.deepcopy(self.actor)
         self.target_critic = copy.deepcopy(self.critic)
 
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr=arch_cfg.actor_lr)
+        self.actor_opt  = optim.Adam(self.actor.parameters(),  lr=arch_cfg.actor_lr)
         self.critic_opt = optim.Adam(self.critic.parameters(), lr=arch_cfg.critic_lr)
 
     def act(self, obs: np.ndarray, noise: np.ndarray | None = None) -> np.ndarray:
@@ -112,7 +113,6 @@ class DDPGAgent:
     def update(self, replay: ReplayBuffer) -> tuple[float, float]:
         cfg = self.cfg
         s, a, r, ns, d = replay.sample(cfg.batch_size)
-
         s  = torch.tensor(s,  dtype=torch.float32, device=self.device)
         a  = torch.tensor(a,  dtype=torch.float32, device=self.device)
         r  = torch.tensor(r,  dtype=torch.float32, device=self.device)
@@ -120,38 +120,31 @@ class DDPGAgent:
         d  = torch.tensor(d,  dtype=torch.float32, device=self.device)
 
         with torch.no_grad():
-            next_a = self.target_actor(ns)
+            next_a   = self.target_actor(ns)
             target_q = self.target_critic(ns, next_a)
             y = r + cfg.gamma * (1.0 - d) * target_q
 
         critic_loss = nn.functional.mse_loss(self.critic(s, a), y)
-        self.critic_opt.zero_grad()
-        critic_loss.backward()
-        self.critic_opt.step()
+        self.critic_opt.zero_grad(); critic_loss.backward(); self.critic_opt.step()
 
         actor_loss = -self.critic(s, self.actor(s)).mean()
-        self.actor_opt.zero_grad()
-        actor_loss.backward()
-        self.actor_opt.step()
+        self.actor_opt.zero_grad(); actor_loss.backward(); self.actor_opt.step()
 
-        soft_update(self.target_actor, self.actor, cfg.tau)
+        soft_update(self.target_actor,  self.actor,  cfg.tau)
         soft_update(self.target_critic, self.critic, cfg.tau)
 
         return actor_loss.item(), critic_loss.item()
 
     def save(self, path: str, episode_count: int):
-        torch.save(
-            {
-                "actor": self.actor.state_dict(),
-                "critic": self.critic.state_dict(),
-                "target_actor": self.target_actor.state_dict(),
-                "target_critic": self.target_critic.state_dict(),
-                "actor_opt": self.actor_opt.state_dict(),
-                "critic_opt": self.critic_opt.state_dict(),
-                "episode_count": episode_count,
-            },
-            path,
-        )
+        torch.save({
+            "actor":        self.actor.state_dict(),
+            "critic":       self.critic.state_dict(),
+            "target_actor": self.target_actor.state_dict(),
+            "target_critic":self.target_critic.state_dict(),
+            "actor_opt":    self.actor_opt.state_dict(),
+            "critic_opt":   self.critic_opt.state_dict(),
+            "episode_count":episode_count,
+        }, path)
 
     def load(self, path: str) -> int:
         ckpt = torch.load(path, map_location=self.device)
@@ -164,91 +157,59 @@ class DDPGAgent:
         return ckpt.get("episode_count", 0)
 
 
-def train(cfg: DictConfig):
-    arch = cfg.arch
-    env_cfg = cfg.env
-    device = get_device()
+# ---------------------------------------------------------------------------
+# Trainer
+# ---------------------------------------------------------------------------
 
-    set_seed(cfg.seed)
+class DDPGTrainer(OffPolicyTrainer):
+    def _build_agent(self) -> None:
+        obs_dim      = self.env.observation_space.shape[0]
+        act_dim      = self.env.action_space.shape[0]
+        action_limit = float(self.env.action_space.high[0])
 
-    model_path = os.path.join(cfg.model_folder, arch.model_name)
-    os.makedirs(cfg.model_folder, exist_ok=True)
-    os.makedirs(cfg.video_folder, exist_ok=True)
+        self.agent  = DDPGAgent(obs_dim, act_dim, action_limit, self.arch, self.device)
+        self.replay = ReplayBuffer(self.arch.buffer_size)
+        self.noise  = OUNoise(act_dim, self.arch.ou_noise.theta, self.arch.ou_noise.sigma, self.arch.ou_noise.dt)
+        self._action_limit = action_limit
+        self._actor_losses:  list[float] = []
+        self._critic_losses: list[float] = []
 
-    env = gym.make(env_cfg.id, render_mode="rgb_array")
-    env = DelayedEnv(env, build_delay(cfg.delay))
-    env = gym.wrappers.RecordVideo(
-        env,
-        video_folder=cfg.video_folder,
-        episode_trigger=lambda ep: (ep + 1) % cfg.record_every == 0,
-        name_prefix="ddpg",
-    )
-    env = gym.wrappers.RecordEpisodeStatistics(env)
+    def _on_episode_start(self) -> None:
+        self.noise.reset()
+        self._actor_losses  = []
+        self._critic_losses = []
 
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-    action_limit = float(env.action_space.high[0])
+    def _select_action(self, obs: np.ndarray) -> np.ndarray:
+        if self.total_steps < self.arch.warmup_steps:
+            return self.env.action_space.sample()
+        return self.agent.act(obs, noise=self.noise.sample() * self._action_limit)
 
-    agent = DDPGAgent(obs_dim, act_dim, action_limit, arch, device)
-    replay = ReplayBuffer(arch.buffer_size)
-    noise = OUNoise(act_dim, arch.ou_noise.theta, arch.ou_noise.sigma, arch.ou_noise.dt)
+    def _store_transition(self, obs, action, reward, next_obs, done) -> None:
+        self.replay.add(obs, action, reward, next_obs, done)
 
-    episode_start = 0
-    if Path(model_path).exists():
-        episode_start = agent.load(model_path)
-        print(f"Loaded checkpoint from episode {episode_start}")
+    def _maybe_update(self) -> None:
+        if len(self.replay) >= self.arch.batch_size:
+            for _ in range(self.arch.updates_per_step):
+                a_loss, c_loss = self.agent.update(self.replay)
+                self._actor_losses.append(a_loss)
+                self._critic_losses.append(c_loss)
 
-    total_steps = 0
-    recent_returns: list[float] = []
+    def _episode_metrics(self) -> dict:
+        return {
+            "actor_loss":  float(np.mean(self._actor_losses))  if self._actor_losses  else 0.0,
+            "critic_loss": float(np.mean(self._critic_losses)) if self._critic_losses else 0.0,
+            "buffer_size": len(self.replay),
+        }
 
-    for ep in range(episode_start, arch.total_episodes):
-        obs, _ = env.reset(seed=cfg.seed + ep)
-        noise.reset()
+    def _print_stats(self, ep_return: float, avg100: float, metrics: dict) -> None:
+        print(
+            f"Episode {self.episode_count:4d}/{self.arch.total_episodes} | "
+            f"Return: {ep_return:8.2f} | Avg100: {avg100:8.2f} | "
+            f"ActorLoss: {metrics['actor_loss']:9.4f} | CriticLoss: {metrics['critic_loss']:9.4f}"
+        )
 
-        ep_return = 0.0
-        actor_losses: list[float] = []
-        critic_losses: list[float] = []
+    def _save_checkpoint(self) -> None:
+        self.agent.save(self.model_path, self.episode_count)
 
-        for _ in range(env_cfg.max_steps):
-            if total_steps < arch.warmup_steps:
-                action = env.action_space.sample()
-            else:
-                action = agent.act(obs, noise=noise.sample() * action_limit)
-
-            next_obs, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
-            replay.add(obs, action, reward, next_obs, done)
-
-            obs = next_obs
-            ep_return += reward
-            total_steps += 1
-
-            if len(replay) >= arch.batch_size:
-                for _ in range(arch.updates_per_step):
-                    a_loss, c_loss = agent.update(replay)
-                    actor_losses.append(a_loss)
-                    critic_losses.append(c_loss)
-
-            if done:
-                break
-
-        recent_returns.append(ep_return)
-        if len(recent_returns) > 100:
-            recent_returns.pop(0)
-
-        if (ep + 1) % cfg.print_stat_every == 0:
-            avg100 = float(np.mean(recent_returns))
-            mean_a = float(np.mean(actor_losses)) if actor_losses else 0.0
-            mean_c = float(np.mean(critic_losses)) if critic_losses else 0.0
-            print(
-                f"Episode {ep+1:4d}/{arch.total_episodes} | "
-                f"Return: {ep_return:8.2f} | Avg100: {avg100:8.2f} | "
-                f"ActorLoss: {mean_a:9.4f} | CriticLoss: {mean_c:9.4f}"
-            )
-
-        if (ep + 1) % cfg.record_every == 0:
-            agent.save(model_path, ep + 1)
-
-    agent.save(model_path, arch.total_episodes)
-    env.close()
-    print(f"\nTraining complete. Model: {model_path} | Videos: {cfg.video_folder}/")
+    def _load_checkpoint(self) -> int:
+        return self.agent.load(self.model_path)
