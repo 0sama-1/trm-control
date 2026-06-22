@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from omegaconf import DictConfig, OmegaConf
+
+
+class WandbLogger:
+    """Thin wrapper around wandb that centralises init/log/finish.
+
+    All algo files stay free of wandb imports — they just call logger.log().
+    When wandb.enabled is false the class is a no-op, so no guard clauses
+    are needed at call sites.
+    """
+
+    def __init__(self, cfg: DictConfig, algo_name: str):
+        self._enabled = cfg.wandb.enabled
+        if not self._enabled:
+            return
+
+        import wandb
+
+        self._wandb = wandb
+        env_id = cfg.env.id
+        delay_name = cfg.delay.name
+
+        wandb.init(
+            project=cfg.wandb.project,
+            entity=cfg.wandb.entity or None,
+            name=f"{algo_name}_{env_id}_{delay_name}_seed{cfg.seed}",
+            group=env_id,
+            job_type=algo_name,
+            config=OmegaConf.to_container(cfg, resolve=True),
+            tags=[algo_name, env_id, delay_name],
+        )
+
+    def log(self, metrics: dict) -> None:
+        if self._enabled:
+            self._wandb.log(metrics)
+
+    def finish(self) -> None:
+        if self._enabled:
+            self._wandb.finish()
+
+    def __enter__(self) -> "WandbLogger":
+        return self
+
+    def __exit__(self, *_) -> None:
+        self.finish()
