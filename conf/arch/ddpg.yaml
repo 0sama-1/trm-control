@@ -14,9 +14,6 @@ batch_size: 128
 warmup_steps: 1000
 updates_per_step: 1
 
-hidden_dim1: 256
-hidden_dim2: 256
-
 ou_noise:
   theta: 0.15
   sigma: 0.20

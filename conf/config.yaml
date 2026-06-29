@@ -1,5 +1,6 @@
 defaults:
   - arch: ddpg
+  - model: dnn
   - env: pendulum
   - delay: stochastic
   - _self_

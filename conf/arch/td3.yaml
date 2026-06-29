@@ -14,8 +14,6 @@ batch_size: 256
 warmup_steps: 10000
 updates_per_step: 1
 
-hidden_dim: 256
-
 # delayed actor update
 policy_delay: 2
 
