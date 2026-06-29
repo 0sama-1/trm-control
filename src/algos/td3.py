@@ -8,8 +8,11 @@ import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
 
+from hydra.utils import instantiate
+
+from models.dnn import make_head
 from trainer import OffPolicyTrainer
-from utils import fanin_init, soft_update
+from utils import soft_update
 
 
 # ---------------------------------------------------------------------------
@@ -39,51 +42,36 @@ class ReplayBuffer:
 
 
 class Actor(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, hidden_dim: int):
+    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, model_cfg: DictConfig):
         super().__init__()
         self.action_limit = action_limit
-        self.net = nn.Sequential(
-            fanin_init(nn.Linear(obs_dim, hidden_dim)),
-            nn.ReLU(),
-            fanin_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, act_dim),
-        )
-        nn.init.uniform_(self.net[-1].weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.net[-1].bias,   -3e-3, 3e-3)
+        self.trunk = instantiate(model_cfg, in_dim=obs_dim)
+        self.head  = make_head(self.trunk.out_dim, act_dim, model_cfg.output_init)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        return torch.tanh(self.net(obs)) * self.action_limit
+        return torch.tanh(self.head(self.trunk(obs))) * self.action_limit
 
 
 class Critic(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int):
+    def __init__(self, obs_dim: int, act_dim: int, model_cfg: DictConfig):
         super().__init__()
-        self.net = nn.Sequential(
-            fanin_init(nn.Linear(obs_dim + act_dim, hidden_dim)),
-            nn.ReLU(),
-            fanin_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1),
-        )
-        nn.init.uniform_(self.net[-1].weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.net[-1].bias,   -3e-3, 3e-3)
+        self.trunk = instantiate(model_cfg, in_dim=obs_dim + act_dim)
+        self.head  = make_head(self.trunk.out_dim, 1, model_cfg.output_init)
 
     def forward(self, obs: torch.Tensor, act: torch.Tensor) -> torch.Tensor:
-        return self.net(torch.cat([obs, act], dim=-1))
+        return self.head(self.trunk(torch.cat([obs, act], dim=-1)))
 
 
 class TD3Agent:
-    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, arch_cfg: DictConfig, device: str):
+    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, arch_cfg: DictConfig, model_cfg: DictConfig, device: str):
         self.device = device
         self.action_limit = action_limit
         self.cfg = arch_cfg
         self._critic_update_count = 0
 
-        h = arch_cfg.hidden_dim
-        self.actor   = Actor(obs_dim, act_dim, action_limit, h).to(device)
-        self.critic1 = Critic(obs_dim, act_dim, h).to(device)
-        self.critic2 = Critic(obs_dim, act_dim, h).to(device)
+        self.actor   = Actor(obs_dim, act_dim, action_limit, model_cfg).to(device)
+        self.critic1 = Critic(obs_dim, act_dim, model_cfg).to(device)
+        self.critic2 = Critic(obs_dim, act_dim, model_cfg).to(device)
 
         self.target_actor   = copy.deepcopy(self.actor)
         self.target_critic1 = copy.deepcopy(self.critic1)
@@ -173,7 +161,7 @@ class TD3Trainer(OffPolicyTrainer):
         act_dim      = self.env.action_space.shape[0]
         action_limit = float(self.env.action_space.high[0])
 
-        self.agent          = TD3Agent(obs_dim, act_dim, action_limit, self.arch, self.device)
+        self.agent          = TD3Agent(obs_dim, act_dim, action_limit, self.arch, self.cfg.model, self.device)
         self.replay         = ReplayBuffer(self.arch.buffer_size)
         self._expl_noise    = self.arch.expl_noise * action_limit
         self._actor_losses:  list[float] = []

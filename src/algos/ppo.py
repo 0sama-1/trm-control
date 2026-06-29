@@ -2,6 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from omegaconf import DictConfig
+
+from hydra.utils import instantiate
 
 from trainer import OnPolicyTrainer
 from utils import atanh, layer_init
@@ -12,19 +15,15 @@ from utils import atanh, layer_init
 # ---------------------------------------------------------------------------
 
 class Actor(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int):
+    def __init__(self, obs_dim: int, act_dim: int, model_cfg: DictConfig):
         super().__init__()
-        self.net = nn.Sequential(
-            layer_init(nn.Linear(obs_dim, hidden_dim)),
-            nn.Tanh(),
-            layer_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.Tanh(),
-        )
-        self.mu_head = layer_init(nn.Linear(hidden_dim, act_dim), std=0.01)
+        self.trunk   = instantiate(model_cfg, in_dim=obs_dim)
+        # small std keeps initial policy near-uniform — standard PPO trick
+        self.mu_head = layer_init(nn.Linear(self.trunk.out_dim, act_dim), std=0.01)
         self.log_std = nn.Parameter(torch.zeros(1, act_dim))
 
     def forward(self, obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x = self.net(obs)
+        x = self.trunk(obs)
         mu = self.mu_head(x)
         log_std = self.log_std.expand_as(mu).clamp(-20, 2)
         return mu, torch.exp(log_std)
@@ -50,18 +49,14 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, obs_dim: int, hidden_dim: int):
+    def __init__(self, obs_dim: int, model_cfg: DictConfig):
         super().__init__()
-        self.net = nn.Sequential(
-            layer_init(nn.Linear(obs_dim, hidden_dim)),
-            nn.Tanh(),
-            layer_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.Tanh(),
-            layer_init(nn.Linear(hidden_dim, 1), std=1.0),
-        )
+        self.trunk = instantiate(model_cfg, in_dim=obs_dim)
+        # std=1.0 for value head is standard in PPO implementations
+        self.head  = layer_init(nn.Linear(self.trunk.out_dim, 1), std=1.0)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
-        return self.net(obs).squeeze(-1)
+        return self.head(self.trunk(obs)).squeeze(-1)
 
 
 class RolloutBuffer:
@@ -111,8 +106,8 @@ class PPOTrainer(OnPolicyTrainer):
         obs_dim = self.env.observation_space.shape[0]
         act_dim = self.env.action_space.shape[0]
 
-        self.actor  = Actor(obs_dim, act_dim, self.arch.hidden_dim).to(self.device)
-        self.critic = Critic(obs_dim, self.arch.hidden_dim).to(self.device)
+        self.actor  = Actor(obs_dim, act_dim, self.cfg.model).to(self.device)
+        self.critic = Critic(obs_dim, self.cfg.model).to(self.device)
         self.actor_optim  = optim.Adam(self.actor.parameters(),  lr=self.arch.actor_lr)
         self.critic_optim = optim.Adam(self.critic.parameters(), lr=self.arch.critic_lr)
         self.buffer = RolloutBuffer(self.arch.rollout_steps, obs_dim, act_dim, self.device)

@@ -8,8 +8,11 @@ import torch.nn as nn
 import torch.optim as optim
 from omegaconf import DictConfig
 
+from hydra.utils import instantiate
+
+from models.dnn import make_head
 from trainer import OffPolicyTrainer
-from utils import fanin_init, soft_update
+from utils import soft_update
 
 LOG_STD_MIN = -20
 LOG_STD_MAX = 2
@@ -42,24 +45,15 @@ class ReplayBuffer:
 
 
 class Actor(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, hidden_dim: int):
+    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, model_cfg: DictConfig):
         super().__init__()
         self.action_limit = action_limit
-        self.net = nn.Sequential(
-            fanin_init(nn.Linear(obs_dim, hidden_dim)),
-            nn.ReLU(),
-            fanin_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.ReLU(),
-        )
-        self.mu_head      = nn.Linear(hidden_dim, act_dim)
-        self.log_std_head = nn.Linear(hidden_dim, act_dim)
-        nn.init.uniform_(self.mu_head.weight,      -3e-3, 3e-3)
-        nn.init.uniform_(self.mu_head.bias,        -3e-3, 3e-3)
-        nn.init.uniform_(self.log_std_head.weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.log_std_head.bias,   -3e-3, 3e-3)
+        self.trunk        = instantiate(model_cfg, in_dim=obs_dim)
+        self.mu_head      = make_head(self.trunk.out_dim, act_dim, model_cfg.output_init)
+        self.log_std_head = make_head(self.trunk.out_dim, act_dim, model_cfg.output_init)
 
     def _dist(self, obs: torch.Tensor) -> torch.distributions.Normal:
-        x = self.net(obs)
+        x = self.trunk(obs)
         mu = self.mu_head(x)
         log_std = self.log_std_head(x).clamp(LOG_STD_MIN, LOG_STD_MAX)
         return torch.distributions.Normal(mu, log_std.exp())
@@ -78,32 +72,24 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int):
+    def __init__(self, obs_dim: int, act_dim: int, model_cfg: DictConfig):
         super().__init__()
-        self.net = nn.Sequential(
-            fanin_init(nn.Linear(obs_dim + act_dim, hidden_dim)),
-            nn.ReLU(),
-            fanin_init(nn.Linear(hidden_dim, hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1),
-        )
-        nn.init.uniform_(self.net[-1].weight, -3e-3, 3e-3)
-        nn.init.uniform_(self.net[-1].bias,   -3e-3, 3e-3)
+        self.trunk = instantiate(model_cfg, in_dim=obs_dim + act_dim)
+        self.head  = make_head(self.trunk.out_dim, 1, model_cfg.output_init)
 
     def forward(self, obs: torch.Tensor, act: torch.Tensor) -> torch.Tensor:
-        return self.net(torch.cat([obs, act], dim=-1))
+        return self.head(self.trunk(torch.cat([obs, act], dim=-1)))
 
 
 class SACAgent:
-    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, arch_cfg: DictConfig, device: str):
+    def __init__(self, obs_dim: int, act_dim: int, action_limit: float, arch_cfg: DictConfig, model_cfg: DictConfig, device: str):
         self.device = device
         self.action_limit = action_limit
         self.cfg = arch_cfg
 
-        h = arch_cfg.hidden_dim
-        self.actor   = Actor(obs_dim, act_dim, action_limit, h).to(device)
-        self.critic1 = Critic(obs_dim, act_dim, h).to(device)
-        self.critic2 = Critic(obs_dim, act_dim, h).to(device)
+        self.actor   = Actor(obs_dim, act_dim, action_limit, model_cfg).to(device)
+        self.critic1 = Critic(obs_dim, act_dim, model_cfg).to(device)
+        self.critic2 = Critic(obs_dim, act_dim, model_cfg).to(device)
         self.target_critic1 = copy.deepcopy(self.critic1)
         self.target_critic2 = copy.deepcopy(self.critic2)
 
@@ -211,7 +197,7 @@ class SACTrainer(OffPolicyTrainer):
         act_dim      = self.env.action_space.shape[0]
         action_limit = float(self.env.action_space.high[0])
 
-        self.agent  = SACAgent(obs_dim, act_dim, action_limit, self.arch, self.device)
+        self.agent  = SACAgent(obs_dim, act_dim, action_limit, self.arch, self.cfg.model, self.device)
         self.replay = ReplayBuffer(self.arch.buffer_size)
         self._actor_losses:  list[float] = []
         self._critic_losses: list[float] = []
