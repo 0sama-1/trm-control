@@ -12,8 +12,10 @@ def main(cfg: DictConfig) -> None:
         from algos.td3 import TD3Trainer as Trainer
     elif algo == "ppo":
         from algos.ppo import PPOTrainer as Trainer
+    elif algo == "sac":
+        from algos.sac import SACTrainer as Trainer
     else:
-        raise ValueError(f"Unknown algorithm: {algo!r}. Choose from: ddpg, td3, ppo")
+        raise ValueError(f"Unknown algorithm: {algo!r}. Choose from: ddpg, td3, ppo, sac")
 
     Trainer(cfg).train()
 
