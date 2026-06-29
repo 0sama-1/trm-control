@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
+from dotenv import load_dotenv
 
 
 class WandbLogger:
@@ -12,9 +15,17 @@ class WandbLogger:
     """
 
     def __init__(self, cfg: DictConfig, algo_name: str):
+        cur_dir = Path(__file__).resolve().parent
+        src_dir = cur_dir.parent
+        env_path = src_dir / ".env"
+        load_dotenv(dotenv_path=env_path)
         self._enabled = cfg.wandb.enabled
         if not self._enabled:
             return
+        else:
+            wandb.login(
+                key=os.getenv("WANDB_API_KEY")
+            )
 
         import wandb
 
