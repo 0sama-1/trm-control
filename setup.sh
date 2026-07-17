@@ -6,17 +6,15 @@ set -e
 # -------------------------
 
 module purge
-hash -r
 module load pawsey pawseytools pawseyenv/2026.01
-module reload pawseyenv/2026.01
 module load PrgEnv-nvidia
 module load craype-arm-grace
-module load gcc-native/12.3
-# module load gcc-native-mixed/12.3
+module load gcc-native-mixed/12.3
+module load pawseyenv/2026.01
+export MODULEPATH=${MODULEPATH}:${LMOD_CUSTOM_COMPILER_GNU_12_0_PREFIX}
+
 module load cuda/12.6
 module load python/3.11.6
-
-export MYSCRATCH="/scratch/pawsey1302/oalmabrouk"
 
 echo "Python: $(which python3)"
 python3 -V
@@ -32,6 +30,7 @@ export TMPDIR="$PWD/.tmp"
 mkdir -p "$UV_CACHE_DIR" "$TMPDIR"
 
 rm -rf .venv
+rm -rf .tmp
 
 uv venv --python "$(which python3)"
 source .venv/bin/activate
