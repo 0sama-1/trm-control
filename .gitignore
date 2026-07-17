@@ -8,9 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+.tmp
 
 # Training Videos
 videos
+outputs
+
+# Models
+models
 
 # API Keys
 .env
+
+# W&B Experiment Run Files
+wandb
