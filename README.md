@@ -1,7 +1,7 @@
 # Loading Modules:
 Run the following command
 ```bash
-bash setup/module.sh
+source setup/module.sh
 ```
 
 # Venv Set Up:
@@ -17,7 +17,7 @@ uv pip install torch torchvision torchaudio  --index-url https://download.pytorc
 ```
 Or alternatively, run the following shell command:
 ```bash
-bash setup/venv.sh
+source setup/venv.sh
 ```
 # Useful Sanity-Check Commands
 * `uname -m`: gives you the machine hardware architecture of the system.
@@ -39,3 +39,14 @@ Using `srun`:
 srun script.sh
 ```
 _Note: Either add the SBATCH directives in the shell file or as flags in the script._
+
+## Running Program
+Using `torchrun`:
+- Single-Node Multi-GPU Training
+```bash
+torchrun --standalone --nnodes=1 --nproc_per_node=4 train.py --batch_size 32
+```
+- Multi-Node Training
+```bash
+torchrun --nnodes=2 --node_rank=0 --nproc_per_node=8 --rdzv_endpoint="192.168.1.10:29500" train.py
+```
