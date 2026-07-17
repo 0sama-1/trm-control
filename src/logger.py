@@ -22,12 +22,13 @@ class WandbLogger:
         self._enabled = cfg.wandb.enabled
         if not self._enabled:
             return
-        else:
-            wandb.login(
-                key=os.getenv("WANDB_API_KEY")
-            )
 
+        # Login in any other case
         import wandb
+        wandb.login(
+            key=os.getenv("WANDB_API_KEY")
+        )
+
 
         self._wandb = wandb
         env_id = cfg.env.id
