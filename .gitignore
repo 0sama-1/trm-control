@@ -14,8 +14,9 @@ wheels/
 videos
 outputs
 
-# Models
-models
+# Models (root-level checkpoint output dir only — do NOT drop the leading
+# slash, or this also matches src/models/ and silently untracks the code there)
+/models
 
 # API Keys
 .env
