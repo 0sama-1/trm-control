@@ -30,8 +30,10 @@ dropped here, rather than faked:
 2. **ACT halting (the Q-head / adaptive compute steps).** In the source
    models, one ``forward()`` call is a single fixed-depth recursion
    (``H_cycles`` x ``L_cycles``); the *adaptive* part happens outside it, in
-   the training loop (see ``trm/pretrain.py::train_batch``): the same
-   latent carry is fed back through ``forward()`` for up to
+   the upstream repo's supervised-training loop (``pretrain.py::train_batch``
+   in the original repo — not vendored here, see ``src/models/trm/README.md``
+   for what was pruned and why): the same latent carry is fed back through
+   ``forward()`` for up to
    ``halt_max_steps`` calls, and a learned Q-head decides when to stop,
    with the loss applied at each halted step (deep supervision). That
    machinery assumes a persistent carry that is revisited across many

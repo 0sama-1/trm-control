@@ -81,6 +81,39 @@ follow this exactly — no changes were needed to `ddpg.py`, `td3.py`, or
 - The truncated-backprop / "1-step-gradient" trick: the first `H_cycles - 1` outer cycles run under `torch.no_grad()`; only the final cycle is tracked for backprop. This is what makes deep recursion affordable — preserving it is the whole reason to test this mechanism against a plain MLP trunk with matched depth.
 - The three-variant split at the same conceptual point as the source: `trm` (2-latent z_H/z_L), `trm_hier6` (6 parallel low-level latents), `trm_singlez` (single latent, no z_H/answer split).
 
+## Vendor subtree pruning
+
+`src/models/trm/` is a vendored copy of the paper's official repo, kept only
+as reference source for what `trm_control.py` was ported from — it is never
+imported by this project (see "Local reimplementation of primitives" above).
+Everything not needed for that reference purpose was removed:
+
+| Removed | Why |
+|---|---|
+| `dataset/` (ARC/Sudoku/**maze** builders) | Puzzle-domain data pipeline, irrelevant to control observations |
+| `kaggle/` (~11MB ARC-AGI competition JSON) | Same — puzzle task data |
+| `evaluators/` | ARC-specific evaluator |
+| `pretrain.py` (**the supervised-training "main file"**) | The entrypoint for the whole ACT/deep-supervision training loop this project doesn't use |
+| `puzzle_dataset.py` | `pretrain.py`'s dataloader |
+| `config/cfg_pretrain.yaml` | `pretrain.py`'s Hydra config |
+| `models/ema.py`, `models/sparse_embedding.py`, `models/losses.py`, `utils/` | Only ever used by `pretrain.py` |
+| `models/recursive_reasoning/hrm.py` + `config/arch/hrm.yaml` | HRM baseline — not one of the 3 requested variants |
+| `models/recursive_reasoning/transformers_baseline.py` + `config/arch/transformers_baseline.yaml` | Transformer baseline — same reason |
+| `requirements.txt`, `specific_requirements.txt` | Deps for the now-removed pretrain pipeline |
+
+**Kept:** `models/recursive_reasoning/{trm,trm_hier6,trm_singlez}.py`,
+`models/common.py`, `models/layers.py`, `config/arch/{trm,trm_hier6,trm_singlez}.yaml`,
+plus `README.md`/`LICENSE`/`assets/` for attribution.
+
+Caveat: the three kept `recursive_reasoning/*.py` files still have a source
+line `from models.sparse_embedding import CastedSparseEmbedding` (puzzle
+embeddings) that no longer resolves, since that file was removed. Left as-is
+— these files were never executable standalone even before pruning (they
+needed the full `pretrain.py` harness, which is also gone); they now serve
+purely as read-only reference for the recursion logic, not as code that runs.
+A short banner was added to the top of `src/models/trm/README.md` noting the
+subtree is pruned and pointing back to this file.
+
 ## Defaults (worth revisiting on real hardware)
 
 `hidden_size=128`, `H_cycles=3`, `L_cycles=6`, `expansion=4`, `L_layers=2` —

@@ -1,3 +1,15 @@
+> **Pruned vendor copy.** This subtree is kept as reference source for the
+> recursive-reasoning mechanism only — see `models/recursive_reasoning/{trm,trm_hier6,trm_singlez}.py`,
+> `models/common.py`, `models/layers.py`, and `config/arch/{trm,trm_hier6,trm_singlez}.yaml`,
+> which is what `src/models/trm_control.py` (the RL-adapted trunk used by this
+> project's DDPG/TD3/SAC configs) was ported from. Everything else from the
+> original repo — the ARC/Sudoku/Maze dataset builders, the `pretrain.py`
+> supervised-training entrypoint and its dataloader, evaluators, the HRM and
+> transformer baselines, and the Kaggle ARC-AGI data — was intentionally
+> removed as not needed for that purpose, so the commands and file references
+> below (`pretrain.py`, `dataset/build_*.py`, etc.) no longer resolve in this
+> copy. See `notes.md` at the repo root for the full list of what changed and why.
+
 **Update: Due to many automatically generated and irrelevant issues submitted to this repo (that have been deleted now) and our limited capacity to properly maintain this repo, we have to temporaliy archive (make read-only) this and several other repos.**
 
 
