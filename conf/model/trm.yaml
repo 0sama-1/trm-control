@@ -1,4 +1,5 @@
 _target_: models.trm_control.TRMTrunk
+name: trm
 hidden_size: 128
 expansion: 4
 L_layers: 2

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 from dotenv import load_dotenv
+from datetime import datetime
 
 
 class WandbLogger:
@@ -33,11 +34,13 @@ class WandbLogger:
         self._wandb = wandb
         env_id = cfg.env.id
         delay_name = cfg.delay.name
+        model_name = cfg.model.name
+        t = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
         wandb.init(
             project=cfg.wandb.project,
             entity=cfg.wandb.entity or None,
-            name=f"{algo_name}_{env_id}_{delay_name}_seed{cfg.seed}",
+            name=f"{t}_{env_id}_{algo_name}_{model_name}_{delay_name}_seed{cfg.seed}",
             group=env_id,
             job_type=algo_name,
             config=OmegaConf.to_container(cfg, resolve=True),
