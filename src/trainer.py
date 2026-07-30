@@ -33,7 +33,10 @@ class RLTrainer(ABC):
 
         Path(cfg.model_folder).mkdir(parents=True, exist_ok=True)
         Path(cfg.video_folder).mkdir(parents=True, exist_ok=True)
-        self.model_path = str(Path(cfg.model_folder) / self.arch.model_name)
+        # Same identity fields/order as the wandb run name (logger.py), minus the
+        # timestamp — the checkpoint path must stay stable across runs to resume.
+        checkpoint_name = f"{cfg.env.id}_{self.arch.name}_{cfg.model.name}_{cfg.delay.name}_seed{cfg.seed}.pt"
+        self.model_path = str(Path(cfg.model_folder) / checkpoint_name)
 
         self.env = self._make_env()
         self.logger = WandbLogger(cfg, self.arch.name)
