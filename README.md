@@ -40,7 +40,28 @@ srun script.sh
 ```
 _Note: Either add the SBATCH directives in the shell file or as flags in the script._
 
-## Running Program
+## Running This Repo (`main.py`)
+Entry point is `main.py` at the repo root (Hydra config). This script is
+single-process — it does not call `torch.distributed.init_process_group` and
+`get_device()` in `src/utils.py` always resolves to a single `"cuda"` device,
+not a per-rank one — so `--nproc_per_node` must stay at `1`. A higher value
+would not parallelise training; it would launch N independent, uncoordinated
+copies competing for the same GPU and writing to the same checkpoint file.
+
+- DNN trunk (baseline MLP):
+```bash
+torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=dnn env=pendulum
+```
+- TRM trunk (recursive-reasoning trunk, see `notes.md`):
+```bash
+torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=trm env=pendulum
+```
+_Note: other TRM ablations are available via `model=trm_hier6` / `model=trm_singlez`.
+Swap `arch=` for `td3` / `sac` / `ppo`, and `env=` for `cartpole` (continuous-action
+algorithms — ddpg/td3/sac/ppo's actor head — currently only support `Box` action
+spaces, so `cartpole`'s discrete actions aren't runnable yet)._
+
+## Running Program (generic multi-GPU/multi-node reference)
 Using `torchrun`:
 - Single-Node Multi-GPU Training
 ```bash

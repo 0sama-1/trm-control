@@ -21,10 +21,13 @@ with Tiny Networks"*, 2025. https://arxiv.org/abs/2510.04871
 
 Run with, e.g.:
 ```bash
-python src/main.py arch=td3 model=trm
-python src/main.py arch=ddpg model=trm_hier6
-python src/main.py arch=sac model=trm_singlez
+python main.py arch=td3 model=trm
+python main.py arch=ddpg model=trm_hier6
+python main.py arch=sac model=trm_singlez
 ```
+
+`main.py` lives at the repo root (moved out of `src/` so `model_folder`/`video_folder`
+always resolve to root-level `models/`/`videos/` regardless of invocation cwd).
 
 ### `.gitignore` fix
 
