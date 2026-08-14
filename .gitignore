@@ -13,6 +13,8 @@ wheels/
 # Training Videos
 videos
 outputs
+logs
+results
 
 # Models (root-level checkpoint output dir only — do NOT drop the leading
 # slash, or this also matches src/models/ and silently untracks the code there)
