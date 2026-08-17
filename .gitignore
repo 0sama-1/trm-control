@@ -24,9 +24,6 @@ outputs
 # W&B Experiment Run Files
 wandb
 
-# SLURM batch job logs (train.slurm/sweep_models.slurm: #SBATCH --output/--error)
+# SLURM batch job logs (train.slurm/sweep_models.slurm/sweep_archs.slurm: #SBATCH --output/--error)
 *.out
 *.err
-
-# SLURM venv-bootstrap mutex (slurm_env.sh flock target)
-.venv.lock

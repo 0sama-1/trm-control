@@ -65,40 +65,54 @@ _Note: swap `arch=` for `td3` / `sac` / `ppo`, and `env=` for `cartpole` (contin
 algorithms — ddpg/td3/sac/ppo's actor head — currently only support `Box` action
 spaces, so `cartpole`'s discrete actions aren't runnable yet)._
 
-## Submitting a Batch Job (`train.slurm`)
-For non-interactive runs, `train.slurm` (repo root) wraps the same
-`torchrun` invocation above in an sbatch script: it requests the same
-resources as the `salloc` command above, loads modules and builds/activates
-the venv (via `slurm_env.sh`, shared with `sweep_models.slurm` below), then
-runs `main.py`. Any trailing arguments become Hydra overrides:
-```bash
-sbatch train.slurm                                  # defaults: arch=ddpg model=dnn env=pendulum
-sbatch train.slurm arch=td3 model=trm env=cartpole
-sbatch train.slurm arch=ppo model=transformer arch.total_episodes=500
-```
-Logs land in `<job-name>-<job-id>.out`/`.err` in the repo root. See the
-wandb prerequisite noted in `slurm_env.sh` (`src/.env` needs
+## Batch Jobs (`train.slurm`, `sweep_models.slurm`, `sweep_archs.slurm`)
+Three sbatch scripts at the repo root, all requesting the same resources as
+the `salloc` command above and following the same three steps: purge and
+reload modules, do a **fresh** `uv` venv install (`bash setup.sh` —
+unconditional `rm -rf .venv` + reinstall, every submission), then run via
+`torchrun --standalone --nproc_per_node=1`.
+
+- **`train.slurm`** — a single run. Trailing arguments become Hydra
+  overrides:
+  ```bash
+  sbatch train.slurm                                  # defaults: arch=ddpg model=dnn env=pendulum
+  sbatch train.slurm arch=td3 model=trm env=cartpole
+  sbatch train.slurm arch=ppo model=transformer arch.total_episodes=500
+  ```
+- **`sweep_models.slurm`** — every model trunk we have (`dnn`, `trm`,
+  `trm_hier6`, `trm_singlez`, `transformer`), run sequentially in one job.
+  Fixed at `delay=none`, `arch.total_episodes=300`; `arch`/`env` stay at
+  their `conf/config.yaml` defaults:
+  ```bash
+  sbatch sweep_models.slurm
+  ```
+- **`sweep_archs.slurm`** — every algorithm we have (`ddpg`, `td3`, `sac`,
+  `ppo`), run sequentially in one job. `model`/`env`/`delay` stay at their
+  defaults, and each arch keeps its own `conf/arch/*.yaml` `total_episodes`
+  (200 for ddpg/td3/sac, 2000 for ppo — it's on-policy and needs far more
+  per its own config, so this sweep does *not* force a shared count the way
+  `sweep_models.slurm` forces 300):
+  ```bash
+  sbatch sweep_archs.slurm
+  ```
+
+Both sweep scripts also forward any trailing arguments, applied to every
+run in the sweep (e.g. `sbatch sweep_archs.slurm delay=none` to match
+`sweep_models.slurm`'s delay setting).
+
+Since each script does one fresh install per job and then either runs once
+(`train.slurm`) or loops sequentially within that same job
+(`sweep_*.slurm`), there's no concurrent access to `.venv` to worry about —
+unlike a job array, these never have two tasks racing to rebuild it at once.
+
+Logs land in `<job-name>-<job-id>.out`/`.err` in the repo root. `--time` on
+the two sweep scripts (`08:00:00` / `16:00:00`) is an untested guess — no
+real-hardware timing exists yet for any of these trunks or algorithms (see
+`notes.md`) — check the comments at the top of each script for how it was
+derived, and expect to adjust it after seeing one real run's wall-clock.
+See the wandb prerequisite noted in each script (`src/.env` needs
 `WANDB_API_KEY`, and the partition needs outbound internet, unless you pass
 `wandb.enabled=false`).
-
-## Sweeping All Model Trunks (`sweep_models.slurm`)
-`sweep_models.slurm` is a SLURM job array — one array task per model trunk
-we have (`dnn`, `trm`, `trm_hier6`, `trm_singlez`, `transformer`), each
-getting its own single-GPU allocation so all 5 train in parallel instead of
-serially:
-```bash
-sbatch sweep_models.slurm
-```
-Fixed at `delay=none`, `arch.total_episodes=300`, `arch`/`env` left at their
-`conf/config.yaml` defaults (ddpg / pendulum) — edit the `MODELS=(...)`
-array or the final `torchrun` line in the script to change any of that.
-`slurm_env.sh`'s venv bootstrap is `flock`-guarded so the 5 array tasks
-(which SLURM typically starts around the same time) don't race each other
-rebuilding `.venv` — only the first task to grab the lock runs `setup.sh`;
-the rest wait, then reuse it. `--time=02:00:00` is an untested guess (1.5x
-`train.slurm`'s 1-hour baseline for the 300 vs. 200-episode default) — no
-real-hardware timing exists yet for any of these trunks (see `notes.md`),
-so adjust once you've seen one run's actual wall-clock.
 
 ## Running Program (generic multi-GPU/multi-node reference)
 Using `torchrun`:
