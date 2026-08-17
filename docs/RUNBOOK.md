@@ -87,7 +87,7 @@ torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=dnn env=pendulu
 | Group | Choices | Notes |
 |-------|---------|-------|
 | `arch=` | `ddpg`, `td3`, `sac`, `ppo` | RL algorithm + its hyperparameters in `conf/arch/*.yaml` |
-| `model=` | `dnn`, `trm`, `trm_hier6`, `trm_singlez`, `trm_carry`, `lstm` | Backbone trunk in `conf/model/*.yaml`. `dnn` = MLP baseline; `trm` = 2-latent TRM; `trm_hier6` = 6 parallel latents; `trm_singlez` = single latent; `trm_carry` = H5 persistent-`h` variant (planned); `lstm` = recurrent memory baseline (**required for H5's interpretability**, see `EXPERIMENT_PLAN.md` §H5) |
+| `model=` | `dnn`, `trm`, `trm_hier6`, `trm_singlez`, `trm_carry`, `lstm` | Backbone trunk in `conf/model/*.yaml`. `dnn` = MLP baseline; `trm` = 2-latent TRM; `trm_hier6` = 6 parallel latents; `trm_singlez` = single latent; `trm_carry` = H5 persistent-`h` variant (planned); `lstm` = recurrent memory baseline (**required for H5's interpretability**, see `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §H5) |
 | `env=` | `pendulum`, `cartpole` | Currently only continuous-(Box)-action envs are runnable by the actor heads: DDPG/TD3/SAC/PPO. `cartpole` is discrete and **not runnable yet** |
 | `delay=` | `none`, `fixed`, `stochastic`, `time_varying` | **Action staleness** — the applied action was chosen `n` steps ago (proxy for horizon). See §5 |
 | `seed=` | int | reproducibility; wandb run name encodes `seed` |
@@ -114,7 +114,7 @@ torchrun --standalone --nproc_per_node=1 main.py arch=ppo model=trm_carry env=pe
 > **H5 gating.** The `lstm` baseline and the y-on-h readout control are **unconditional**
 > interpretability cells (run always). The Family-B sibling ablations (depth /
 > deep-supervision / transfer) ship behind config but are only **scheduled** after a positive
-> pendulum headline (`trm_carry ≥ lstm`); see `EXPERIMENT_PLAN.md` §H5 and §6 decision #9.
+> pendulum headline (`trm_carry ≥ lstm`); see `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §H5 and §6 decision #9.
 ```
 
 `model.folder`/`video.folder` resolve to repo-root `models/` and `videos/` automatically.
@@ -144,7 +144,7 @@ Increase delay/staleness config values to lengthen the effective horizon being a
 Observation staleness is the direct test of the H5 "high-level latent smooths stale input"
 mechanism.
 
-**Which algorithm to use.** Per `docs/EXPERIMENT_PLAN.md` §5.5: use **PPO** for mechanism
+**Which algorithm to use.** Per `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §5.5: use **PPO** for mechanism
 hypotheses and the H1 headline; use **SAC** (or DDPG/TD3) for the heavy MuJoCo replication
 (~35× cheaper per run) plus one short PPO confirm. Before mixing algos, run the parity check
 in plan Stage B0 (same cell, both algos) and calibrate the H100-hour model with real
@@ -191,7 +191,7 @@ done
 ```
 
 (Adapt the env-var / loop to the actual sweep script the coding-manager ships in
-**`docs/EXPERIMENT_PLAN.md`** / `scripts/`.)
+**`/workspace/trm/docs/plan/EXPERIMENT_PLAN.md`** / `scripts/`.)
 
 ---
 
@@ -200,7 +200,7 @@ done
 - **wandb** — primary store: `return`, `avg100_return`, actor/critic losses, entropy/alpha,
   `buffer_size`, `total_steps`. Run names: `<timestamp>_<env>_<algo>_<model>_<delay>_seed<seed>`.
 - **Wall-clock / steps-per-sec** — must be logged per run so the H100-hour cost model in
-  `docs/EXPERIMENT_PLAN.md` §5.5 stays calibrated.
+  `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §5.5 stays calibrated.
 - **`models/`** — `.pt` checkpoints (gitignored).
 - **`videos/`** — recorded rollouts every `record_every` episodes (gitignored).
 - **`logs/`** — Slurm stdout/stderr (add to `.gitignore`).
@@ -233,7 +233,7 @@ experiment plan schedules an analysis script to emit `docs/` markdown tables + f
   implemented.
 - **2026-07-23** — Amended for **H5**: added `trm_carry` (persistent-`h` trunk, stateful),
   the `h_backprop` override, and **observation staleness** as a second, independent env
-  parameter alongside action delay. See `docs/EXPERIMENT_PLAN.md` §H5.
+  parameter alongside action delay. See `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §H5.
 - **2026-07-23** — Added **H100-hour cost estimates** for every experiment (plan §5.5) and a
   requirement to log wall-clock / steps-per-sec per run so the cost model stays calibrated.
   Resolved earlier open decisions: H5 off-policy `h` carry is in scope, and the `full` vs
@@ -244,4 +244,4 @@ experiment plan schedules an analysis script to emit `docs/` markdown tables + f
 - **2026-07-23** — **H5 gating**: added `lstm` recurrent memory baseline and y-on-h readout
   control as unconditional interpretability cells. Family-B sibling ablations (depth /
   deep-supervision / transfer) implemented behind config but headline-gated: only scheduled
-  after a positive pendulum signal (`trm_carry ≥ lstm`). See `EXPERIMENT_PLAN.md` §6 decision #9.
+  after a positive pendulum signal (`trm_carry ≥ lstm`). See `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §6 decision #9.
