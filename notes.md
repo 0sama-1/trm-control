@@ -135,3 +135,74 @@ gym/wandb here). What *was* verified, in a disposable CPU-only venv:
 - Full Hydra config composition (`model=trm|trm_hier6|trm_singlez` × `arch=ddpg|td3|sac`) resolving cleanly against `conf/config.yaml`.
 
 Not yet run: an actual training loop against a real env (Pendulum/CartPole) — left for validation on the HPC.
+
+## Transformer trunk addition
+
+A third trunk family, for a three-way comparison against the plain MLP
+(`dnn`) and the recursive TRM trunks (`trm`/`trm_hier6`/`trm_singlez`): a
+standard multi-head self-attention encoder (Vaswani et al., 2017,
+"Attention Is All You Need").
+
+| File | Status | Purpose |
+|---|---|---|
+| `src/models/transformer_control.py` | new | `TransformerTrunk` — the attention trunk |
+| `conf/model/transformer.yaml` | new | Hydra config for `TransformerTrunk` |
+
+Run with, e.g.:
+```bash
+python main.py arch=ddpg model=transformer
+python main.py arch=td3 model=transformer env=pendulum
+python main.py arch=sac model=transformer
+```
+
+Follows the same trunk contract described above
+(`instantiate(model_cfg, in_dim=...)` -> `.out_dim` / `.forward(x)`) — no
+changes were needed to `ddpg.py`, `td3.py`, `sac.py`, or `ppo.py`.
+
+### Why attention needed a different input shape than TRM
+
+`trm_control.py`'s docstring explains why the TRM trunks drop self-attention
+entirely: a flat observation vector is a "sequence" of length 1, so
+attention over it degenerates to a no-op. That reasoning still holds for a
+transformer trunk taking the same length-1 input — attention needs
+something real to attend over.
+
+Rather than fake a sequence axis, `TransformerTrunk` tokenizes the
+observation itself: each *scalar feature* (angle, angular velocity, cart
+position, ...) becomes its own token via a per-feature learned affine map
+(`in_dim` independent `scalar -> hidden_size` projections, batched into one
+`(in_dim, hidden_size)` weight — the same "feature tokenizer" FT-Transformer
+uses for tabular data, Gorishniy et al., 2021). A learned per-feature
+embedding (mechanically a positional embedding, but standing in for feature
+*identity* — dim 0 is always the same physical quantity, not an
+interchangeable position) is added to each token, then a standard pre-norm
+`nn.TransformerEncoder` runs `num_layers` rounds of self-attention +
+feed-forward. Readout is either a prepended learned `[CLS]` token
+(`pooling: cls`, default) or a mean over the feature tokens
+(`pooling: mean`).
+
+This is a genuinely different design from the vendored TRM repo's pruned
+`models/recursive_reasoning/transformers_baseline.py` (see "Vendor subtree
+pruning" above) — that baseline attended over puzzle-grid cell tokens, which
+has no equivalent for a flat control vector. `TransformerTrunk` was written
+fresh for this project's inputs rather than adapted from that file.
+
+### Defaults (worth revisiting on real hardware)
+
+`hidden_size=128`, `num_heads=4`, `num_layers=2`, `ffn_expansion=4`,
+`dropout=0.0`, `pooling=cls` — sized to roughly match the TRM trunks'
+`hidden_size` for a fair comparison. Arbitrary starting points, not tuned.
+
+### Verification performed
+
+Same constraint as the TRM trunks — no GPU/gym/wandb in this environment.
+Verified in a disposable CPU-only venv:
+
+- Standalone forward/backward for both `pooling` modes and several `in_dim`s (obs-only and obs+action-sized inputs) — output shapes, no-NaN/non-finite gradients reaching every parameter (tokenizer, feature embedding, CLS token, encoder).
+- Config-time validation: bad `num_heads`/`hidden_size` divisibility and unknown `pooling` both raise `ValueError` at construction.
+- `hydra.utils.instantiate` against `conf/model/transformer.yaml` exactly as `Actor`/`Critic` call it (both `obs_dim` and `obs_dim + act_dim` inputs), plus `make_head` consuming `model_cfg.output_init` off the same config.
+- Full Hydra config composition (`model=transformer` × `arch=ddpg|td3|sac|ppo` × `env=pendulum|cartpole`) resolving cleanly.
+- End-to-end DDPG-style `Actor`/`Critic` wiring (mirroring `algos/ddpg.py`) with `TransformerTrunk`: forward pass, action clipping to `action_limit`, actor/critic losses backpropping through every parameter.
+
+Not yet run: an actual training loop against a real env, and a head-to-head
+return comparison against `dnn`/`trm` — left for validation on the HPC.
