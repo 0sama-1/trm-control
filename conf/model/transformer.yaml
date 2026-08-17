@@ -1,0 +1,10 @@
+_target_: models.transformer_control.TransformerTrunk
+name: transformer
+hidden_size: 128
+num_heads: 4
+num_layers: 2
+ffn_expansion: 4
+dropout: 0.0
+activation: gelu            # relu | gelu
+pooling: cls                # cls | mean
+output_init: uniform_small  # fanin | orthogonal | uniform_small — used by the actor/critic output head
