@@ -1,4 +1,5 @@
 _target_: models.dnn.DNNTrunk
+name: dnn
 hidden_sizes: [256, 256]
 activation: relu           # relu | tanh | elu | silu
 hidden_init: fanin         # fanin | orthogonal | uniform_small

@@ -42,7 +42,16 @@ class FixedDelay(Delay):
 
 
 class StochasticDelay(Delay):
-    """Resamples delay from a distribution on every step."""
+    """Resamples delay from a distribution on every step.
+
+    Every distribution's raw sample is clipped to [min_val, max_val] before
+    being returned. This isn't optional polish: DelayedEnv sizes its action-
+    history buffer as `max_delay + 1` (max_delay == max_val), so an unclipped
+    sample above max_val can never be satisfied by the buffer — it would
+    silently fall back to a random action (see DelayedEnv) for the rest of
+    the episode instead of raising or bounding, which is what `normal` and
+    `exponential` used to do before this clip was added.
+    """
 
     def __init__(self, distribution: str, min_val: float, max_val: float, seed: int):
         self._dist = distribution
@@ -52,15 +61,16 @@ class StochasticDelay(Delay):
 
     def sample(self, total_steps: int) -> int:
         if self._dist == "uniform":
-            return int(self._rng.uniform(self._min, self._max))
+            raw = self._rng.uniform(self._min, self._max)
         elif self._dist == "normal":
             mean = (self._min + self._max) / 2.0
             std = (self._max - self._min) / 6.0
-            return max(0, int(round(self._rng.normal(mean, std))))
+            raw = self._rng.normal(mean, std)
         elif self._dist == "exponential":
-            return max(0, int(round(self._rng.exponential(scale=self._min))))
+            raw = self._rng.exponential(scale=self._min)
         else:
-            raise ValueError(f"Unknown distribution: {self._dist!r}")
+            raise ValueError(f"Unknown distribution: {self._dist!r}. Choose from: uniform, normal, exponential")
+        return int(round(min(max(raw, self._min), self._max)))
 
     @property
     def max_delay(self) -> int:

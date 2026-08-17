@@ -1,5 +1,4 @@
 name: td3
-model_name: td3_pendulum.pt
 
 total_episodes: 200
 

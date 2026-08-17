@@ -14,11 +14,17 @@ wheels/
 videos
 outputs
 
-# Models
-models
+# Models (root-level checkpoint output dir only — do NOT drop the leading
+# slash, or this also matches src/models/ and silently untracks the code there)
+/models
 
 # API Keys
 .env
 
 # W&B Experiment Run Files
 wandb
+
+# SLURM batch job logs (train.slurm/sweep_models.slurm/sweep_archs.slurm: #SBATCH --output/--error)
+*.out
+*.err
+logs

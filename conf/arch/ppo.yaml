@@ -1,5 +1,4 @@
 name: ppo
-model_name: ppo_pendulum.pt
 
 total_episodes: 2000
 rollout_steps: 2048

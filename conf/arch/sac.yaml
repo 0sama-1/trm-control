@@ -1,5 +1,4 @@
 name: sac
-model_name: sac_pendulum.pt
 
 total_episodes: 200
 

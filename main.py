@@ -1,9 +1,18 @@
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
 import hydra
 from omegaconf import DictConfig
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig) -> None:
+    cfg.model_folder = str(REPO_ROOT / cfg.model_folder)
+    cfg.video_folder = str(REPO_ROOT / cfg.video_folder)
+
     algo = cfg.arch.name
 
     if algo == "ddpg":
