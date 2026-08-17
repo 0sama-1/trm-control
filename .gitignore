@@ -27,3 +27,4 @@ wandb
 # SLURM batch job logs (train.slurm/sweep_models.slurm/sweep_archs.slurm: #SBATCH --output/--error)
 *.out
 *.err
+logs

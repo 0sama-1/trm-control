@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import gymnasium as gym
 import numpy as np
-from omegaconf import DictConfig
+from omegaconf import DictConfig, open_dict
 
 from delays import DelayedEnv, build_delay
 from logger import WandbLogger
@@ -36,7 +36,10 @@ class RLTrainer(ABC):
         Path(cfg.video_folder).mkdir(parents=True, exist_ok=True)
         # Same identity fields/order as the wandb run name (logger.py), minus the
         # timestamp — the checkpoint path must stay stable across runs to resume.
-        cfg.model_id = (uuid4())
+        with open_dict(cfg):
+            cfg.model_id = str(uuid4())
+            cfg.video_folder = f"{cfg.video_folder}/{cfg.model_id}"
+            Path(cfg.video_folder).mkdir(parents=True, exist_ok=True)
         checkpoint_name = f"{cfg.model_id}.pt"
         self.model_path = str(Path(cfg.model_folder) / checkpoint_name)
 
