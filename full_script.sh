@@ -19,21 +19,6 @@ module load python/3.11.6
 echo "Python: $(which python3)"
 python3 -V
 
-## ALTERNATIVE
-module purge
-unset LMOD_CUSTOM_COMPILER_NVIDIA_23_11_PREFIX
-unset LMOD_CUSTOM_COMPILER_GNU_12_0_PREFIX
-
-module load pawsey
-module load pawseytools
-module load pawseyenv/2026.01
-module load PrgEnv-gnu-nvidia
-
-module list
-which nvcc
-nvcc --version
-nvidia-smi
-
 # -------------------------
 # Virtual environment
 # -------------------------

@@ -32,35 +32,18 @@
 
 set -e
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$REPO_ROOT"
-
 # -------------------------
 # Purge the node's module environment.
 # -------------------------
-module purge
-module load pawsey pawseytools pawseyenv/2026.01
-module load PrgEnv-nvidia
-module load craype-arm-grace
-module load gcc-native-mixed/12.3
-module load pawseyenv/2026.01
-export MODULEPATH=${MODULEPATH}:${LMOD_CUSTOM_COMPILER_GNU_12_0_PREFIX}
-
-module load cuda/12.9
-module load python/3.11.6
-
-echo "Python: $(which python3)"
-python3 -V
-nvidia-smi
+source setup/.module
 
 # -------------------------
 # Fresh uv venv, built once for the whole sweep (all 4 runs below reuse it —
 # this is one sequential job, so there's no concurrent-job race to guard
 # against the way there would be if these ran as separate array tasks).
 # -------------------------
-bash "$REPO_ROOT/setup.sh"
-source "$REPO_ROOT/.venv/bin/activate"
-python -V
+source setup/.uv-venv
+source .venv/bin/activate
 
 # wandb is on by default (conf/config.yaml: wandb.enabled=true) and reads
 # WANDB_API_KEY from src/.env (see src/logger.py) — make sure that's
