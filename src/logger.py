@@ -44,7 +44,7 @@ class WandbLogger:
             group=env_id,
             job_type=algo_name,
             config=OmegaConf.to_container(cfg, resolve=True),
-            tags=[algo_name, env_id, delay_name],
+            tags=[env_id, algo_name, model_name, delay_name],
         )
 
     def log(self, metrics: dict) -> None:

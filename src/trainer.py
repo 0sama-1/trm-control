@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from uuid import uuid4
 
 import gymnasium as gym
 import numpy as np
@@ -35,7 +36,8 @@ class RLTrainer(ABC):
         Path(cfg.video_folder).mkdir(parents=True, exist_ok=True)
         # Same identity fields/order as the wandb run name (logger.py), minus the
         # timestamp — the checkpoint path must stay stable across runs to resume.
-        checkpoint_name = f"{cfg.env.id}_{self.arch.name}_{cfg.model.name}_{cfg.delay.name}_seed{cfg.seed}.pt"
+        cfg.model_id = (uuid4())
+        checkpoint_name = f"{cfg.model_id}.pt"
         self.model_path = str(Path(cfg.model_folder) / checkpoint_name)
 
         self.env = self._make_env()
