@@ -3,6 +3,7 @@ defaults:
   - model: dnn
   - env: pendulum
   - delay: stochastic
+  - staleness: none
   - _self_
 
 seed: 42

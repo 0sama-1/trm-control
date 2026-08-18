@@ -1,0 +1,14 @@
+name: time_varying
+
+schedule:
+  - start: 0
+    k: 0
+
+  - start: 10000
+    k: 1
+
+  - start: 20000
+    k: 3
+
+  - start: 30000
+    k: 0

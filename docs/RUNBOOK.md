@@ -76,9 +76,10 @@ nvidia-smi
 
 ## 4. Run a single experiment
 
-The entry point is always **`main.py`** with Hydra overrides. Compose from four groups:
-`arch` (RL algorithm), `model` (backbone trunk), `env`, `delay`, plus a `seed`. (An
-observation-staleness group `staleness=` is planned alongside `delay` — see §5.)
+The entry point is always **`main.py`** with Hydra overrides. Compose from five groups:
+`arch` (RL algorithm), `model` (backbone trunk), `env`, `delay` (action staleness),
+`staleness` (observation staleness), plus a `seed`. Staleness and delay are independent
+dials — use them separately or together.
 
 ```bash
 torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=dnn env=pendulum delay=none seed=42
@@ -90,6 +91,7 @@ torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=dnn env=pendulu
 | `model=` | `dnn`, `trm`, `trm_hier6`, `trm_singlez`, `trm_carry`, `lstm` | Backbone trunk in `conf/model/*.yaml`. `dnn` = MLP baseline; `trm` = 2-latent TRM; `trm_hier6` = 6 parallel latents; `trm_singlez` = single latent; `trm_carry` = H5 persistent-`h` variant (planned); `lstm` = recurrent memory baseline (**required for H5's interpretability**, see `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §H5) |
 | `env=` | `pendulum`, `cartpole` | Currently only continuous-(Box)-action envs are runnable by the actor heads: DDPG/TD3/SAC/PPO. `cartpole` is discrete and **not runnable yet** |
 | `delay=` | `none`, `fixed`, `stochastic`, `time_varying` | **Action staleness** — the applied action was chosen `n` steps ago (proxy for horizon). See §5 |
+| `staleness=` | `none`, `fixed`, `stochastic`, `time_varying` | **Observation staleness** — the fed observation is `n` steps old, independent of action delay. See §5 |
 | `seed=` | int | reproducibility; wandb run name encodes `seed` |
 
 Examples:
@@ -138,7 +140,10 @@ old). Use them separately or together.
 | `delay=fixed` | `conf/delay/fixed.yaml` | action | Constant action delay (default `1.0` step) |
 | `delay=stochastic` | `conf/delay/stochastic.yaml` | action | Action delay sampled each step from a distribution (`uniform`/`normal`/`exponential`), default uniform over `[min,max]` |
 | `delay=time_varying` | `conf/delay/time_varying.yaml` | action | Piecewise-constant action-delay schedule over training steps |
-| `staleness=obs<n>` *(planned)* | `conf/staleness/*` | observation | The observation given to the agent is `n` steps old, independent of action delay |
+| `staleness=none` | `conf/staleness/none.yaml` | observation | Observation fed to the agent is the current one (k=0) |
+| `staleness=fixed` | `conf/staleness/fixed.yaml` | observation | Constant observation staleness (default `3.0` steps) |
+| `staleness=stochastic` | `conf/staleness/stochastic.yaml` | observation | Observation staleness sampled each step from a distribution (not yet implemented) |
+| `staleness=time_varying` | `conf/staleness/time_varying.yaml` | observation | Piecewise-constant observation-staleness schedule over training steps (not yet implemented) |
 
 Increase delay/staleness config values to lengthen the effective horizon being addressed.
 Observation staleness is the direct test of the H5 "high-level latent smooths stale input"
@@ -218,9 +223,9 @@ experiment plan schedules an analysis script to emit `docs/` markdown tables + f
    handling. Update `README.md`, this RUNBOOK, and the plan.
 2. **New env** (e.g. MuJoCo): add `conf/env/<name>.yaml` and ensure the dependency is in
    `setup.sh`. Only `Box` (continuous) action spaces are currently supported by the actor heads.
-3. **New delay/staleness**: add `conf/delay/<name>.yaml` (action staleness) or a
-   `conf/staleness/` entry (observation staleness) + the matching wrapper in `src/delays.py`
-   / `src/staleness.py`. The two channels are independent.
+3. **New delay/staleness**: add `conf/delay/<name>.yaml` (action staleness) or
+   `conf/staleness/<name>.yaml` (observation staleness) + the matching wrapper in
+   `src/delays.py` / `src/staleness.py`. The two channels are independent.
 4. Always run a **smoke test** on `env=pendulum` first, then launch the full matrix.
 
 ---

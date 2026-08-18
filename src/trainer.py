@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from uuid import uuid4
@@ -11,6 +12,7 @@ from omegaconf import DictConfig, open_dict
 from delays import DelayedEnv, build_delay
 from logger import WandbLogger
 from recorder import VideoRecorder
+from staleness import StaleObservationWrapper, build_staleness
 from utils import get_device, set_seed
 
 
@@ -49,12 +51,17 @@ class RLTrainer(ABC):
         self.episode_count: int = 0
         self.total_steps: int = 0
         self._recent_returns: list[float] = []
+        # Per-run timing (plan §5.5 / AGENTS.md §6.5): wall-clock and step-rate
+        # are logged to wandb so the H100-hour cost model stays calibrated.
+        self._run_start = time.time()
+        self._run_start_steps = 0
 
     # Common set ups
 
     def _make_env(self) -> gym.Env:
         env = gym.make(self.env_cfg.id, render_mode="rgb_array")
         env = DelayedEnv(env, build_delay(self.cfg.delay))
+        env = StaleObservationWrapper(env, build_staleness(self.cfg.staleness))
         env = VideoRecorder(self.cfg.video_folder, self.cfg.record_every, self.arch.name).wrap(env)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         return env
@@ -65,11 +72,16 @@ class RLTrainer(ABC):
         if len(self._recent_returns) > 100:
             self._recent_returns.pop(0)
         avg100 = float(np.mean(self._recent_returns))
+        elapsed = time.time() - self._run_start
         self.logger.log({
             "episode": self.episode_count,
             "return": ep_return,
             "avg100_return": avg100,
             "total_steps": self.total_steps,
+            "wall_clock": float(elapsed),
+            "elapsed_sec": float(elapsed),
+            "steps_per_sec": float(self.total_steps / elapsed) if elapsed > 0 else 0.0,
+            "episodes_per_sec": float(self.episode_count / elapsed) if elapsed > 0 else 0.0,
             **(extra or {}),
         })
         return avg100
@@ -106,6 +118,17 @@ class RLTrainer(ABC):
         self._training_loop()
         # TODO: add a hydra config to save model (or not)?
         self._save_checkpoint()
+
+        # Final per-run cost-model metrics (plan §5.5 / AGENTS.md §6.5).
+        run_wall = time.time() - self._run_start
+        self.logger.log({
+            "run_wall_clock": float(run_wall),
+            "run_steps_per_sec": float(self.total_steps / run_wall) if run_wall > 0 else 0.0,
+            "run_episodes_per_sec": float(self.episode_count / run_wall) if run_wall > 0 else 0.0,
+            "run_total_steps": self.total_steps,
+            "run_episodes": self.episode_count,
+        })
+
         self.env.close()
         self.logger.finish()
         print(f"\nTraining complete. Model: {self.model_path} | Videos: {self.cfg.video_folder}/")
