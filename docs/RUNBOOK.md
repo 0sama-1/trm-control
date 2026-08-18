@@ -225,6 +225,94 @@ experiment plan schedules an analysis script to emit `docs/` markdown tables + f
 
 ---
 
+## 10. Stage-A shared automation backbone
+
+This section documents the three automation scripts implemented for stage A
+(`EXPERIMENT_PLAN.md` §4, stage A — "Sweep controller + eval script + analysis
+script"). All three follow the HPC template (module → venv → single-process
+torchrun) and are **torch-free at parse time** except where a real run requires
+the trainer (which needs torch).
+
+### 10.1 Eval — `pyscripts/evaluate.py`
+
+Fixed-seed, exploration-off evaluation of a checkpoint producing mean/std return
+over N ≥ 10 episodes plus a 95% bootstrap CI. Reuses the existing
+`RLTrainer._make_env` (so delay/staleness wrappers replay exactly) and the
+trainer's own `_build_agent` / `_load_checkpoint` — **no trainer or algo file is
+modified**. Deterministic actions are derived from each arch's existing
+deterministic forward path (`--help` succeeds without a trained checkpoint; if
+no `.pt` is found, eval runs on the random-init policy with a warning, which is
+what makes the smoke test runnable).
+
+```bash
+# Help (torch-free at parse time; torch only needed to actually run).
+python pyscripts/evaluate.py --help
+
+# 10 fixed-seed eval episodes of a specific checkpoint.
+python pyscripts/evaluate.py --n-episodes 10 --ckpt models/Pendulum-v1_sac_trm_none_seed0.pt \
+    arch=sac model=trm env=pendulum delay=none seed=0 --wandb
+
+# Smoke test: random-init policy, 2 episodes, 5 max steps (no checkpoint needed).
+python pyscripts/evaluate.py --n-episodes 2 --max-steps 5 arch=ppo model=dnn \
+    env=pendulum delay=none seed=42
+```
+
+Output: a `results/eval_<env>_<arch>_<model>_<delay>_seed<n>_n<N>.json` summary
+(per-episode returns, mean, std, sem, ci95, min/max, and `eval_wall_clock` /
+`eval_steps_per_sec`). The `main.py --mode eval` approach was considered;
+`pyscripts/evaluate.py` was chosen because it reuses the real trainer
+(ground-truth env/wrapper/contract) without adding eval-mode branching to
+`main.py`.
+
+### 10.2 Sweep controller — `scripts/sweep.py`
+
+Takes a config grid (model × env × delay × staleness × seed) and emits the exact
+`torchrun --standalone --nproc_per_node=1 main.py <overrides>` commands per
+`AGENTS.md` §6.3, then drives them in the chosen mode.
+
+```bash
+# Dry-run: print the torchrun commands only (torch-free, no execution).
+python scripts/sweep.py --dry-run --arch "ppo sac" --model "dnn trm" \
+    --env pendulum --delay "none stochastic" --seed "0 1 2 3 4"
+
+# Local sequential execution on a node (requires torch in the venv).
+python scripts/sweep.py --local --arch ppo --model "dnn trm" \
+    --env pendulum --delay none --seed "0 1 2 3 4" --timeout-min 15
+
+# Slurm submission (default): one #SBATCH job per cell, logs/ per AGENTS.md §6.4.
+python scripts/sweep.py --arch sac --model "dnn trm" \
+    --env hopper halfcheetah --delay none --seed "0 1 2 3 4" \
+    --account pawsey1302-q --time 04:00:00
+```
+
+Extra Hydra overrides (e.g. `model.trm.H_cycles=3`) are passed via `--extra`
+(repeatable) or via a YAML grid file (`--grid conf/sweeps/h1_smoke.yaml`).
+`--manifest-out` writes a JSON manifest of all commands. Local runs log
+per-run wall-clock; Slurm runs rely on the trainer's wandb timing (`run_wall_clock` /
+`run_steps_per_sec`), as documented in `AGENTS.md` §6.5.
+
+### 10.3 Analysis — `scripts/analyze.py`
+
+Reads a results CSV (one row per run), computes per-condition mean/std, 95%
+bootstrap CI, Cohen's d, and paired/2-sample t-tests between conditions, then
+writes a markdown report + bar figure to `docs/plan/reports/`. **Torch-free**
+(numpy + scipy only) — runs on the login node.
+
+```bash
+# Smoke test: synthesize a tiny CSV and analyse it end-to-end.
+python scripts/analyze.py --synthetic
+
+# Analyse a real CSV (e.g. exported from wandb or from evaluate.py summaries).
+python scripts/analyze.py results/sweep_h1.csv \
+    --out docs/plan/reports/h1.md --fig docs/plan/reports/h1.png
+```
+
+CSV contract: must contain `condition` (or enough metadata columns — arch,
+model, env, delay, seed — to derive one) and `return`. Optional timing columns
+(`wall_clock`, `steps_per_sec`) are forwarded into the timing table.
+
+---
+
 ## 9. Change log
 
 - **2026-07-23** — Initial runbook; describes the shipped single-process `main.py` +
@@ -245,3 +333,13 @@ experiment plan schedules an analysis script to emit `docs/` markdown tables + f
   control as unconditional interpretability cells. Family-B sibling ablations (depth /
   deep-supervision / transfer) implemented behind config but headline-gated: only scheduled
   after a positive pendulum signal (`trm_carry ≥ lstm`). See `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §6 decision #9.
+- **2026-08-18** — **Stage-A automation backbone**: added `pyscripts/evaluate.py`
+  (fixed-seed, exploration-off eval: mean/std + 95% bootstrap CI, lazy torch
+  import so `--help` works without torch; fixed a `%`-format bug in the
+  `--ci-samples` help string), `scripts/sweep.py` (config grid → exact
+  `torchrun --standalone --nproc_per_node=1 main.py <overrides>` commands;
+  `--dry-run`/`--local`/`--slurm`, YAML grid support, per-run wall-clock for
+  local runs), and `scripts/analyze.py` (torch-free CSV analysis: per-condition
+  mean/std, 95% bootstrap CI, Cohen's d, paired/2-sample t-tests, markdown
+  tables + figure). See `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §3 (shared
+  automation) and §4 stage A.

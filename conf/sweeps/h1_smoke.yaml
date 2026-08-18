@@ -1,0 +1,20 @@
+# Example sweep grid for H1 smoke cell (plan §4, stage A).
+# Each cell becomes one `torchrun main.py <overrides>` command.
+# Used with:  python scripts/sweep.py --grid conf/sweeps/h1_smoke.yaml
+- arch: ppo
+  model: dnn
+  env: pendulum
+  delay: none
+  seed: 42
+- arch: ppo
+  model: trm
+  env: pendulum
+  delay: none
+  seed: 42
+- arch: ppo
+  model: trm
+  env: pendulum
+  delay: none
+  seed: 42
+  extra:
+    model.trm.H_cycles: 3
