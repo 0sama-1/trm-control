@@ -51,8 +51,6 @@ class RLTrainer(ABC):
         self.episode_count: int = 0
         self.total_steps: int = 0
         self._recent_returns: list[float] = []
-        # Per-run timing (plan §5.5 / AGENTS.md §6.5): wall-clock and step-rate
-        # are logged to wandb so the H100-hour cost model stays calibrated.
         self._run_start = time.time()
         self._run_start_steps = 0
 
@@ -119,7 +117,6 @@ class RLTrainer(ABC):
         # TODO: add a hydra config to save model (or not)?
         self._save_checkpoint()
 
-        # Final per-run cost-model metrics (plan §5.5 / AGENTS.md §6.5).
         run_wall = time.time() - self._run_start
         self.logger.log({
             "run_wall_clock": float(run_wall),
