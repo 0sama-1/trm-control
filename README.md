@@ -59,7 +59,7 @@ python scripts/sweep.py --arch "ppo sac" --model "dnn trm" --env pendulum --dela
 ```
 trm_control_integration/
 ├── README.md             # this file — human-facing guide + runbook
-├── notes.md              # TRM-port integration notes (read this first)
+├── notes.md              # integration notes (deprecated)
 ├── main.py               # Hydra entry point (arch × model × env × delay)
 ├── conf/
 │   ├── config.yaml       # composition defaults + top-level fields (seed, folders, wandb)
@@ -88,8 +88,6 @@ trm_control_integration/
 ├── logs/                 # Slurm stdout/stderr (gitignored)
 └── videos/               # recorded rollouts (gitignored)
 ```
-
-The full experiment plan lives one level up at `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md`.
 
 ---
 
@@ -244,8 +242,7 @@ python scripts/analyze.py results/sweep_h1.csv \
 
 ## 5. Hypotheses under test
 
-Five hypotheses are being tested. See `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md`
-for the full, approved schedule.
+Five hypotheses are being tested.
 
 | ID | Claim | Minimal testing |
 |----|-------|-----------------|
@@ -298,62 +295,7 @@ buffer).
 
 ---
 
-## 7. Ground rules
-
-1. **One logical change per branch**; commit small, with descriptive messages.
-2. **Leave the code runnable exactly as documented.** Every experiment must be
-   launchable from a clean checkout using only the commands in this README.
-3. **Do not silently change experiment protocol.** If a hyperparameter, budget,
-   or metric must change, say so in the report; do not just tweak it.
-4. **Do not invent data.** Never fabricate run results. If a run didn't
-   complete, say so explicitly.
-5. **Preserve the trunk contract and Hydra composition.** New backbones/configs
-   extend the existing pattern; they do not bolt on a second, divergent
-   framework.
-6. **Match the existing style**: Hydra YAML for config, clean modules under
-   `src/`, wandb for metrics, `gymnasium` for envs, plain float32 torch.
-
----
-
-## 8. Adding a new model / env / experiment
-
-1. **New backbone**: add `conf/model/<name>.yaml` + a class in `src/models/`
-   honoring the trunk contract (`.out_dim` + `.forward(x)`). Exception: H5's
-   `TRMCarryTrunk` is stateful and needs rollout/reset handling.
-2. **New env** (e.g. MuJoCo): add `conf/env/<name>.yaml` and ensure the
-   dependency is in `setup.sh`. Only `Box` (continuous) action spaces are
-   currently supported by the actor heads.
-3. **New delay/staleness mode**: add `conf/delay/<name>.yaml` or
-   `conf/staleness/<name>.yaml` + the matching wrapper in `src/delays.py` /
-   `src/staleness.py`. The two channels are independent.
-4. Always run a **smoke test** on `env=pendulum` first, then launch the full
-   matrix on the supercomputer.
-5. Every addition gets a documented run command in this README (add it to §10
-   below) and a cost estimate in H100-hours (see
-   `/workspace/trm/docs/plan/EXPERIMENT_PLAN.md` §5.5).
-
----
-
-## 9. Definition of done
-
-A task in this repo is done when:
-
-1. **Code** (extends existing pattern; trunk contract preserved; full config
-   surface supported).
-2. **Conf YAML** for any new architecture/env/delay/staleness/sweep dimension.
-3. **A documented run command** in this README (§10 runbook).
-4. **A metrics/eval plan**: mean return over N fixed-seed eval episodes (no
-   exploration), std across ≥5 seeds, 95% bootstrap CI, paired t-test where
-   meaningful.
-5. **A cost estimate in H100-hours** for the experiment, plus a measured
-   wall-clock / steps-per-sec number from any real run so the cost model stays
-   calibrated.
-6. **A short report** of what ran and what did not (no fabricated numbers).
-7. **Nothing fabricated**; any unrun item is explicitly flagged.
-
----
-
-## 10. Current project status & experiment runbook
+## 7. Current project status & experiment runbook
 
 > This section is updated as experiments are completed. Each entry gives the
 > single-line bash command to run that experiment on the Pawsey quantum HPC.
@@ -380,8 +322,7 @@ python scripts/sweep.py --arch "ppo sac" --model "dnn trm" --env pendulum --dela
 ```
 
 This submits 20 Slurm jobs (2 algos × 2 models × 5 seeds). After all jobs
-complete, collect results and write the calibration report to
-`docs/plan/reports/b0-calibration.md`. This gate finalises the SAC-vs-PPO
+complete, collect results and write the calibration report. This gate finalises the SAC-vs-PPO
 allocation for all MuJoCo experiments below.
 
 ---
