@@ -99,11 +99,12 @@ trm_control_integration/
 
 > **Project-level documentation.** The full experiment plan and the brief for
 > agent-assisted implementation live in the **project-level** `docs/`
-> directory at `/workspace/trm/docs/plan/` (one level up, outside this repo's
-> `docs/`). See **`/workspace/trm/docs/plan/EXPERIMENT_PLAN.md`** for the approved,
-> source-of-truth experiment schedule and **`/workspace/trm/docs/orchestration/`**
-> for how agents are dispatched in the wider project. This repo's `docs/`
-> holds only code-facing how-to-run documentation.
+> directory at `/workspace/trm/docs/` (one level up, outside this repo's
+> `docs/`). See **`/workspace/trm/docs/plan/EXPERIMENT_PLAN.md`** for the
+> approved, source-of-truth experiment schedule. Issue management,
+> sub-agent orchestration, and all project tracking now live in the **DSH
+> tracker** at `/workspace/epics/trm-iclr-2027-paper-writing/`. This repo's
+> `docs/` holds only code-facing how-to-run documentation.
 
 ---
 
@@ -276,24 +277,25 @@ Bootstrap CI, Cohen's d and paired tests are expected where the plan calls for t
 
 ## 8. Agents in this project
 
-This repository is worked on by a fleet of specialised agents in the wider TRM
-research project at `/workspace/trm/`. They are described here so a human
-reader understands the division of labour; the **launch procedures, prompt
-templates, and orchestrator wiring for these agents live in the project-level
-`docs/` directory** (`/workspace/trm/docs/orchestration/`), not in this repo.
+This repository is worked on by specialised agents in the wider TRM research
+project. They are described here so a human reader understands the division
+of labour; the **issue tracking, sub-agent orchestration, and agent
+dispatch** for these agents are handled by the **DSH (DeepSeek Harness)
+tracker** at `/workspace/epics/trm-iclr-2027-paper-writing/`, not by any
+orchestration code in this repo.
 
 | Agent / role | Scope | What it does in this repo |
 |---|---|---|
-| **Orchestrator** | Project-level (`/workspace/trm/`) | Drives the paper-production pipeline (idea → lit review → hypotheses → experiment design → implementation → results → writing → review) by delegating to sub-agents. See `docs/orchestration/`. |
-| **Coding-manager** | This repo (`trm_control_integration/`) | An autonomous coding agent dispatched by the orchestrator to implement a stage of the experiment plan (A→I). It works on a local branch, commits, and reports back. |
-| **Reviewer** | Project-level | Inspects a coding-manager's diff and results, produces a verdict before an issue is marked resolved. |
-| **Sub-agents** | Per-phase | Fresh-context agents spawned for a single phase (e.g. literature review, writing, review). They operate under `docs/paper/` paths. |
+| **Issue manager** | DSH tracker (`/workspace/epics/`) | An issue under `trm-iclr-2027-paper-writing` that dispatches coding and reviewer sub-agents via DSH's native `subagent` tools. Results return to the manager, which verifies and marks the issue resolved. |
+| **Coding sub-agent** | This repo (`trm_control_integration/`) | An isolated agent dispatched by the issue manager to implement a stage of the experiment plan (A→I). It works on a local branch, commits, and reports back. |
+| **Reviewer sub-agent** | Project-level | Inspects a coding sub-agent's diff and results, produces a verdict before an issue is marked resolved. |
+| **Sub-agents (per-phase)** | Project-level | Fresh-context agents spawned for a single phase (e.g. literature review, writing, review). They operate under `docs/paper/` paths. |
 
 > **For a human contributor: you do not need to use agents to work in this repo.**
 > The commands in §6 (HPC template, `main.py`, sweeps) are all you need to run
-> experiments yourself. The agent infrastructure exists to parallelise the
-> paper-writing and implementation pipeline; it is documented at
-> `/workspace/trm/docs/orchestration/` for those who need it.
+> experiments yourself. The DSH tracker at `/workspace/epics/` is used to
+> coordinate agent-assisted work on the paper and codebase. Its workflow is
+> documented at `/workspace/epics/AGENTS.md`.
 
 ---
 
