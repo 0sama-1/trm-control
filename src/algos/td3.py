@@ -176,6 +176,9 @@ class TD3Trainer(OffPolicyTrainer):
             return self.env.action_space.sample()
         return self.agent.act(obs, noise_std=self._expl_noise)
 
+    def _select_eval_action(self, obs: np.ndarray) -> np.ndarray:
+        return self.agent.act(obs)  # noise_std=0.0 -> deterministic
+
     def _store_transition(self, obs, action, reward, next_obs, done) -> None:
         self.replay.add(obs, action, reward, next_obs, done)
 

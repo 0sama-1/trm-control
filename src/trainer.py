@@ -18,7 +18,8 @@ class RLTrainer(ABC):
     """Base class for all RL training pipelines.
 
     Handles: device/seed setup, folder creation, env construction (delay +
-    video recording + episode stats), wandb lifecycle, and the top-level
+    optional obs augmentation + video recording + episode stats, plus a
+    matching no-video eval_env instance), wandb lifecycle, and the top-level
     train() skeleton.
 
     Subclasses implement: _build_agent, _training_loop, _save_checkpoint,
@@ -44,6 +45,10 @@ class RLTrainer(ABC):
         self.model_path = str(Path(cfg.model_folder) / checkpoint_name)
 
         self.env = self._make_env()
+        # Separate instance for deterministic eval rollouts (_evaluate, OffPolicyTrainer)
+        # so they don't perturb the training env's DelayedEnv buffer/RecordVideo episode
+        # count. Same delay + augmentation config, no video.
+        self.eval_env = self._make_env(record=False)
         self.logger = WandbLogger(cfg, self.arch.name)
 
         self.episode_count: int = 0
@@ -52,10 +57,11 @@ class RLTrainer(ABC):
 
     # Common set ups
 
-    def _make_env(self) -> gym.Env:
+    def _make_env(self, record: bool = True) -> gym.Env:
         env = gym.make(self.env_cfg.id, render_mode="rgb_array")
-        env = DelayedEnv(env, build_delay(self.cfg.delay))
-        env = VideoRecorder(self.cfg.video_folder, self.cfg.record_every, self.arch.name).wrap(env)
+        env = DelayedEnv(env, build_delay(self.cfg.delay), augment_obs=self.cfg.augment_obs)
+        if record:
+            env = VideoRecorder(self.cfg.video_folder, self.cfg.record_every, self.arch.name).wrap(env)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         return env
 
@@ -112,10 +118,13 @@ class RLTrainer(ABC):
 
 
 class OffPolicyTrainer(RLTrainer):
-    """Episode-based training loop for off-policy algorithms (DDPG, TD3).
+    """Episode-based training loop for off-policy algorithms (DDPG, TD3, SAC).
 
     Each episode: reset → collect steps → update buffer → gradient steps.
-    Subclasses implement the agent-specific pieces via five abstract methods.
+    Also runs a periodic noise-free eval rollout (_evaluate, every cfg.eval_every
+    episodes) and tracks mean per-episode action delta — both diagnostics for the
+    delay confound, see augmentation.md. Subclasses implement the agent-specific
+    pieces via six abstract methods.
     """
 
     def _training_loop(self) -> None:
@@ -124,8 +133,14 @@ class OffPolicyTrainer(RLTrainer):
             self._on_episode_start()
 
             ep_return = 0.0
+            prev_action: np.ndarray | None = None
+            action_deltas: list[float] = []
             for _ in range(self.env_cfg.max_steps):
                 action = self._select_action(obs)
+                if prev_action is not None:
+                    action_deltas.append(float(np.mean(np.abs(action - prev_action))))
+                prev_action = action
+
                 next_obs, reward, terminated, truncated, _ = self.env.step(action)
                 done = terminated or truncated
                 self._store_transition(obs, action, reward, next_obs, done)
@@ -138,6 +153,16 @@ class OffPolicyTrainer(RLTrainer):
 
             self.episode_count += 1
             metrics = self._episode_metrics()
+            # Diagnostic for the delay confound (see augmentation.md): how much a_t
+            # differs from a_{t-1} step to step. A large value means the delay=d
+            # transition stored this episode (paired with a_{t-d}, not a_t) is a
+            # poor proxy for a_t's real effect.
+            metrics["mean_action_delta"] = float(np.mean(action_deltas)) if action_deltas else 0.0
+            if self.episode_count % self.cfg.eval_every == 0:
+                # Noise-free rollout, logged separately from the exploration-noisy
+                # training return above, so the two aren't conflated when reading
+                # the curves (see augmentation.md).
+                metrics["eval_return"] = self._evaluate()
             avg100 = self._record_return(ep_return, metrics)
 
             if self.episode_count % self.cfg.print_stat_every == 0:
@@ -145,6 +170,20 @@ class OffPolicyTrainer(RLTrainer):
 
             if self.episode_count % self.cfg.record_every == 0:
                 self._save_checkpoint()
+
+    def _evaluate(self) -> float:
+        """Run one deterministic (noise-free) episode on the held-out eval env and
+        return its total reward. Uses the same delay + augmentation config as
+        training, just no exploration noise on the action."""
+        obs, _ = self.eval_env.reset(seed=self.cfg.seed + 1_000_000 + self.episode_count)
+        ep_return = 0.0
+        for _ in range(self.env_cfg.max_steps):
+            action = self._select_eval_action(obs)
+            obs, reward, terminated, truncated, _ = self.eval_env.step(action)
+            ep_return += float(reward)
+            if terminated or truncated:
+                break
+        return ep_return
 
     @abstractmethod
     def _on_episode_start(self) -> None:
@@ -154,6 +193,11 @@ class OffPolicyTrainer(RLTrainer):
     @abstractmethod
     def _select_action(self, obs: np.ndarray) -> np.ndarray:
         """Return an action for the current obs (handles warmup / noise internally)."""
+        ...
+
+    @abstractmethod
+    def _select_eval_action(self, obs: np.ndarray) -> np.ndarray:
+        """Return a noise-free (deterministic/greedy) action, for _evaluate()."""
         ...
 
     @abstractmethod

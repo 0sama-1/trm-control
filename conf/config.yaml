@@ -8,6 +8,8 @@ defaults:
 seed: 42
 print_stat_every: 10
 record_every: 25
+eval_every: 10        # run one deterministic (noise-free) eval episode every N training episodes, logged as eval_return — see augmentation.md
+augment_obs: false    # append the pending (committed, not-yet-applied) action queue to the observation — see augmentation.md. No-op when delay.name=none.
 video_folder: videos
 model_folder: models
 

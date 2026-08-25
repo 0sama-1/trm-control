@@ -103,17 +103,77 @@ class DelayedEnv(gym.Wrapper):
     The agent's action is pushed into a history buffer on every step.
     The action applied to the underlying env is the one from `delay.sample()` steps ago.
     If not enough history exists yet (start of episode), a random action is used instead.
+
+    With `augment_obs=True`, the observation returned to the agent is extended with
+    the queue of actions already committed but not yet applied to the plant — sized
+    to `delay.max_delay` actions, zero-padded when fewer are pending (start of
+    episode, or a per-step delay below `max_delay`). Without this, the raw
+    observation doesn't determine the transition on its own — see
+    `augmentation.md` for why that matters and what this fixes. A no-op when
+    `max_delay == 0` (nothing to expose) or `augment_obs=False` (the default,
+    preserving the original observation for existing configs/checkpoints).
     """
 
-    def __init__(self, env: gym.Env, delay: Delay):
+    def __init__(self, env: gym.Env, delay: Delay, augment_obs: bool = False):
         super().__init__(env)
         self._delay = delay
-        self._buf: deque = deque(maxlen=delay.max_delay + 1)
+        self._max_delay = delay.max_delay
+        self._buf: deque = deque(maxlen=self._max_delay + 1)
         self._global_step = 0
+
+        self._action_dim = (
+            int(np.prod(env.action_space.shape)) if isinstance(env.action_space, gym.spaces.Box) else 1
+        )
+        self._augment = augment_obs and self._max_delay > 0
+        if self._augment:
+            self.observation_space = self._build_augmented_space(env)
+
+    def _build_augmented_space(self, env: gym.Env) -> gym.spaces.Box:
+        obs_space = env.observation_space
+        if isinstance(env.action_space, gym.spaces.Box):
+            act_low  = np.tile(env.action_space.low.astype(np.float32),  self._max_delay)
+            act_high = np.tile(env.action_space.high.astype(np.float32), self._max_delay)
+        else:
+            # Discrete: represent each queued action as a single scalar index.
+            act_low  = np.zeros(self._max_delay, dtype=np.float32)
+            act_high = np.full(self._max_delay, env.action_space.n - 1, dtype=np.float32)
+        return gym.spaces.Box(
+            low=np.concatenate([obs_space.low.astype(np.float32),  act_low]),
+            high=np.concatenate([obs_space.high.astype(np.float32), act_high]),
+            dtype=np.float32,
+        )
+
+    def _pending_actions(self) -> np.ndarray:
+        """Actions already committed but not yet applied, oldest-pending first,
+        zero-padded to `max_delay` slots.
+
+        Exact for constant delay (`FixedDelay`/`NoDelay`): `step()`'s `elif`
+        branch always applies the buffer's oldest entry once it's full, so
+        dropping that entry here leaves exactly what's still queued. For
+        `StochasticDelay`/`TimeVaryingDelay`, whose per-step delay can be
+        *less* than `max_delay`, the applied action isn't always the oldest
+        one in the buffer — this is a best-effort approximation there (the
+        `max_delay` most recently committed actions), not a proven sufficient
+        statistic. See `augmentation.md` §"Known limitation".
+        """
+        pending = list(self._buf)
+        if len(pending) > self._max_delay:
+            pending = pending[1:]
+        vecs = [np.asarray(a, dtype=np.float32).reshape(-1) for a in pending]
+        pad = self._max_delay - len(vecs)
+        if pad > 0:
+            vecs = vecs + [np.zeros(self._action_dim, dtype=np.float32) for _ in range(pad)]
+        return np.concatenate(vecs) if vecs else np.zeros(0, dtype=np.float32)
+
+    def _augment_obs(self, obs: np.ndarray) -> np.ndarray:
+        if not self._augment:
+            return obs
+        return np.concatenate([np.asarray(obs, dtype=np.float32), self._pending_actions()]).astype(np.float32)
 
     def reset(self, **kwargs):
         self._buf.clear()
-        return self.env.reset(**kwargs)
+        obs, info = self.env.reset(**kwargs)
+        return self._augment_obs(obs), info
 
     def step(self, action: Any):
         d = self._delay.sample(self._global_step)
@@ -127,7 +187,8 @@ class DelayedEnv(gym.Wrapper):
             applied = self.env.action_space.sample()
 
         self._global_step += 1
-        return self.env.step(applied)
+        next_obs, reward, terminated, truncated, info = self.env.step(applied)
+        return self._augment_obs(next_obs), reward, terminated, truncated, info
 
 
 def build_delay(delay_cfg: DictConfig) -> Delay:

@@ -176,6 +176,9 @@ class DDPGTrainer(OffPolicyTrainer):
             return self.env.action_space.sample()
         return self.agent.act(obs, noise=self.noise.sample() * self._action_limit)
 
+    def _select_eval_action(self, obs: np.ndarray) -> np.ndarray:
+        return self.agent.act(obs)  # noise=None -> deterministic
+
     def _store_transition(self, obs, action, reward, next_obs, done) -> None:
         self.replay.add(obs, action, reward, next_obs, done)
 

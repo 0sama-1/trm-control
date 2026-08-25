@@ -107,10 +107,10 @@ class SACAgent:
             self.alpha_opt = None
             self.alpha = float(arch_cfg.alpha)
 
-    def act(self, obs: np.ndarray) -> np.ndarray:
+    def act(self, obs: np.ndarray, deterministic: bool = False) -> np.ndarray:
         obs_t = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
-            action, _ = self.actor.sample(obs_t)
+            action = self.actor(obs_t) if deterministic else self.actor.sample(obs_t)[0]
         return np.clip(action.cpu().numpy()[0], -self.action_limit, self.action_limit)
 
     def update(self, replay: ReplayBuffer) -> tuple[float, float, float]:
@@ -212,6 +212,9 @@ class SACTrainer(OffPolicyTrainer):
         if self.total_steps < self.arch.warmup_steps:
             return self.env.action_space.sample()
         return self.agent.act(obs)
+
+    def _select_eval_action(self, obs: np.ndarray) -> np.ndarray:
+        return self.agent.act(obs, deterministic=True)
 
     def _store_transition(self, obs, action, reward, next_obs, done) -> None:
         self.replay.add(obs, action, reward, next_obs, done)
