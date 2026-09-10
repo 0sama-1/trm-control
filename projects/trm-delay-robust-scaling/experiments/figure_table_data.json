@@ -1,0 +1,90 @@
+{
+  "cells": {
+    "dnn__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -9.201830845608841,
+      "reward_iqr": [
+        -10.241345538209666,
+        -8.535386753959832
+      ],
+      "wall_clock_median_s": 1952.7801200151443,
+      "param_count": 134402
+    },
+    "dnn__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -188.36254927065244,
+      "reward_iqr": [
+        -193.97726309122407,
+        -174.02370545780803
+      ],
+      "wall_clock_median_s": 700.0493986606598,
+      "param_count": 134914
+    },
+    "lstm__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -8.491307965830043,
+      "reward_iqr": [
+        -9.55695686403069,
+        -8.419275766399378
+      ],
+      "wall_clock_median_s": 2277.2685537338257,
+      "param_count": 166498
+    },
+    "lstm__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -1460.546684379879,
+      "reward_iqr": [
+        -1464.7988030347115,
+        -1442.0437970403377
+      ],
+      "wall_clock_median_s": 619.3614478111267,
+      "param_count": 166562
+    },
+    "transformer__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -32.06306681025304,
+      "reward_iqr": [
+        -78.5507521498854,
+        19.697055499767014
+      ],
+      "wall_clock_median_s": 11716.606205701828,
+      "param_count": 796290
+    },
+    "transformer__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -219.88659313257995,
+      "reward_iqr": [
+        -236.72670327126022,
+        -218.7458959385493
+      ],
+      "wall_clock_median_s": 3461.1293746232986,
+      "param_count": 797058
+    },
+    "trm__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -8.783244267195858,
+      "reward_iqr": [
+        -9.730786878942409,
+        -8.528278906499906
+      ],
+      "wall_clock_median_s": 27436.638610482216,
+      "param_count": 787586
+    },
+    "trm__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -216.6571543582063,
+      "reward_iqr": [
+        -231.11258594549955,
+        -196.86408212116024
+      ],
+      "wall_clock_median_s": 4919.4737956523895,
+      "param_count": 787842
+    }
+  },
+  "sign_p": {
+    "dnn__Pendulum-v1": 0.015625,
+    "dnn__MountainCarContinuous-v0": 0.65625,
+    "transformer__Pendulum-v1": 0.65625,
+    "transformer__MountainCarContinuous-v0": 0.34375
+  }
+}

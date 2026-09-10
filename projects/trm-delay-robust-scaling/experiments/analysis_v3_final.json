@@ -1,0 +1,234 @@
+{
+  "n_results": 48,
+  "models": [
+    "dnn",
+    "lstm",
+    "transformer",
+    "trm"
+  ],
+  "envs": [
+    "MountainCarContinuous-v0",
+    "Pendulum-v1"
+  ],
+  "cells": {
+    "dnn__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -9.201830845608841,
+      "reward_iqr": [
+        -10.241345538209666,
+        -8.535386753959832
+      ],
+      "wall_clock_median_s": 1952.7801200151443,
+      "param_count": 134402
+    },
+    "dnn__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -188.36254927065244,
+      "reward_iqr": [
+        -193.97726309122407,
+        -174.02370545780803
+      ],
+      "wall_clock_median_s": 700.0493986606598,
+      "param_count": 134914
+    },
+    "lstm__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -8.491307965830043,
+      "reward_iqr": [
+        -9.55695686403069,
+        -8.419275766399378
+      ],
+      "wall_clock_median_s": 2277.2685537338257,
+      "param_count": 166498
+    },
+    "lstm__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -1460.546684379879,
+      "reward_iqr": [
+        -1464.7988030347115,
+        -1442.0437970403377
+      ],
+      "wall_clock_median_s": 619.3614478111267,
+      "param_count": 166562
+    },
+    "transformer__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -32.06306681025304,
+      "reward_iqr": [
+        -78.5507521498854,
+        19.697055499767014
+      ],
+      "wall_clock_median_s": 11716.606205701828,
+      "param_count": 796290
+    },
+    "transformer__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -219.88659313257995,
+      "reward_iqr": [
+        -236.72670327126022,
+        -218.7458959385493
+      ],
+      "wall_clock_median_s": 3461.1293746232986,
+      "param_count": 797058
+    },
+    "trm__MountainCarContinuous-v0": {
+      "n": 6,
+      "reward_median": -8.783244267195858,
+      "reward_iqr": [
+        -9.730786878942409,
+        -8.528278906499906
+      ],
+      "wall_clock_median_s": 27436.638610482216,
+      "param_count": 787586
+    },
+    "trm__Pendulum-v1": {
+      "n": 6,
+      "reward_median": -216.6571543582063,
+      "reward_iqr": [
+        -231.11258594549955,
+        -196.86408212116024
+      ],
+      "wall_clock_median_s": 4919.4737956523895,
+      "param_count": 787842
+    }
+  },
+  "sign_tests": {
+    "trm_vs_dnn__MountainCarContinuous-v0": {
+      "model_a": "trm",
+      "model_b": "dnn",
+      "env_id": "MountainCarContinuous-v0",
+      "n_pairs": 6,
+      "n_pos": 3,
+      "n_neg": 3,
+      "n_ties": 0,
+      "deltas": [
+        0.5657678347370592,
+        -0.35315874577614004,
+        1.7130666317097596,
+        -0.008075169032705887,
+        -0.08627673687688286,
+        0.03626863886493403
+      ],
+      "one_sided_p_majority_sign": 0.65625
+    },
+    "trm_vs_dnn__Pendulum-v1": {
+      "model_a": "trm",
+      "model_b": "dnn",
+      "env_id": "Pendulum-v1",
+      "n_pairs": 6,
+      "n_pos": 0,
+      "n_neg": 6,
+      "n_ties": 0,
+      "deltas": [
+        -33.04879871993404,
+        -37.13532285427547,
+        -49.1276923998534,
+        -32.546133419509516,
+        -22.840376663352203,
+        -0.1169261289834651
+      ],
+      "one_sided_p_majority_sign": 0.015625
+    },
+    "trm_vs_transformer__MountainCarContinuous-v0": {
+      "model_a": "trm",
+      "model_b": "transformer",
+      "env_id": "MountainCarContinuous-v0",
+      "n_pairs": 6,
+      "n_pos": 4,
+      "n_neg": 2,
+      "n_ties": 0,
+      "deltas": [
+        -29.53788328354602,
+        0.8973348288235954,
+        72.62436146134915,
+        -55.36477506158445,
+        45.66231025729077,
+        70.0516340347905
+      ],
+      "one_sided_p_majority_sign": 0.34375
+    },
+    "trm_vs_transformer__Pendulum-v1": {
+      "model_a": "trm",
+      "model_b": "transformer",
+      "env_id": "Pendulum-v1",
+      "n_pairs": 6,
+      "n_pos": 3,
+      "n_neg": 3,
+      "n_ties": 0,
+      "deltas": [
+        -10.83721688616518,
+        -12.36669000695025,
+        -3.254616432081292,
+        17.296094434912476,
+        2.41614842432827,
+        1276.9660989587983
+      ],
+      "one_sided_p_majority_sign": 0.65625
+    },
+    "trm_vs_lstm__MountainCarContinuous-v0": {
+      "model_a": "trm",
+      "model_b": "lstm",
+      "env_id": "MountainCarContinuous-v0",
+      "n_pairs": 6,
+      "n_pos": 1,
+      "n_neg": 5,
+      "n_ties": 0,
+      "deltas": [
+        -0.28387091974831513,
+        -0.6148329606847405,
+        -0.5850985446308279,
+        -0.03742232001341428,
+        -0.054333561259005236,
+        0.005451570516594728
+      ],
+      "one_sided_p_majority_sign": 0.109375
+    },
+    "trm_vs_lstm__Pendulum-v1": {
+      "model_a": "trm",
+      "model_b": "lstm",
+      "env_id": "Pendulum-v1",
+      "n_pairs": 6,
+      "n_pos": 6,
+      "n_neg": 0,
+      "n_ties": 0,
+      "deltas": [
+        1233.9182946228925,
+        901.7684450999103,
+        1218.1575527308182,
+        1239.609996735744,
+        1277.375861616906,
+        1276.9660989587983
+      ],
+      "one_sided_p_majority_sign": 0.015625
+    }
+  },
+  "trend_tests": {
+    "trm_advantage_vs_dnn": {
+      "L": 5,
+      "k": 2,
+      "monotonic_increasing": true,
+      "values_by_rung": [
+        -28.29460508755386,
+        0.41858657841298275
+      ]
+    },
+    "trm_advantage_vs_transformer": {
+      "L": 5,
+      "k": 2,
+      "monotonic_increasing": true,
+      "values_by_rung": [
+        3.229438774373648,
+        23.279822543057183
+      ]
+    },
+    "trm_advantage_vs_lstm": {
+      "L": 4,
+      "k": 2,
+      "monotonic_increasing": false,
+      "values_by_rung": [
+        1243.8895300216727,
+        -0.2919363013658156
+      ]
+    }
+  }
+}

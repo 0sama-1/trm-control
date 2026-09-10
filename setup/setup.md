@@ -1,44 +1,45 @@
 module purge
-salloc -p quantum -N 1 --gres=gpu:1 --time=01:00:00 -A pawsey1302-q
 
-salloc -p quantum -N 1 --gres=gpu:2 --time=01:00:00 -A pawsey1302-q
+# TODO(verify before use): interactive-session syntax below is inferred
+# from standard PBS Pro conventions and this project's mech/mechgpu queue
+# resources (see notes.md), NOT yet run end-to-end on Katana. What IS
+# verified from a real job on 2026-09-07 is the batch-submission pattern:
+#   #PBS -l select=1:ncpus=1:mem=4gb
+#   #PBS -l walltime=00:10:00
+#   qsub submit.pbs                 # never run compute on the login node
+#   qstat -u $USER                  # poll at ~30-60s intervals, not tight-loop
+# Adjust ncpus/ngpus/mem below to what the actual training run needs -
+# don't just copy this line.
+qsub -I -l select=1:ncpus=1:ngpus=1:mem=32gb -l walltime=01:00:00
 
 ---
 
 module purge
-module load pawsey pawseytools pawseyenv/2026.01
-module load PrgEnv-nvidia
-module load craype-arm-grace
-module load gcc-native-mixed/12.3
-module load pawseyenv/2026.01
-export MODULEPATH=${MODULEPATH}:${LMOD_CUSTOM_COMPILER_GNU_12_0_PREFIX}
+module add python/3.11.3
 
-module load cuda/12.6
-module load python/3.11.6
+# TODO(verify on Katana): no CUDA module confirmed yet from an actual GPU
+# job - run `module avail cuda` on katana and pin it here before GPU training.
 
-project="chain-of-strategy"
-source $MYSCRATCH/venvs/${project}/bin/activate
+project="trm-control"
+source /srv/scratch/${USER}/venvs/${project}/bin/activate
 source ~/.bashrc
 
-cd $MYSCRATCH/$project
+cd /srv/scratch/${USER}/${project}
 
 ---
 
-uv venv --clear --system-site-packages $MYSCRATCH/venvs/$project
+uv venv --clear --system-site-packages /srv/scratch/${USER}/venvs/${project}
 
 ---
 
-source $MYSCRATCH/venvs/${project}/bin/activate
+source /srv/scratch/${USER}/venvs/${project}/bin/activate
 uv pip install --upgrade pip
-
-uv pip install --no-deps $MYSOFTWARE/wheels/flash_attn-2.8.3-cp311-cp311-linux_aarch64.whl
 
 uv pip install -e . \
  --extra-index-url https://download.pytorch.org/whl/cu126 \
  --index-strategy unsafe-best-match
 
-uv pip install torch-c-dlpack-ext
-
 ---
 
-accelerate launch $MYSOFTWARE/chain-of-strategy/grpoddp.py
+# GPU training entry point (single-process, see CLAUDE.md)
+torchrun --standalone --nproc_per_node=1 main.py arch=ddpg model=trm env=pendulum

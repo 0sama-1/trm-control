@@ -1,0 +1,3 @@
+id: MountainCarContinuous-v0
+max_steps: 999
+continuous_action: true

@@ -1,0 +1,7 @@
+_target_: models.lstm_control.LSTMTrunk
+name: lstm
+hidden_size: 128
+num_layers: 1
+token_dim: 32
+dropout: 0.0
+output_init: uniform_small # fanin | orthogonal | uniform_small — used by the actor/critic output head

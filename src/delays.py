@@ -188,6 +188,13 @@ class DelayedEnv(gym.Wrapper):
 
         self._global_step += 1
         next_obs, reward, terminated, truncated, info = self.env.step(applied)
+        # Expose the actually-applied (post-delay) action and the sampled
+        # delay -- invisible before this, and directly relevant to this
+        # project's central premise (the delay confound, see
+        # augmentation.md). Non-breaking: additive info keys only.
+        info = dict(info)
+        info["delay_applied_action"] = np.asarray(applied, dtype=np.float32).tolist()
+        info["delay_sampled_steps"] = d
         return self._augment_obs(next_obs), reward, terminated, truncated, info
 
 

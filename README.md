@@ -3,12 +3,20 @@ Run the following command
 ```bash
 source setup/module.sh
 ```
+_Note (2026-09-07): this project moved from Pawsey/Setonix to UNSW Katana
+(katana.restech.unsw.edu.au). `setup/module.sh` no longer loads any
+Pawsey-specific modules (`pawsey`/`pawseytools`/`pawseyenv`, `PrgEnv-nvidia`,
+`craype-arm-grace`, `gcc-native-mixed`) - Katana is a plain x86_64 PBS Pro
+cluster, not Pawsey's ARM/Cray-EX Setonix, so none of those apply. `module
+purge` itself carried over unchanged. See `setup/module.sh` for what's
+verified vs. still a TODO (no GPU/CUDA module has been confirmed yet)._
 
 # Venv Set Up:
 Run the command below to set up the virtual environment (to install the basic pytorch modules)
 ```bash
 export PROJECT="trm-control"
-cd $MYSCRATCH/${PROJECT}
+export PROJECT_DIR="/srv/scratch/${USER}/${PROJECT}"   # Katana scratch convention, replaces Pawsey's $MYSCRATCH
+cd "$PROJECT_DIR"
 rm -rf .venv
 uv venv
 source .venv/bin/activate
@@ -19,26 +27,44 @@ Or alternatively, run the following shell command:
 ```bash
 source setup/venv.sh
 ```
+The full pip dependency list (this project's `uv pip install` calls plus
+`gymnasium`/`imageio`/`wandb`/`weave`/`hydra-core`/`psutil`) is tracked
+authoritatively in `pyproject.toml` - keep it and `setup/venv.sh` in sync
+when adding a dependency.
+
 # Useful Sanity-Check Commands
 * `uname -m`: gives you the machine hardware architecture of the system.
 * `nvidia-smi`: inspects and monitors the Nvidia GPUs on a system
-  * `quantum` partition uses GH200 GPUs that use CUDA 12.7 Version. 
+  * Katana's `mechgpu*` queues (this project's group is `MECH`) span multiple
+    GPU generations - V100, A100, L40S, H100, H200 were all seen on
+    2026-09-07 (see `CLAUDE.md`). Check `pbsnodes -a` / `qstat -Qf <queue>`
+    for what's actually available before assuming a specific model.
   <br>_Note_: If the code does not compile for CUDA incompatibility, make sure the version of the loaded CUDA module $\leq$ version of the GPU.
 * `echo $CUDA_VISIBLE_DEVICES`
 
 # Allocating a Computing Node
 ## Interactive
-Using `salloc`:
+Katana uses PBS Pro, not Slurm - `qsub -I` replaces `salloc`:
 ```bash
-salloc -p quantum -N 1 --gres=gpu:1 --time=01:00:00 -A pawsey1302-q
+qsub -I -l select=1:ncpus=1:ngpus=1:mem=32gb -l walltime=01:00:00
 ```
+_Note: this interactive-session line is inferred from standard PBS Pro
+syntax and this project's queue resources, not yet run end-to-end - the
+only PBS submission verified on real hardware so far is a CPU-only batch
+job (`select=1:ncpus=1:mem=4gb`, see `CLAUDE.md`). Sanity-check resource
+values against actual training needs before relying on it._
 
 ## Sending a Command to Scheduler
-Using `srun`:
+Using `qsub` on a batch script with `#PBS` directives (replaces `srun`/`sbatch`):
 ```bash
-srun script.sh
+qsub script.pbs
 ```
-_Note: Either add the SBATCH directives in the shell file or as flags in the script._
+_Note: put the `#PBS` resource-request directives at the top of the script
+(mirroring the old `#SBATCH` directives), and never invoke compute directly
+on the login node - always submit through `qsub`. `train.slurm` /
+`sweep_models.slurm` / `sweep_archs.slurm` at the repo root are still
+Slurm/Pawsey batch scripts and have NOT been ported to PBS yet - ask if you
+want those migrated too._
 
 ## Running This Repo (`main.py`)
 Entry point is `main.py` at the repo root (Hydra config). This script is

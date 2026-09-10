@@ -12,6 +12,7 @@ from omegaconf import DictConfig
 def main(cfg: DictConfig) -> None:
     cfg.model_folder = str(REPO_ROOT / cfg.model_folder)
     cfg.video_folder = str(REPO_ROOT / cfg.video_folder)
+    cfg.results_folder = str(REPO_ROOT / cfg.results_folder)
 
     algo = cfg.arch.name
 

@@ -1,0 +1,123 @@
+project:
+  name: "trm-delay-robust-control"
+  topic: "Delay-robust continuous control via tiny recursive policies"
+  description: >
+    Comparative study of a tiny recursive (TRM-style, weight-tied recursive
+    computation) policy against memoryless, and transformer baselines for
+    continuous control under observation/actuation delay, testing whether
+    any performance advantage of recursive computation over a fixed-depth
+    network scales with task complexity - given it showed no advantage on
+    Pendulum-v1 despite ~18x longer training time.
+
+research:
+  boundaries:
+    - "Software/simulation only. No embedded deployment, quantization,
+       flash/SRAM/latency/energy budgets, or hardware export at this stage -
+       that axis from Thesis A is explicitly out of scope for now."
+    - "Delay-robustness is the primary axis: observation delay, actuation
+       delay, and jitter. The existing observation-augmentation fix is the
+       current best-performing conditioning method and is the baseline
+       going forward, not something to re-derive."
+    - "OPEN QUESTION, not an assumption: does TRM's relative advantage over
+       a memoryless DNN and a transformer baseline grow as task complexity
+       increases? At Pendulum-v1 scale all three converge to comparable
+       reward, with TRM taking ~18x longer wall-clock time (55 min vs 3 min
+       per 200 episodes) for no measured benefit. The hypothesis-ideation
+       stage must treat this as a genuinely open, falsifiable question."
+    - "Task complexity ladder to test the scaling hypothesis: propose 2-3
+       continuous-control environments of increasing complexity beyond
+       Pendulum-v1 (higher-dimensional state/action space, longer horizon,
+       or harder dynamics/coupling). Candidates must be proposed and
+       reviewed during hypothesis-ideation, not assumed in advance."
+    - "A rigorous negative result (TRM does not scale better) is a valid,
+       reportable outcome, not a failure to route around. Do not bias
+       toward a positive result."
+    - "MANDATORY literature-review requirement: explicitly search for and
+       cite prior work applying TRM / recursive weight-tied computation to
+       control, including at minimum 'Tiny Recursive Control' (Jain et al.,
+       2025) and 'Tiny Recursive Models for the J2-Perturbed Lambert
+       Problem' (Wijayatunga & Armelin, 2026). Both are model-based -
+       they refine a control sequence against known dynamics (closer to a
+       learned MPC corrector). Position this project's contribution
+       explicitly against them: recursion as an implicit memory /
+       state-estimation mechanism for delay-induced partial observability
+       in MODEL-FREE RL, not trajectory refinement against known dynamics.
+       Do not proceed past the literature-review stage until this
+       distinction is stated clearly and prior art is genuinely searched
+       for beyond just these two papers."
+    - "Report wall-clock training time and parameter count as first-class
+       metrics alongside reward on every comparison - not an afterthought."
+    - "REQUIRED at literature-review: explicitly search for and cite prior
+       work applying TRM / recursive weight-tied computation to control,
+       including 'Tiny Recursive Control' (Jain et al., Dec 2025) and
+       'Tiny Recursive Models for the J2-Perturbed Lambert Problem'
+       (Wijayatunga & Armelin, 2026). Both are model-based - they refine a
+       control sequence against known dynamics (closer to a learned MPC
+       corrector). Position this project's contribution explicitly against
+       them: recursive computation as an implicit state-estimation/memory
+       mechanism for delay-induced partial observability in MODEL-FREE RL,
+       not trajectory refinement against a known model. Do not proceed past
+       the hypothesis-ideation gate without this distinction stated clearly
+       in the hypothesis artifact."
+
+execution:
+  constraints:
+    - "All training runs execute as PBS batch jobs on UNSW Katana via the
+       katana-supercomputer skill. No local training runs."
+    - "Prefer walltime <=12h per job to stay eligible for any node."
+    - "Minimum 3 seeds per condition for any comparison used as evidence."
+    - "Build on the existing PPO/DDPG, TRM, and observation-augmentation
+       implementations already in the repo. Do not redesign the core
+       training loop from scratch."
+  workspace: "trm-delay-robust-control"
+
+planning:
+  dynamic_issues: true
+  issue_template: "default"
+
+autonomy:
+  # AUTONOMOUS for tonight's unattended run, by explicit choice. This means
+  # the epic manager decides at every plan/gate/synthesis point on its own
+  # - hypothesis pass/fail, experiment sufficiency, draft content - and
+  # records its rationale on the orchestration-log rather than stopping for
+  # sign-off. Nothing is submitted anywhere during this run; review the
+  # orchestration-log and every claim critically before trusting it.
+  mode: autonomous
+
+dispatch:
+  max_concurrent: 2   # modest on purpose - unvalidated at this scale, and this is real Katana allocation
+  retry_on_block: true
+  max_retries: 3
+  collection_timeout: 300
+  manager_model: auto
+  issue_model: auto
+
+ideation:
+  max_rounds: 3
+  reviewers: 2
+  on_exhaust: block
+
+review:
+  default_criteria: ["correctness", "clarity", "coverage"]
+  pass_threshold: 4
+  max_hypothesis_review_loops: 3
+  max_experiment_review_loops: 3
+  max_writeup_review_loops: 3
+  max_total_project_loops: 10
+
+synthesis:
+  format: "report"   # writeup stage compiles to LaTeX + PDF by default (see paper/main.tex, compile.sh in example-result)
+  model: auto
+  max_review_rounds: 2
+
+perspectives:
+  - "evaluate-for-correctness"
+  - "evaluate-for-clarity"
+  - "evaluate-for-novelty"
+
+# verifiers below are placeholders from the template - point these at your
+# actual repo's test/verification scripts before Phase A runs, or drop the
+# keys entirely if you don't have them yet.
+verifiers:
+  code: "python3 scripts/verify_code.py"
+  data: "python3 scripts/verify_data.py"

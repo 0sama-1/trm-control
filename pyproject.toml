@@ -7,7 +7,16 @@ dependencies = [
     "torchvision",
     "torchaudio",
     "wandb",
+    "weave",
+    "hydra-core",
+    "psutil",
+    "gymnasium[classic-control,other]",
+    "imageio",
 ]
+# Kept in sync with setup/venv.sh, setup/module.sh, and full_script.sh's
+# `uv pip install` calls (2026-09-07) - these previously only listed 4 of
+# the 9 packages those scripts actually installed. Update both places
+# together when a dependency changes.
 
 [[tool.uv.index]]
 name = "pytorch"

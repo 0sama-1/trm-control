@@ -2,19 +2,17 @@
 set -e
 
 # -------------------------
-# Module environment
+# Module environment (Katana)
 # -------------------------
+# Pawsey/Setonix-specific modules removed (2026-09-07) - see setup/module.sh
+# for the full explanation of what was dropped and why (Katana is a plain
+# x86_64 PBS Pro cluster, not Pawsey's ARM/Cray-EX Setonix).
 
 module purge
-module load pawsey pawseytools pawseyenv/2026.01
-module load PrgEnv-nvidia
-module load craype-arm-grace
-module load gcc-native-mixed/12.3
-module load pawseyenv/2026.01
-export MODULEPATH=${MODULEPATH}:${LMOD_CUSTOM_COMPILER_GNU_12_0_PREFIX}
+module add python/3.11.3   # verified working on Katana; re-check `module avail python`
 
-module load cuda/12.9
-module load python/3.11.6
+# TODO(verify on Katana): no CUDA module confirmed yet from an actual GPU
+# job - run `module avail cuda` on katana and pin it here before GPU training.
 
 echo "Python: $(which python3)"
 python3 -V
@@ -22,12 +20,16 @@ python3 -V
 # -------------------------
 # Virtual environment
 # -------------------------
+# $MYSCRATCH was Pawsey-specific; Katana's observed per-user scratch
+# convention is /srv/scratch/<username> (from a real PBS job's PBS_O_PATH).
 
 export PROJECT="trm-control"
-export UV_CACHE_DIR="$PWD/.uv-cache"
-export TMPDIR="$PWD/.tmp"
+export PROJECT_DIR="/srv/scratch/${USER}/${PROJECT}"
+export UV_CACHE_DIR="$PROJECT_DIR/.uv-cache"
+export TMPDIR="$PROJECT_DIR/.tmp"
 
 mkdir -p "$UV_CACHE_DIR" "$TMPDIR"
+cd "$PROJECT_DIR"
 
 rm -rf .venv
 rm -rf .tmp
@@ -40,6 +42,7 @@ python -V
 # -------------------------
 # Dependencies
 # -------------------------
+# Authoritative list also tracked in pyproject.toml - keep both in sync.
 
 uv pip install --upgrade pip
 
@@ -59,4 +62,4 @@ uv pip install psutil
 
 echo ""
 echo "Setup complete."
-echo "Virtual environment: $PWD/.venv"
+echo "Virtual environment: $PROJECT_DIR/.venv"

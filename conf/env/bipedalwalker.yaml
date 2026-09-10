@@ -1,0 +1,3 @@
+id: BipedalWalker-v3
+max_steps: 1600
+continuous_action: true

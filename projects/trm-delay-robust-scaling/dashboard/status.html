@@ -1,0 +1,561 @@
+<title>TRM Delay-Robust Scaling</title>
+<meta name="description" content="Live run tracker for the TRM complexity-scaling experiments on Katana.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --ink: #12161d;
+    --muted: #5c6672;
+    --border: #dfe3e8;
+    --accent: #1c6dd0;
+    --accent-soft: #e8f0fc;
+    --ok: #1e8e5a;
+    --ok-soft: #e4f6ec;
+    --warn: #b4740e;
+    --warn-soft: #fbf0dc;
+    --queued: #6b7280;
+    --queued-soft: #eef0f2;
+    --danger: #c0392b;
+    --danger-soft: #fbeae7;
+    --shadow: 0 1px 2px rgba(18,22,29,0.04), 0 1px 8px rgba(18,22,29,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0e13;
+      --surface: #12161d;
+      --surface-2: #171c25;
+      --ink: #e8ecf2;
+      --muted: #8a93a3;
+      --border: #232a35;
+      --accent: #5b9df0;
+      --accent-soft: #16233a;
+      --ok: #3fbe82;
+      --ok-soft: #123322;
+      --warn: #e3a63d;
+      --warn-soft: #3a2c10;
+      --queued: #8a93a3;
+      --queued-soft: #1b2028;
+      --danger: #e6685a;
+      --danger-soft: #3a1815;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0e13;
+    --surface: #12161d;
+    --surface-2: #171c25;
+    --ink: #e8ecf2;
+    --muted: #8a93a3;
+    --border: #232a35;
+    --accent: #5b9df0;
+    --accent-soft: #16233a;
+    --ok: #3fbe82;
+    --ok-soft: #123322;
+    --warn: #e3a63d;
+    --warn-soft: #3a2c10;
+    --queued: #8a93a3;
+    --queued-soft: #1b2028;
+    --danger: #e6685a;
+    --danger-soft: #3a1815;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    padding: 32px 20px 60px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  header.top h1 {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 0;
+    text-wrap: balance;
+  }
+  header.top .sub {
+    color: var(--muted);
+    font-size: 13.5px;
+    margin-top: 4px;
+  }
+  #updated {
+    font-size: 12.5px;
+    color: var(--muted);
+    text-align: right;
+  }
+  #updated .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    margin-right: 6px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #updated .dot { animation: none; }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 20px;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+  }
+  .card + .card { margin-top: 20px; }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card .card-sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 100px;
+  }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.queued { background: var(--queued-soft); color: var(--queued); }
+
+  /* Phase 1 summary */
+  .p1-stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .p1-stat-row:last-child { border-bottom: none; }
+  .p1-stat-row .label { color: var(--muted); }
+  .p1-stat-row .value { font-weight: 600; }
+  .p1-verdict {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .p1-verdict b { color: var(--danger); }
+  .p1-verdict .tie { color: var(--warn); font-weight: 600; }
+
+  /* Phase 2 progress */
+  .segbar {
+    display: flex;
+    height: 10px;
+    border-radius: 100px;
+    overflow: hidden;
+    background: var(--surface-2);
+    margin: 6px 0 16px;
+  }
+  .segbar div { height: 100%; transition: width 0.4s ease; }
+  .seg-terminal { background: var(--ok); }
+  .seg-running { background: var(--warn); }
+  .seg-queued { background: var(--queued); }
+
+  .stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .tile {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .tile .num {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .tile.terminal .num { color: var(--ok); }
+  .tile.running .num { color: var(--warn); }
+  .tile.queued .num { color: var(--queued); }
+  .tile .lbl {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  table.arch {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.arch th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  table.arch th.num, table.arch td.num { text-align: right; }
+  table.arch td {
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  table.arch tr:last-child td { border-bottom: none; }
+  table.arch td.name { font-weight: 500; }
+  .mini-bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    border-radius: 100px;
+    background: var(--surface-2);
+    overflow: hidden;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .mini-bar div { height: 100%; background: var(--ok); }
+
+  .foot-note {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .foot-note code {
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11.5px;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .qids {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    appearance: none;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 9px 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+  .tab-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Orchestration log */
+  .log-list { display: flex; flex-direction: column; }
+  .log-row {
+    display: grid;
+    grid-template-columns: 150px 90px 1fr;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: baseline;
+  }
+  .log-row:last-child { border-bottom: none; }
+  .log-ts {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .log-kind {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    justify-self: start;
+  }
+  .log-kind.decision { background: var(--accent-soft); color: var(--accent); }
+  .log-kind.status { background: var(--surface-2); color: var(--muted); }
+  .log-kind.escalation { background: var(--danger-soft); color: var(--danger); }
+  .log-summary { color: var(--ink); }
+  @media (max-width: 640px) {
+    .log-row { grid-template-columns: 1fr; gap: 4px; padding: 12px 0; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>trm-delay-robust-scaling</h1>
+      <div class="sub">Does TRM's recursive-compute overhead pay off as task complexity grows? &mdash; run tracker</div>
+    </div>
+    <div id="updated"><span class="dot"></span>connecting&hellip;</div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" id="tab-btn-overview" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</button>
+    <button class="tab-btn" id="tab-btn-log" role="tab" aria-selected="false" aria-controls="tab-log">Orchestration Log</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-overview" role="tabpanel">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Phase 1 <span class="pill ok">complete</span></h2>
+        <div class="card-sub">Pendulum-v1 &amp; MountainCarContinuous-v0 &middot; 48/48 runs</div>
+
+        <div class="p1-stat-row"><span class="label">Architectures</span><span class="value">DNN, Transformer, TRM, LSTM</span></div>
+        <div class="p1-stat-row"><span class="label">Conditions</span><span class="value">no-delay &middot; 1-step delay</span></div>
+        <div class="p1-stat-row"><span class="label">Seeds</span><span class="value">3</span></div>
+        <div class="p1-stat-row"><span class="label">TRM vs DNN (Pendulum)</span><span class="value mono">p&nbsp;=&nbsp;0.016</span></div>
+        <div class="p1-stat-row"><span class="label">TRM vs DNN (MountainCar)</span><span class="value mono">p&nbsp;=&nbsp;0.656</span></div>
+
+        <div class="p1-verdict">
+          TRM was <b>significantly worse</b> than DNN on the easy task &mdash; closing to a <span class="tie">statistical tie</span> on the harder one, never reaching a significant advantage. Threshold prediction falsified; general hypothesis stays open.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Phase 2 <span class="pill warn" id="p2-pill">running</span></h2>
+        <div class="card-sub">BipedalWalker-v3 &middot; GPU-accelerated &middot; TRM-variant + augmentation ablations</div>
+
+        <div class="segbar">
+          <div class="seg-terminal" id="seg-terminal" style="width:0%"></div>
+          <div class="seg-running" id="seg-running" style="width:0%"></div>
+          <div class="seg-queued" id="seg-queued" style="width:100%"></div>
+        </div>
+
+        <div class="stat-tiles">
+          <div class="tile terminal"><div class="num" id="n-terminal">&mdash;</div><div class="lbl">Done</div></div>
+          <div class="tile running"><div class="num" id="n-running">&mdash;</div><div class="lbl">Running</div></div>
+          <div class="tile queued"><div class="num" id="n-queued">&mdash;</div><div class="lbl">Queued</div></div>
+          <div class="tile"><div class="num" id="n-results">&mdash;</div><div class="lbl">Results</div></div>
+        </div>
+
+        <table class="arch">
+          <thead>
+            <tr><th>Architecture</th><th class="num">Done / 9</th></tr>
+          </thead>
+          <tbody id="arch-rows">
+            <tr><td class="name">DNN</td><td class="num" data-arch="dnn">&mdash;</td></tr>
+            <tr><td class="name">Transformer</td><td class="num" data-arch="transformer">&mdash;</td></tr>
+            <tr><td class="name">LSTM</td><td class="num" data-arch="lstm">&mdash;</td></tr>
+            <tr><td class="name">TRM (base)</td><td class="num" data-arch="trm">&mdash;</td></tr>
+            <tr><td class="name">TRM-hier6</td><td class="num" data-arch="trm_hier6">&mdash;</td></tr>
+            <tr><td class="name">TRM-singlez</td><td class="num" data-arch="trm_singlez">&mdash;</td></tr>
+          </tbody>
+        </table>
+
+        <div class="foot-note">
+          6 architectures &times; 3 conditions (no-delay / delay+augmented / delay+unaugmented) &times; 3 seeds = 54 PBS jobs, <code>ngpus=1</code> each, Katana <code>mechgpu</code> queue.
+          <div class="qids">Job IDs 9285767&ndash;9285820</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="tab-panel" id="tab-log" role="tabpanel">
+    <div class="card">
+      <h2>Orchestration Log</h2>
+      <div class="card-sub">Every autonomous decision, gate verdict, and stage transition the epic manager has made, in order.</div>
+      <div class="log-list" id="log-list">
+        <div style="color: var(--muted); font-size: 13px;">Loading&hellip;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function setupTabs() {
+  const tabs = [
+    { btn: "tab-btn-overview", panel: "tab-overview" },
+    { btn: "tab-btn-log", panel: "tab-log" },
+  ];
+  tabs.forEach(({ btn, panel }) => {
+    document.getElementById(btn).addEventListener("click", () => {
+      tabs.forEach(({ btn: b, panel: p }) => {
+        const active = b === btn;
+        document.getElementById(b).classList.toggle("active", active);
+        document.getElementById(b).setAttribute("aria-selected", String(active));
+        document.getElementById(p).classList.toggle("active", active);
+      });
+    });
+  });
+})();
+
+(async () => {
+  const updatedEl = document.getElementById("updated");
+  const dot = updatedEl.querySelector(".dot");
+
+  function relTime(iso) {
+    if (!iso) return "no data yet";
+    const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.floor(s / 60) + "m ago";
+    return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m ago";
+  }
+
+  function render(doc) {
+    if (!doc) {
+      updatedEl.innerHTML = '<span class="dot"></span>waiting for first update&hellip;';
+      return;
+    }
+    const p2 = doc.phase2 || {};
+    const total = p2.total || 54;
+    const terminal = p2.terminal ?? 0;
+    const running = p2.running ?? 0;
+    const queued = p2.queued ?? 0;
+
+    document.getElementById("n-terminal").textContent = terminal;
+    document.getElementById("n-running").textContent = running;
+    document.getElementById("n-queued").textContent = queued;
+    document.getElementById("n-results").textContent = (p2.result_files ?? 0) + "/" + total;
+
+    document.getElementById("seg-terminal").style.width = (100 * terminal / total) + "%";
+    document.getElementById("seg-running").style.width = (100 * running / total) + "%";
+    document.getElementById("seg-queued").style.width = (100 * queued / total) + "%";
+
+    const pill = document.getElementById("p2-pill");
+    if (terminal >= total) {
+      pill.textContent = "complete";
+      pill.className = "pill ok";
+    } else if (running > 0 || terminal > 0) {
+      pill.textContent = "running";
+      pill.className = "pill warn";
+    } else {
+      pill.textContent = "queued";
+      pill.className = "pill queued";
+    }
+
+    const perArch = p2.per_arch || {};
+    document.querySelectorAll("#arch-rows [data-arch]").forEach(cell => {
+      const arch = cell.getAttribute("data-arch");
+      const done = perArch[arch] ?? 0;
+      cell.innerHTML = '<span class="mini-bar"><div style="width:' + (100 * done / 9) + '%"></div></span>' + done + " / 9";
+    });
+
+    updatedEl.innerHTML = '<span class="dot"></span>updated ' + relTime(doc.updated_at);
+  }
+
+  let db = null;
+  try {
+    db = await claude.use("db");
+  } catch (e) {}
+
+  if (!db) {
+    updatedEl.textContent = "live updates unavailable in this view";
+    return;
+  }
+
+  try {
+    const doc = db.doc("status/current");
+    let lastDoc = null;
+    doc.onSnapshot((snap) => {
+      lastDoc = snap && snap.exists ? snap.data() : null;
+      render(lastDoc);
+    });
+    // Re-render periodically so the "updated Xm ago" label keeps ticking
+    // between actual data changes, not just on new writes.
+    setInterval(() => render(lastDoc), 15000);
+  } catch (e) {
+    updatedEl.textContent = "could not connect to live data";
+  }
+
+  // Orchestration log tab: every decision/status/escalation entry the epic
+  // manager has recorded, oldest first, live-updating as new ones land.
+  const logList = document.getElementById("log-list");
+  function renderLog(docs) {
+    if (!docs || docs.length === 0) {
+      logList.innerHTML = '<div style="color: var(--muted); font-size: 13px;">No entries yet.</div>';
+      return;
+    }
+    logList.innerHTML = docs.map(d => {
+      const row = d.data();
+      const kind = (row.kind || "status").toLowerCase();
+      return '<div class="log-row">'
+        + '<span class="log-ts">' + row.ts + '</span>'
+        + '<span class="log-kind ' + kind + '">' + kind + '</span>'
+        + '<span class="log-summary">' + row.summary + '</span>'
+        + '</div>';
+    }).join("");
+  }
+  try {
+    db.collection("log").orderBy("ts", "asc").onSnapshot((snap) => renderLog(snap.docs));
+  } catch (e) {
+    logList.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Could not load the log.</div>';
+  }
+})();
+</script>

@@ -1,17 +1,38 @@
 from __future__ import annotations
 
+import json
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from uuid import uuid4
 
 import gymnasium as gym
 import numpy as np
+import torch
 from omegaconf import DictConfig, open_dict
 
 from delays import DelayedEnv, build_delay
 from logger import WandbLogger
 from recorder import VideoRecorder
 from utils import get_device, set_seed
+
+
+def _count_params(obj) -> int:
+    """Sum parameters of every nn.Module attribute on `obj`, excluding
+    target networks (copies of the trainable ones, not distinct capacity).
+    Works unmodified across DDPG/TD3/SAC (which hold actor/critic on a
+    separate `self.agent`) and PPO (which holds them directly on the
+    trainer) since the caller passes `getattr(self, "agent", self)` --
+    no per-algo special-casing needed. See _write_results_summary — first-
+    class metric per
+    projects/trm-delay-robust-scaling/ideas/proposal-final.json."""
+    total = 0
+    for name, val in vars(obj).items():
+        if name.startswith("target"):
+            continue
+        if isinstance(val, torch.nn.Module):
+            total += sum(p.numel() for p in val.parameters())
+    return total
 
 
 class RLTrainer(ABC):
@@ -54,6 +75,14 @@ class RLTrainer(ABC):
         self.episode_count: int = 0
         self.total_steps: int = 0
         self._recent_returns: list[float] = []
+        self._start_time = time.time()
+        self._last_avg100: float = 0.0
+        self._episode_history: list[dict] = []  # one row per _record_return call
+                                                  # -- see _write_results_summary
+        self._step_history: list[dict] = []      # one row per env step, when
+                                                   # cfg.track_step_history (default
+                                                   # true) -- see OffPolicyTrainer
+                                                   # ._training_loop
 
     # Common set ups
 
@@ -71,13 +100,20 @@ class RLTrainer(ABC):
         if len(self._recent_returns) > 100:
             self._recent_returns.pop(0)
         avg100 = float(np.mean(self._recent_returns))
-        self.logger.log({
+        self._last_avg100 = avg100
+        row = {
             "episode": self.episode_count,
             "return": ep_return,
             "avg100_return": avg100,
             "total_steps": self.total_steps,
             **(extra or {}),
-        })
+        }
+        # Keep every row for the results-summary history (small: one dict of
+        # scalars per episode, not per step) so a rerun's full learning curve
+        # -- not just the final number -- is inspectable after the fact
+        # without needing W&B; see _write_results_summary.
+        self._episode_history.append(row)
+        self.logger.log(row)
         return avg100
 
     # Abstract methods
@@ -104,6 +140,54 @@ class RLTrainer(ABC):
 
     # Entry point
 
+    def _write_results_summary(self) -> None:
+        """Write final reward, wall-clock time, parameter count, AND the
+        full per-episode history (return, avg100, eval_return when logged,
+        mean_action_delta, algo-specific losses) to
+        results/<env>_<arch>_<model>_<delay>_seed<seed>.json -- first-class
+        metrics per projects/trm-delay-robust-scaling/ideas/proposal-final.json,
+        not an afterthought (research.boundaries). One file per run, named so
+        concurrent PBS jobs never collide. The history array is what makes a
+        run's learning curve (not just its final number) inspectable after
+        the fact -- e.g. to tell "converged early and plateaued" from "still
+        improving when total_episodes ran out" -- without needing W&B, and
+        is also what a rerun uses to diff against a previous run's curve."""
+        results_folder = Path(getattr(self.cfg, "results_folder", "results"))
+        results_folder.mkdir(parents=True, exist_ok=True)
+        # augment_obs is included whenever it can vary independently of
+        # delay (Phase 2's augmentation ablation runs both aug=true and
+        # aug=false at the SAME delay condition) -- without this, two
+        # distinct runs collide on one filename and one silently
+        # overwrites the other. Omitted for delay=none, where augment_obs
+        # is a no-op (max_delay=0) and was never varied there, to keep
+        # Phase 1's existing filenames stable.
+        aug_tag = "" if self.cfg.delay.name == "none" else f"_aug{int(bool(self.cfg.augment_obs))}"
+        name = (
+            f"{self.env_cfg.id}_{self.arch.name}_{self.cfg.model.name}"
+            f"_{self.cfg.delay.name}{aug_tag}_seed{self.cfg.seed}.json"
+        )
+        summary = {
+            "env_id": self.env_cfg.id,
+            "arch": self.arch.name,
+            "model": self.cfg.model.name,
+            "delay": self.cfg.delay.name,
+            "delay_value": getattr(self.cfg.delay, "value", None),
+            "seed": self.cfg.seed,
+            "augment_obs": bool(self.cfg.augment_obs),
+            "total_episodes": self.arch.total_episodes,
+            "episode_count": self.episode_count,
+            "final_avg100_return": self._last_avg100,
+            "wall_clock_seconds": time.time() - self._start_time,
+            "param_count": _count_params(getattr(self, "agent", self)),
+            "model_id": self.cfg.model_id,
+            "wandb_enabled": bool(self.cfg.wandb.enabled),
+            "wandb_run_path": self.logger.run_path,
+            "episode_history": self._episode_history,
+            "step_history": self._step_history,
+        }
+        with open(results_folder / name, "w") as f:
+            json.dump(summary, f, indent=2)
+
     def train(self) -> None:
         self._build_agent()
         if Path(self.model_path).exists():
@@ -112,6 +196,7 @@ class RLTrainer(ABC):
         self._training_loop()
         # TODO: add a hydra config to save model (or not)?
         self._save_checkpoint()
+        self._write_results_summary()
         self.env.close()
         self.logger.finish()
         print(f"\nTraining complete. Model: {self.model_path} | Videos: {self.cfg.video_folder}/")
@@ -128,6 +213,7 @@ class OffPolicyTrainer(RLTrainer):
     """
 
     def _training_loop(self) -> None:
+        track_steps = bool(getattr(self.cfg, "track_step_history", True))
         for ep in range(self.episode_count, self.arch.total_episodes):
             obs, _ = self.env.reset(seed=self.cfg.seed + ep)
             self._on_episode_start()
@@ -135,19 +221,48 @@ class OffPolicyTrainer(RLTrainer):
             ep_return = 0.0
             prev_action: np.ndarray | None = None
             action_deltas: list[float] = []
+            step_in_episode = 0
             for _ in range(self.env_cfg.max_steps):
                 action = self._select_action(obs)
                 if prev_action is not None:
                     action_deltas.append(float(np.mean(np.abs(action - prev_action))))
                 prev_action = action
 
-                next_obs, reward, terminated, truncated, _ = self.env.step(action)
+                next_obs, reward, terminated, truncated, info = self.env.step(action)
                 done = terminated or truncated
                 self._store_transition(obs, action, reward, next_obs, done)
                 obs = next_obs
                 ep_return += float(reward)
                 self.total_steps += 1
                 self._maybe_update()
+                if track_steps:
+                    # Per-step record: the actually-applied (post-delay) action
+                    # and sampled delay are the direct diagnostic for this
+                    # project's central premise (the delay confound, see
+                    # augmentation.md) -- previously invisible outside the
+                    # wrapper's private buffer. Scoped to env-level signals
+                    # only (action/applied_action/reward/delay), not
+                    # per-step actor/critic loss, which would require
+                    # touching every algo file (ddpg/td3/sac) individually;
+                    # those stay at episode granularity (actor_loss/
+                    # critic_loss in episode_history).
+                    step_row = {
+                        "global_step": self.total_steps,
+                        "episode": self.episode_count,
+                        "step_in_episode": step_in_episode,
+                        "action": np.asarray(action, dtype=np.float32).tolist(),
+                        "applied_action": info.get("delay_applied_action"),
+                        "delay_sampled_steps": info.get("delay_sampled_steps"),
+                        "reward": float(reward),
+                        "done": bool(done),
+                    }
+                    self._step_history.append(step_row)
+                    if self.cfg.wandb.enabled and self.cfg.wandb.log_steps:
+                        # Separate x-axis ("global_step") from the per-episode
+                        # log's ("episode"/"total_steps") so W&B doesn't
+                        # collapse the two into one step counter.
+                        self.logger.log_step(step_row)
+                step_in_episode += 1
                 if done:
                     break
 

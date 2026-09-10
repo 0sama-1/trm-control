@@ -1,0 +1,21 @@
+[
+  {"id": "2026-09-07T2336a", "ts": "2026-09-07T23:36", "kind": "decision", "summary": "Phase A plan decision: approved, autonomous mode"},
+  {"id": "2026-09-07T2336b", "ts": "2026-09-07T23:36", "kind": "status", "summary": "Phase B complete -> control-validated"},
+  {"id": "2026-09-07T2337", "ts": "2026-09-07T23:37", "kind": "status", "summary": "Phase C: literature_review stage opened"},
+  {"id": "2026-09-07T2342", "ts": "2026-09-07T23:42", "kind": "status", "summary": "literature_review stage exit -> PASS-equivalent, advancing to hypothesis"},
+  {"id": "2026-09-07T2344", "ts": "2026-09-07T23:44", "kind": "decision", "summary": "Phase C: hypothesis stage opened; ideation generator batching decision"},
+  {"id": "2026-09-07T2349", "ts": "2026-09-07T23:49", "kind": "status", "summary": "Ideation round 1: no stop condition, proceeding to round 2"},
+  {"id": "2026-09-07T2353", "ts": "2026-09-07T23:53", "kind": "status", "summary": "Ideation round 2: no stop condition, final round (round 3 of 3) next"},
+  {"id": "2026-09-07T2359", "ts": "2026-09-07T23:59", "kind": "escalation", "summary": "ESCALATION: hypothesis-stage ideation blocked after 3/3 rounds -- awaiting human input"},
+  {"id": "2026-09-08T0008", "ts": "2026-09-08T00:08", "kind": "decision", "summary": "UNBLOCKED by user directive; manager fix applied; proceeding"},
+  {"id": "2026-09-08T0011", "ts": "2026-09-08T00:11", "kind": "decision", "summary": "Hypothesis gate r1: FAIL, manager-applied fix (not literature_review rework), gate r2 dispatched"},
+  {"id": "2026-09-08T0012", "ts": "2026-09-08T00:12", "kind": "decision", "summary": "Hypothesis gate r2: Significance still below bar, LSTM baseline + Phase 2 commitment added, gate r3 (final) dispatched"},
+  {"id": "2026-09-08T0014", "ts": "2026-09-08T00:14", "kind": "decision", "summary": "Hypothesis gate exhausted (3/3, Significance capped at 3) -- proceeding per standing user directive, limitation carried into report"},
+  {"id": "2026-09-08T0110", "ts": "2026-09-08T01:10", "kind": "status", "summary": "experiment_planning: LSTM trunk + mountaincar env added, Katana env set up, smoke test running, submit/analysis scripts + report skeleton ready"},
+  {"id": "2026-09-08T0116", "ts": "2026-09-08T01:16", "kind": "status", "summary": "experiment_planning complete; Phase 1 (48 jobs) submitted to Katana; entering experiment_execution"},
+  {"id": "2026-09-09T0906", "ts": "2026-09-09T09:06", "kind": "status", "summary": "Phase 1 (v3) complete: report finalized with real data, both .md and .tex; awaiting user review before Phase 2"},
+  {"id": "2026-09-09T1224", "ts": "2026-09-09T12:24", "kind": "decision", "summary": "Phase 1 report moved to papers/phase1/; beginning Phase 2 GPU setup (user-authorized)"},
+  {"id": "2026-09-09T1231", "ts": "2026-09-09T12:31", "kind": "decision", "summary": "Phase 2 redesigned with TRM-variant and augmentation ablations per user feedback; 54 jobs, GPU-accelerated"},
+  {"id": "2026-09-09T1405", "ts": "2026-09-09T14:05", "kind": "status", "summary": "Phase 2 (54 jobs, GPU, expanded with TRM-variant + augmentation ablations) submitted"},
+  {"id": "2026-09-09T1741", "ts": "2026-09-09T17:41", "kind": "decision", "summary": "Phase 1 Writeup Clarity gate: PASS (4/5), minor param-ratio nit fixed"}
+]

@@ -12,8 +12,11 @@ eval_every: 10        # run one deterministic (noise-free) eval episode every N 
 augment_obs: false    # append the pending (committed, not-yet-applied) action queue to the observation — see augmentation.md. No-op when delay.name=none.
 video_folder: videos
 model_folder: models
+results_folder: results   # per-run final reward/wall-clock/param-count JSON — see trainer.py::_write_results_summary
+track_step_history: true  # per-env-step record (action, applied_action, delay, reward) in results_summary.json — see trainer.py::OffPolicyTrainer._training_loop
 
 wandb:
   enabled: true
-  project: trm-control
+  project: trm-delay-robust-scaling
   entity: null
+  log_steps: true   # mirror the per-step history into W&B too (see logger.py::WandbLogger.log_step); opt-in since it's a lot of API calls over a full run

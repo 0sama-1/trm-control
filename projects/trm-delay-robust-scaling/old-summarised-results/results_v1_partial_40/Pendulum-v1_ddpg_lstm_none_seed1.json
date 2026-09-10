@@ -1,0 +1,15 @@
+{
+  "env_id": "Pendulum-v1",
+  "arch": "ddpg",
+  "model": "lstm",
+  "delay": "none",
+  "delay_value": null,
+  "seed": 1,
+  "augment_obs": true,
+  "total_episodes": 200,
+  "episode_count": 200,
+  "final_avg100_return": -1471.9971104451172,
+  "wall_clock_seconds": 349.49798679351807,
+  "param_count": 166498,
+  "model_id": "a7ff0c36-0fd8-4a88-b472-800588d4c990"
+}

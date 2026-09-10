@@ -1,0 +1,15 @@
+{
+  "env_id": "MountainCarContinuous-v0",
+  "arch": "ddpg",
+  "model": "lstm",
+  "delay": "none",
+  "delay_value": null,
+  "seed": 3,
+  "augment_obs": true,
+  "total_episodes": 200,
+  "episode_count": 200,
+  "final_avg100_return": -8.50430147216804,
+  "wall_clock_seconds": 2050.7281584739685,
+  "param_count": 166434,
+  "model_id": "d481b26b-090f-4728-8a1d-7e9b5c71581c"
+}
