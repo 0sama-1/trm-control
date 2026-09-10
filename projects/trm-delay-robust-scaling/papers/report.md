@@ -1,105 +1,168 @@
-# Does Recursive Computation Pay Off Under Delay? A Complexity-Scaling Study of Tiny Recursive Policies in Model-Free Control
+# When Does Recursive Computation Transfer? Preconditions for Porting Tiny Recursive Models to Delay-Conditioned Continuous Control
 
-*Final draft. All 102 planned training runs (48 + 54, across three environments) are complete. Results, Discussion, and Conclusion are populated with real data. Pending author review.*
+*Draft for author review. 102 training runs across three continuous-control environments, six actor–critic trunk architectures, and two delay conditions, with a mechanistic analysis of training telemetry from every run.*
 
 ## Abstract
 
-Tiny Recursive Models (TRM) trade parameter count for iterative, weight-tied computation, and have recently been applied to control as a learned corrector that refines a control sequence or trajectory against known dynamics (Jain & Linares, 2025; Wijayatunga & Armellin, 2026). We study a mechanistically different use of the same architecture: recursion as an implicit memory / state-estimation mechanism inside model-free reinforcement learning under action delay, where the environment's dynamics are never modeled and the only signal available is a stream of sampled transitions.
+Tiny Recursive Models (TRM) report a striking result: a 7M-parameter network, applied recursively to its own latent state and predicted answer, outperforms substantially larger models on ARC-AGI, Sudoku-Extreme and Maze-Hard (Jolicoeur-Martineau, 2025). The implied claim is architectural rather than task-specific — that iteration depth with tied weights can substitute for parameter count — and it invites extension beyond the benchmarks on which it was established.
 
-A pilot on Pendulum-v1 found a TRM-trunk actor–critic, a Transformer-trunk actor–critic, and a memoryless DNN [256, 256] actor–critic converge to comparable reward under 1-step delay, with TRM costing roughly 18x the wall-clock training time of the DNN. Rather than conclude TRM's recursive mechanism is unhelpful for delay-robust control, we treated this as evidence that Pendulum-v1 may be too simple a partially observable task to stress any architecture's memory capacity, and tested the falsifiable, pre-registered hypothesis that TRM's relative disadvantage shrinks — or reverses into an advantage — as task complexity increases. We evaluated this hypothesis across a three-rung complexity ladder spanning two independent axes: horizon and reward sparsity (Pendulum-v1 → MountainCarContinuous-v0), and state/action dimensionality with coupled dynamics (→ BipedalWalker-v3). Four architectures (DNN, Transformer, TRM, and an LSTM mechanistic control) were compared on the first two rungs (48 runs); on the third rung, the design was extended to six architectures — adding two further TRM variants, `trm_hier6` and `trm_singlez` — and a third condition ablating observation augmentation (54 runs), for 102 runs in total. Reward, wall-clock training time, and parameter count are reported as co-equal metrics throughout.
+This study asks whether the mechanism transfers to delay-conditioned continuous control under model-free actor–critic reinforcement learning. Action delay renders the raw observation non-Markovian; observation augmentation restores a sufficient statistic in principle (Katsikopoulos & Engelbrecht, 2003) but says nothing about whether a fixed-capacity approximator can *fit* the resulting value function efficiently, which makes iterative latent refinement a plausible inductive bias and this setting a fair test rather than an arbitrary one.
 
-**Full-data replication on Pendulum-v1 found TRM significantly worse than DNN (6/6 seed-pairs, one-sided sign test p = 0.016), not merely tied — a materially different picture than the informal pilot suggested.** On MountainCarContinuous-v0, that gap closed to a statistical tie (3/6 pairs, p = 0.66 vs. DNN; 4/6 pairs, p = 0.34 vs. Transformer): directionally consistent with the pre-registered threshold prediction, but not significant. On BipedalWalker-v3 — a second, independent complexity axis — **no architecture pairing, TRM-variant pairing, or augmentation-condition pairing reached significance in either direction** (best case 2/3 or 3/3 sign agreement at n = 3, p ≥ 0.125). Across all three environments and every comparison run, **exactly one result reaches statistical significance: the TRM deficit on Pendulum-v1.** TRM's wall-clock overhead relative to DNN grew at every rung tested (7.0x → 14.1x → 5.2x–8.0x, the last on different hardware; see Section 8), so its cost scaled up at least as fast as any undetected benefit. We report the general complexity-scaling hypothesis as disconfirmed across the two axes tested, and identify one candidate signal in the augmentation ablation — not itself a finding — as the most promising direction for a targeted, adequately powered follow-up (Section 9).
+We compare six actor–critic trunks — a memoryless MLP, a Transformer, a stateless LSTM, and three TRM variants — across three environments (Pendulum-v1, MountainCarContinuous-v0, BipedalWalker-v3) under 0-step and 1-step delay, with an augmentation ablation, reporting reward, wall-clock time and parameter count as co-equal metrics (102 runs). **On the one environment where every trunk demonstrably learned the task, the recursive trunk was outperformed by a memoryless MLP with 5.8× fewer parameters (Pendulum-v1, 0/6 seed-pairs, one-sided sign test p = 0.016), by ≈37 reward units — roughly 3% of the span between an untrained policy and the best result observed in this study.** No comparison anywhere favoured recursion, and recursion cost 5–14× the MLP's wall-clock time throughout.
 
-## 1. Background
+Three findings from post-hoc analysis qualify that headline and, we argue, matter more than it. First, **two of the three environments are floor effects**: the median MountainCarContinuous-v0 run never reaches the goal (−8.9 against a +90 solved threshold, reproducing a documented DDPG failure mode; Matheron et al., 2019), and no BipedalWalker-v3 run learned to walk (best −81.1 against +300). The apparent convergence to parity at higher complexity is therefore uninformative: the complexity-scaling question was never put at risk. Second, mining per-episode telemetry shows the recursive trunks fit the value function systematically worse than the MLP at matched budget (critic loss elevated in 7 of 7 cells early in training, p = 0.008, median 2.7×) at unchanged learning speed and stability — **but the similarly-sized Transformer shows the same deficit while the small LSTM does not**, so the deficit tracks capacity, a known difficulty in deep RL (Ota et al., 2021; Klein et al., 2024), rather than recursion. Third, and most consequentially, **our port re-initialises the recursive latent on every forward call**, which is precisely the weaker of the two variants isolated by HRM-Agent (Dang & Rawlinson, 2025) — independent work that trained a recursive reasoning model with reinforcement learning alone and *succeeded*, reaching ~99% success on dynamic mazes, with its stronger variant carrying the latent across environment timesteps.
 
-### 1.1 Delay in continuous control
+We therefore report a setting-specific negative result with an identified, fixable cause rather than a verdict on recursive computation in RL. The framing is corroborated by independent analyses of TRM and HRM attributing their benchmark performance to training-time outer-loop refinement, task-identity conditioning and test-time compute rather than to deep forward-pass recursion (ARC Prize, 2025; Roye-Azar et al., 2026) — the very components a naive architectural port discards. We specify five experiments that would separate the competing explanations, of which a capacity-matched MLP and a carried-latent variant are the most urgent.
 
-Real control systems rarely observe and act instantaneously: actuation, sensing, and computation all introduce delay. In a standard (undelayed) Markov Decision Process (MDP), the current observation is a sufficient statistic for predicting the next state and reward given the current action. Delay breaks this: the reward and next observation actually experienced at time *t* were caused by an action chosen *d* steps earlier, not the action chosen "now" — the raw observation is no longer Markovian, and every transition tuple `(obs, action, reward, next_obs)` a delayed learner stores is confounded with respect to the action nominally paired with it.
+## 1. Introduction
 
-We employ an established fix for this problem — **observation augmentation** — which appends the queue of actions already committed but not yet applied to the plant onto the observation, restoring a sufficient statistic (the classical state-augmentation result of Katsikopoulos & Engelbrecht, 2003, discussed in Section 2). Observation augmentation is treated throughout as the baseline conditioning method against which architectures are compared, not itself a contribution of this study.
+The prevailing recipe for increasing a network's capability is to add parameters. Tiny Recursive Models challenge that recipe directly: a two-layer, weight-tied cell, applied recursively to a latent state and a candidate answer, reaches 45% on ARC-AGI-1 and 87% on Sudoku-Extreme with roughly 7M parameters, beating far larger models on those benchmarks (Jolicoeur-Martineau, 2025). The interpretation offered is that iteration depth with tied weights can substitute for parameter count on problems that reward iterative refinement.
 
-### 1.2 Tiny Recursive Models
+Stated that way, the claim concerns a computational mechanism rather than a task family, which raises the question of scope: where does recursion-in-place-of-scale pay off, and where does it not? We chose delay-conditioned continuous control for a substantive reason. Action delay breaks the Markov property: the reward and next observation at time *t* were caused by an action chosen *d* steps earlier. Appending the queue of pending actions to the observation restores a sufficient statistic in principle (Katsikopoulos & Engelbrecht, 2003), but that theorem guarantees only that a sufficient statistic *exists* — not that a fixed-capacity approximator can fit the resulting value function sample-efficiently. Iterative latent refinement over the augmented observation is a plausible inductive bias for exactly that fitting problem, and closely analogous to what a state estimator does. The expectation going in was not that recursion would be irrelevant, but that it would earn its overhead once the fitting problem became hard enough — an expectation that also motivated the original design choice to compare a small MLP against a larger recursive trunk, on the assumption that the recursive trunk's capacity premium would be repaid at higher complexity.
 
-Tiny Recursive Models (TRM; Jolicoeur-Martineau, 2025) replace the usual "more parameters, more depth" recipe with a small, weight-tied network applied recursively: a shared cell updates a latent representation for a fixed number of inner steps per outer cycle, with gradients tracked only through the final outer cycle (a 1-step truncated-backpropagation trick that keeps deep recursion affordable). On narrow reasoning benchmarks (ARC-AGI, Sudoku-Extreme), a 7M-parameter TRM outperforms substantially larger models — evidence that iteration depth with tied weights can substitute for parameter count on tasks that reward iterative refinement.
+The results did not follow that arc, and the reasons proved more interesting than the headline. Section 6 reports the reward outcomes; §6.2 then establishes that only one of the three environments constitutes a valid test at all. Section 7 investigates *why* the recursive trunk underperformed where it was validly tested, using per-episode value-loss telemetry from all 102 runs, and finds a deficit that is real, statistically consistent, and not specific to recursion. Section 8 draws the consequences — including for the parameter-count assumption the design rested on, and for a latent-initialisation choice in our port that independent work suggests was the wrong one. Section 10 specifies the experiments that would resolve what remains open.
 
-This study adapts TRM as a drop-in actor–critic trunk for off-policy continuous-control RL (DDPG/TD3/SAC), alongside a plain MLP and a Transformer-encoder trunk, all sharing a common module interface so the rest of the training loop is architecture-agnostic.
+## 2. Background
 
-### 1.3 Motivating pilot result
+### 2.1 Delay-induced partial observability
 
-Before this study, a pilot trained the TRM, Transformer, and DNN trunks (all with observation augmentation) on Pendulum-v1 under 1-step fixed action delay. All three converged to comparable reward. TRM took approximately 55 minutes per 200 episodes, versus approximately 3 minutes per 200 episodes for the DNN — roughly an 18x wall-clock overhead — for no measured benefit at this task's complexity. This is the empirical starting point for the present study: is TRM's overhead ever worth paying in this setting, and if so, at what complexity?
+Real control systems do not observe and act instantaneously: sensing, computation and actuation all introduce delay. In an undelayed Markov Decision Process the current observation is a sufficient statistic for predicting the next state and reward given the current action. Delay breaks this: the transition tuple `(obs, action, reward, next_obs)` a delayed learner stores is confounded, because the observed consequence was produced by an action chosen *d* steps earlier.
 
-## 2. Related Work and Positioning
+The standard remedy is state augmentation — append the queue of committed-but-unapplied actions to the observation, restoring the Markov property of the delayed MDP (Katsikopoulos & Engelbrecht, 2003). We treat augmentation as the established baseline conditioning method against which architectures are compared, and ablate it on the third environment. Its limitations are not incidental and are taken up in §3.3.
 
-Two papers apply TRM-style recursion directly to control and are the principal prior art for this study:
+### 2.2 Tiny Recursive Models, and the training discipline that surrounds them
 
-- **Jain & Linares (2025), "Tiny Recursive Control"** (arXiv:2512.16824). Applies the TRM recipe to nonlinear optimal-control problems (oscillator stabilization, powered-descent guidance) chosen for embedded/aerospace compute budgets. At each recursive step, a candidate control sequence is simulated forward under the system's known dynamics, and the resulting tracking error is fed back into the same shared module as a correction signal — the recursion refines a numerical answer to a fully specified optimal-control problem. This is model-based: dynamics are known and queried directly.
-- **Wijayatunga & Armellin (2026), "Tiny Recursive Models for the J2-Perturbed Lambert Problem"** (arXiv:2606.00895). Applies the same recipe to the classical Lambert orbital-transfer problem under J2-perturbed dynamics: a candidate departure velocity is iteratively corrected against a simulated trajectory under known orbital mechanics. Also model-based, trained with position/velocity-supervised losses against a known dynamics model.
+TRM replaces depth-by-parameters with depth-by-iteration: a single small shared cell recursively updates a latent state `z` conditioned on the input and the current answer, then updates the answer given the refined latent, for a fixed number of inner and outer cycles. Crucially — and this is the part most relevant to transfer — the published mechanism is embedded in a training procedure with four components that are easy to overlook when the architecture alone is ported. Reading the reference implementation:
 
-Both papers recurse over the answer to a known problem: at every recursive step, the complete relevant state of the world is already available, and the recursion's role is purely numerical refinement, structurally similar to a learned MPC inner loop or a differentiable shooting method. Neither paper's recursion resolves missing information about the world, because none is missing.
+1. **Discrete embedding and de-embedding.** Inputs are grid-cell tokens passed through a learned embedding table (`embed_tokens`); outputs are produced by a linear head back to vocabulary logits (`lm_head`). The recursion operates in a representation space built for a structured, discrete answer.
+2. **Per-instance adaptive capacity.** A learned embedding is allocated *per puzzle instance* (`puzzle_emb`, a sparse embedding over puzzle identifiers), prepended to the token sequence, accumulating instance-specific information across the many gradient steps in which that instance recurs.
+3. **Adaptive computation with a carried state, over a revisitable instance.** An outer wrapper holds a carry (`z_H`, `z_L`, plus step and halt flags) and re-invokes the model on *the same input* for up to `halt_max_steps` successive improvement steps, with a learned halting head deciding when to stop. The loss is applied at each such step — deep supervision along the refinement trajectory, against a fixed and known ground-truth answer.
+4. **One-step gradient truncation.** Within a forward pass, all but the final outer cycle run under `no_grad`; only the last cycle is backpropagated. This keeps deep recursion affordable, and it is sound *because* component 3 supplies gradient signal at many points along the trajectory across successive supervision steps.
 
-**This study's direction is the mechanistic opposite.** The RL algorithms used here (DDPG/TD3/SAC) are model-free: the environment's dynamics are never written down or simulated by the learner, only sampled through interaction. Under delay, the augmented observation is a sufficient statistic in principle (Katsikopoulos & Engelbrecht, 2003 — delay-length state augmentation restores the Markov property of a delayed MDP), but the augmentation theorem only guarantees a sufficient statistic exists; it says nothing about whether a fixed-capacity function approximator can fit the resulting value function sample-efficiently as the augmented state's effective complexity grows. The hypothesis under test is that TRM's recursion, applied over the augmented observation, can act as an implicit memory / state-estimation mechanism that is a more sample- and parameter-efficient inductive bias for this fitting problem than a single feedforward pass — a claim about function-approximation efficiency, not state recoverability, and thus not settled by the augmentation theorem alone.
+Components 3 and 4 are coupled. Truncating the gradient to the final cycle is a reasonable economy when deep supervision repeatedly re-enters the trajectory; it is a different proposition when the only gradient the recursion ever receives is at its endpoint. Deep supervision itself is a well-established device for exactly this purpose — attaching companion objectives to intermediate depths to shorten the path from loss to early layers and combat vanishing gradients (Lee et al., 2015) — which is precisely the function component 3 performs for TRM and which a bare architectural port removes.
 
-The comparison is further situated against the recurrent-memory literature for partially observable RL — Bakker (2007)'s recurrent (LSTM) policy for POMDPs, and POPGym's systematic benchmarking of memory architectures (LSTM, GRU, Transformer, S4) — which integrate history via a persistent hidden state carried across time steps. TRM's recursion, by contrast, is per-decision-step iterative refinement over the current (augmented) observation, with no persistent state carried between environment steps: a different computational resource (depth of per-step refinement versus breadth of cross-step memory) that neither the model-based TRM-control papers nor the memory-architecture literature isolates as an experimental axis. This study includes a stateless-per-call LSTM trunk (Section 4) specifically to make this distinction empirically testable rather than asserted.
+## 3. Related work
 
-## 3. Hypothesis
+### 3.1 What actually drives TRM and HRM performance
 
-**Research question.** Does TRM's relative advantage over a memoryless DNN and a Transformer trunk — none of which showed a measurable difference at Pendulum-v1's complexity — grow as task complexity increases in model-free, delay-robust continuous control?
+TRM simplifies the earlier Hierarchical Reasoning Model (HRM; Wang et al., 2025). Two independent analyses have since attributed the performance of these models to components other than the recursive architecture itself, and both bear directly on transferability.
 
-**Falsifiable hypothesis (H1).** TRM's relative advantage over a memoryless DNN and a Transformer trunk, all under identical observation-augmentation delay conditioning, is non-decreasing with task complexity across the environment ladder tested.
+The ARC Prize team's component analysis of HRM (ARC Prize, 2025) reports that the hierarchical architecture is largely immaterial — a plain transformer of equal parameter count lands within ≈5 percentage points — while **the outer refinement loop is the true driver**, worth +13pp from zero to one refinement iteration and doubling public-evaluation performance from 1 to 8 loops. Decisively for the present study, they find that *training-time* refinement depth matters far more than inference-time depth: a model trained with 16 loops but evaluated with 1 outperforms a model trained with 1 loop by more than 15pp. They further characterise HRM as "fundamentally transductive," dependent on task-specific embedding IDs, and functioning as a form of zero-pretraining test-time training that encodes task solutions in weights via gradient descent; ACT at inference contributes only a few percentage points.
 
-**Competing hypothesis (H0).** The advantage stays flat or negative across the complexity range tested — TRM's recursive inductive bias does not transfer from model-based trajectory refinement (Section 2) to model-free implicit state estimation, and its wall-clock overhead is never recovered. A clean result in favor of H0 is treated as a valid, reportable finding in its own right, not a failure to be explained away.
+A TRM-specific analysis (Roye-Azar et al., 2026) reaches a compatible conclusion by different means. A puzzle-identity ablation finds that **replacing the correct puzzle ID with a blank or random token yields zero accuracy**; test-time augmentation with 1000-sample majority voting accounts for ≈11pp of Pass@1; and a recursion-trajectory analysis finds that most of the final accuracy is attained at the *first* recursion step, with performance plateauing quickly — "shallow effective recursion." Their summary is that TRM's performance emerges from efficiency, task-specific conditioning and aggressive test-time compute "rather than deep internal reasoning."
 
-**Pre-registered threshold prediction.** The effect was predicted to become measurable once an environment's horizon exceeds Pendulum-v1's by roughly 5x and the task requires longer-horizon credit assignment under sparse reward. MountainCarContinuous-v0 (999-step horizon vs. Pendulum's 200; a single sparse terminal reward vs. Pendulum's dense per-step cost) was the test case for this specific prediction. A null result on MountainCarContinuous falsifies this threshold prediction specifically, not the general hypothesis — the decision rule distinguishing the two is given in Section 4, and the third rung (BipedalWalker-v3, a dimensionality/coupling axis rather than horizon/sparsity) was planned in advance for exactly this contingency.
+Taken together, these analyses identify the load-bearing components as (i) outer-loop refinement *during training*, (ii) per-instance identity conditioning, and (iii) test-time compute. A port that transplants the recursive cell and its forward-pass cycles while discarding all three is, on this evidence, unlikely to reproduce the benefit — a prediction this study inadvertently tested.
 
-**Power statement (pre-registered, first two rungs).** The primary statistic on Pendulum-v1 and MountainCarContinuous-v0 is a pooled one-sided sign test on the sign of the TRM-advantage delta, pooled across seeds and delay conditions (n = 6 paired comparisons per architecture-pair per environment: 3 seeds × 2 delay conditions). An outcome of 5/6 or 6/6 agreement reaches p ≤ 0.0313 (one-sided), the minimum effect size this design can detect as significant; weaker or split-sign outcomes are reported as inconclusive at this sample size, distinguished explicitly from a genuine negative result. The BipedalWalker-v3 rung, discussed below, could not adopt the same pooling (Section 8) and is correspondingly lower-powered.
+Recursive computation with tied weights has a broader lineage that supplies principled alternatives to TRM's truncation: Deep Equilibrium Models solve for a fixed point and differentiate implicitly, obtaining effectively unbounded depth at constant memory without truncating the gradient (Bai et al., 2019), while Adaptive Computation Time (Graves, 2016) and PonderNet (Banino et al., 2021) learn how long to iterate. These matter for §10: TRM's one-step truncation is an economy, not a necessity, and the alternatives are directly applicable.
 
-## 4. Method
+### 3.2 Recursive models in control and in reinforcement learning
 
-**Independent variables — architecture.** Four trunks were compared on the first two environments: a memoryless DNN [256, 256]; a Transformer (per-feature self-attention); TRM (base variant); and an LSTM, added as a mechanistic control (see below). On BipedalWalker-v3, the design was extended to six trunks by adding two further TRM variants — `trm_hier6` (deeper hierarchical recursion) and `trm_singlez` (a single shared latent state across recursion steps) — to test whether the TRM-versus-baseline result depends on the specific recursive structure or is a property of recursive computation generally.
+Two papers apply TRM-style recursion to control in a model-based setting. Jain & Linares (2025) apply the recipe to nonlinear optimal-control problems, simulating a candidate control sequence forward under known dynamics and feeding the tracking error back into the shared module. Wijayatunga & Armellin (2026) apply it to the J2-perturbed Lambert problem, iteratively correcting a candidate departure velocity against a simulated trajectory under known orbital mechanics. Both recurse over a candidate answer to a fully specified problem: at every step the relevant state of the world is available and the recursion performs numerical refinement, structurally analogous to a shooting method or an MPC inner loop. Neither recursion resolves missing information, because none is missing.
 
-**TRM adaptation and parameter count.** The TRM trunk keeps the recursive mechanism of Jolicoeur-Martineau (2025) faithful — the shared reasoning cell, the outer/inner (`H_cycles` × `L_cycles`) recursion structure, and the 1-step truncated-backpropagation trick that makes deep recursion affordable to train — but is deliberately narrower than the original ARC-AGI/Sudoku configuration (hidden width 128 versus 512 in the source), and drops every component specific to processing a discrete token grid: the token and per-puzzle embedding tables, multi-head self-attention across sequence positions, and rotary positional encoding. These components exist in the original because its input is a sequence of up to ~900 discrete grid-cell tokens that must be embedded and mixed across positions; a continuous-control observation here is a single flat vector — 3 to 24 dimensions across the environments tested, a "sequence" of length one — so there are no positions to attend across and no discrete vocabulary to embed. Retaining that machinery would add parameters without a corresponding mechanism to exploit them. Consequently, the TRM trunks used here have on the order of 790,000 parameters (actor and critic combined), versus the approximately 7M-parameter configuration reported for ARC-AGI — a difference attributable almost entirely to the narrower width and the absent embedding/attention stack, not to a departure from the source architecture's recursive core. Parameter counts throughout are computed by summing the trainable parameters of the actor and critic networks only, excluding target networks (which are copies of the trainable networks used for bootstrapping, not additional capacity).
+**Most directly relevant to this study, HRM-Agent (Dang & Rawlinson, 2025) trains a recursive reasoning model with reinforcement learning alone**, replacing HRM's output head with a DQN head and learning end-to-end from reward with no supervised loss. On two dynamic maze tasks derived from the NetHack Learning Environment — with stochastically toggling doors and obstacles — it reaches ~99% goal-reaching success with near-optimal path lengths. Two aspects of their result are important here. First, it establishes that recursive reasoning *can* be trained by RL: our negative result cannot be read as a general incompatibility. Second, they isolate two variants of latent initialisation — "Carry Z," which initialises the recurrent state from the previous timestep's final values, and "Reset Z," which re-initialises every step — and find that the recurrent process converges faster with Carry Z, which trained faster in 4 of 5 random-maze runs, interpreting this as the model reusing computation across timesteps while a plan remains partially valid. As §5.2 records, our port implements Reset Z. Concurrent work also frames TRM-style latent reasoning in explicitly RL terms (Asadulaev et al., 2025), and applies TRM outside its original domain to tabular prediction (Sarkar et al., 2026) and test-time adaptation (Bhatt et al., 2025); we note these as evidence of active interest in the transfer question rather than relying on their specific claims.
 
-**Why an LSTM trunk.** To make the depth-of-refinement (TRM) versus breadth-of-persistent-memory (recurrent hidden state, as in Bakker/POPGym) distinction empirically adjudicable rather than asserted, an LSTM trunk was added, applied in a single forward call over the same per-slot sequence the Transformer trunk already tokenizes (the current observation plus the pending-action queue exposed by observation augmentation). This keeps the trunk stateless across environment steps, like every other trunk in this study, so it drops into the existing training loop unmodified; it is not a full cross-episode recurrent policy in Bakker's sense, which would require replay-buffer changes to sample whole trajectories — a deliberate scoping decision to isolate the depth-versus-breadth contrast without altering the shared training loop used by every other trunk. All trunks receive an identical information budget per call (same augmented observation, same slot count) and differ only in how they process it: attention (Transformer), weight-tied recursion (TRM and its variants), or sequential recurrence within the call (LSTM).
+The distinction our setting adds to HRM-Agent's is threefold: continuous rather than discrete actions, delay-induced partial observability rather than stochastic-but-observed dynamics, and an actor–critic rather than value-only learner. It also differs in the latent-initialisation choice, which we now regard as a design error rather than a neutral simplification.
 
-**Independent variables — task complexity.** Task complexity is represented by the choice of environment rather than decomposed into independently manipulated axes, an explicit scoping decision made after peer review established that a small number of whole environments cannot cleanly isolate multiple proposed complexity axes (dimensionality, horizon, dynamics coupling) at once. Two independent axes were tested across three environments:
+### 3.3 Delay in reinforcement learning
 
-- **Horizon and reward sparsity:** Pendulum-v1 (200-step horizon, dense per-step cost) → MountainCarContinuous-v0 (999-step horizon, ~5x longer; a single sparse terminal reward).
-- **State/action dimensionality and dynamics coupling:** → BipedalWalker-v3 (24-dimensional observation — hull angle and angular velocity, joint angles and angular velocities, leg-contact indicators, 10 lidar rangefinder readings; 4-dimensional continuous action — hip and knee torques on both legs; coupled, underactuated dynamics), versus Pendulum's 3/1 and MountainCarContinuous's 2/1 dimensionality.
+Beyond the classical augmentation result, Ramstedt et al. (2021) study random delays and off-policy correction. Most significant as a caveat on the present frame, Derman et al. (2021) prove that under execution delay, deterministic Markov policies over the *original* state space suffice for optimality but must be **non-stationary**, that stationary Markov policies are sub-optimal in general, and that the brute-force augmentation baseline carries complexity exponential in the delay *m*; empirically, they report that approaches relying on state augmentation "struggle or fail due to divergence" relative to their non-stationary method. Our study trains stationary policies over augmented states at *m* = 1, where the exponential blow-up is not yet material, but the sub-optimality result means our conditioning method is a defensible baseline rather than a neutral choice, and §9 records this.
 
-**Independent variables — delay condition.** On Pendulum-v1 and MountainCarContinuous-v0: 0-step (no delay) and 1-step fixed delay, both with observation augmentation. On BipedalWalker-v3, a third condition was added — 1-step fixed delay with augmentation *disabled* — to determine whether the augmentation fix's benefit holds or grows at this complexity, since the first two rungs tested only the augmented condition.
+### 3.4 Memory architectures for partial observability
 
-**Seeds.** Three seeds per cell throughout.
+The comparison is situated against recurrent-memory approaches for POMDPs — Bakker (2007)'s recurrent policy gradients and POPGym's systematic benchmarking of memory architectures (Morad et al., 2023) — which integrate history via a persistent hidden state carried *across* time steps. TRM's recursion is instead per-decision-step refinement over the current observation. This is the depth-of-refinement versus breadth-of-memory contrast our stateless LSTM trunk was added to keep separable. Ni et al. (2022) are important for interpreting that control: they show a *carefully tuned* recurrent model-free implementation matches or beats six specialised POMDP methods on 18 of 21 environments, which means a poorly-performing recurrent baseline should be read as an artefact of tuning rather than as evidence about recurrence. Our LSTM's failure on Pendulum-v1 (§6.1) should be read in that light.
 
-**Comparison matrix.** 4 architectures × 2 environments × 2 delay conditions × 3 seeds = 48 runs (Pendulum-v1, MountainCarContinuous-v0), plus 6 architectures × 3 conditions × 3 seeds = 54 runs (BipedalWalker-v3), for **102 independent training runs** in total, each executed as an independent job on a shared HPC cluster. The first 48 ran CPU-only; the BipedalWalker-v3 runs ran on a single NVIDIA V100 GPU each. A data-handling defect affecting a subset of the BipedalWalker-v3 runs was identified and corrected during quality assurance, prior to analysis (Section 7).
+### 3.5 Capacity and optimisation in deep reinforcement learning
 
-**Fixed factors.** RL algorithm (DDPG, matching the original pilot), the observation-augmentation delay-conditioning method (except where deliberately ablated on BipedalWalker-v3), and the training protocol (episode budget, optimizer, batch size) were held fixed throughout, so that trunk architecture, environment, and — on the third rung only — augmentation condition were the manipulated variables.
+The mechanistic finding of §7.3 — that the two ≈790k-parameter trunks fit the value function worse than a 135k MLP at matched budget — is consistent with an established literature rather than novel. Ota et al. (2021) show that naively increasing network capacity does not improve deep-RL performance and attribute this to training instability, in explicit contrast with vision and language where scaling reliably helps; their remedy requires architectural and training changes (DenseNet connectivity, decoupled representation learning, distributed training) rather than width alone. Related phenomena appear under several names — capacity loss, implicit under-parameterisation, primacy bias and plasticity loss — surveyed by Klein et al. (2024), who note that loss of plasticity produces performance plateaus and contributes specifically to *scaling failures*; Abbas et al. (2023) document it in continual deep RL. Our result should therefore be presented as one more instance of a known effect, and as a confound in our own design, not as a discovery.
 
-**Dependent variables.** Final reward (mean over the last 100 training episodes), wall-clock training time, and parameter count, reported as co-equal, first-class metrics for every condition.
+Two further methodological references bound what our statistics can claim. Henderson et al. (2018) show that learning curves from different random seeds can be non-overlapping under fixed hyperparameters, making cross-condition comparison unreliable at small seed counts. Agarwal et al. (2021) quantify the cost: point estimates from five runs per task on Atari 100k yield Type I error above 50%, and they recommend the interquartile mean over mean or median. At three seeds per cell, our third-environment comparisons sit below even that threshold, which §9 records.
 
-**Primary statistical procedure.** A pooled one-sided sign test on the TRM-advantage delta's sign (Section 3), supplemented on the first two rungs by Page's trend test across the environment ladder as a corroborating monotonicity statistic. A linear regression of the reward delta against an ordinal complexity rank was considered and rejected as the primary criterion: an earlier design used this regression at n = 3 seeds, which independent review identified as mathematically unable to reach the pre-registered significance threshold (best-case p = 0.125); the pooled sign test was substituted specifically to correct this. The BipedalWalker-v3 rung's primary comparison, discussed in Section 8, reproduces this exact n = 3 constraint, since no second axis was available to pool against on that rung.
+### 3.6 The failure mode of our second environment
 
-**Falsification scope.** If neither the horizon/sparsity rung (MountainCarContinuous-v0) nor the dimensionality/coupling rung (BipedalWalker-v3) showed a significant effect, the general hypothesis — not merely the specific horizon-threshold prediction — was to be treated as disconfirmed, pending only a further, higher-dimensional rung (e.g., a MuJoCo environment) not evaluated in this study.
+Our MountainCarContinuous-v0 result (§6.2) reproduces a documented pathology rather than revealing an architectural one. DDPG with Ornstein–Uhlenbeck exploration is known to fail on this task — returns remaining near −10 after a million steps — because the OU process resets to zero at episode start and supplies little noise exactly when exploration matters, and because a per-step action cost creates a strong local optimum of inaction; Matheron et al. (2019) analyse the resulting deadlock in deterministic sparse-reward environments, and parameter-space noise was introduced partly to address it (Plappert et al., 2018). Our median final return of −8.9 is that failure mode, and it is why the environment cannot discriminate architectures.
 
-**Infrastructure.** All training executed as independent batch jobs on a shared HPC cluster; no local training runs were used for reported results. All runs build on a common DDPG implementation and a shared actor–critic training loop; the LSTM trunk, the MountainCarContinuous-v0 and BipedalWalker-v3 environment configurations, the two additional TRM variants, and the augmentation ablation are the only new components introduced across the study, each a minimal, self-contained addition to that shared pipeline.
+## 4. Hypotheses
 
-## 5. Results — Pendulum-v1 and MountainCarContinuous-v0
+The study is framed as a test between two accounts of TRM's reported benefit.
 
-All 48 planned runs completed. Table 1 reports final reward (median, IQR) and wall-clock training time per architecture × environment cell (n = 6: 3 seeds × 2 delay conditions, pooled — delay condition did not systematically shift final reward at this episode budget, so cells are reported pooled to keep the table readable).
+**H_transfer (the mechanism account).** The benefit is a property of weight-tied recursive computation itself. Prediction: a recursive trunk should match or exceed a memoryless MLP of equal or greater capacity in delay-conditioned continuous control, with relative standing non-decreasing in task complexity and delay length.
 
-**Table 1. Final reward, wall-clock time, and parameter count by architecture and environment.**
+**H_precondition (the training-discipline account).** The benefit is conditional on properties that TRM's original supervised setting supplies and that our model-free actor–critic port removes:
 
-| Architecture | Params | Pendulum-v1 reward (median, IQR) | Pendulum wall-clock (median) | MountainCarContinuous reward (median, IQR) | MountainCarContinuous wall-clock (median) |
+- **P1 — refinement continuity: per-step supervision and a persistent state to refine.** TRM applies its loss at every improvement step against a known answer, re-entering the same instance repeatedly with a carried latent (§2.2, components 3–4). Our port supplies one gradient at the end of the recursion, against a bootstrapped and non-stationary target, from a latent re-initialised on every call. Both forms of continuity are broken. The literature supports each half independently: ARC Prize (2025) find training-time refinement depth dominates inference-time depth, and Dang & Rawlinson (2025) find carrying the latent across timesteps outperforms re-initialising it.
+- **P2 — a structured, compositionally correctable answer object.** A 900-cell grid admits partial correctness, so recursion can repair individual cells while preserving the rest. A continuous action in ℝ¹–ℝ⁴ offers no such structure. Roye-Azar et al. (2026) report that most of TRM's accuracy arrives at the first recursion step even on grids, which suggests the exploitable refinement structure may be shallower than assumed even in-domain.
+- **P3 — per-instance adaptive capacity.** The per-puzzle embedding accumulates instance-specific information across epochs; replay-buffer transitions have no analogue. This precondition is load-bearing in-domain to the point of total collapse: removing the puzzle identifier yields *zero* accuracy (Roye-Azar et al., 2026), and ARC Prize (2025) characterise the mechanism as test-time training.
+
+Prediction under H_precondition: recursion yields no reward benefit in this setting while incurring its full compute cost, additional recursion depth is neutral-to-harmful, and restoring either form of refinement continuity should recover part of the gap.
+
+**Discriminating observations.** The two accounts differ in what they predict beyond mean reward, which is what makes the analysis of §7 informative rather than decorative.
+
+| Observation | H_transfer predicts | H_precondition predicts |
+|---|---|---|
+| Reward vs. capacity-matched MLP | ≥ parity | deficit or parity, never advantage |
+| Value-fit quality at matched budget | ≈ parity | recursive trunk worse (gradient reaches only the final cycle) |
+| Effect of increasing recursion depth | improves, or at worst neutral | neutral-to-harmful, cost grows linearly |
+| Effect of carrying the latent across steps | little change | recovers part of the gap |
+| Effect of per-cycle supervision | little change (already fine) | recovers part of the gap |
+
+**Pre-registered statistics.** The primary reward statistic is a one-sided sign test on the sign of the per-seed reward difference, pooled across seeds and delay conditions (n = 6 per architecture pair per environment: 3 seeds × 2 delay conditions). A 5/6 or 6/6 agreement reaches p ≤ 0.0313; weaker outcomes are reported as inconclusive and explicitly distinguished from evidence of equivalence. An earlier design using a regression of reward difference on complexity rank at n = 3 was rejected before execution because its best achievable p-value was 0.125.
+
+## 5. Method
+
+### 5.1 Trunks
+
+All trunks are drop-in replacements for the actor and critic feature extractor, sharing a common module interface, so the trunk is the only manipulated component.
+
+| Trunk | Parameters (actor + critic) | Mechanism |
+|---|---:|---|
+| DNN [256, 256] | 134,914 | memoryless MLP baseline |
+| LSTM | 166,562 | sequential recurrence within a call, stateless across steps |
+| TRM (base) | 787,842 | weight-tied recursion, two latents (`z_H`, `z_L`) |
+| TRM-hier6 | 787,842 | six parallel low-level latent slots |
+| TRM-singlez | 787,842 | single latent, no `z_H`/`z_L` split |
+| Transformer | 797,058 | per-feature self-attention |
+
+Parameter counts sum the trainable parameters of actor and critic, excluding target networks (copies used for bootstrapping, not additional capacity). Counts are for Pendulum-v1 and shift by <2% across environments with observation dimensionality.
+
+### 5.2 The TRM port: what is preserved, what is dropped, and one choice we got wrong
+
+The port preserves the recursive mechanism: a single shared reasoning cell, the outer/inner (`H_cycles` = 3, `L_cycles` = 6) recursion structure, fixed non-trainable initial latent states, and the one-step gradient truncation in which the first `H_cycles − 1` outer cycles run under `no_grad`. With these settings, **14 of the 21 shared-cell applications per forward pass receive no gradient**.
+
+Four surrounding components of §2.2 are dropped, and the *reasons* are themselves evidence about transferability rather than incidental engineering:
+
+- **Token embedding and de-embedding** do not apply: the input is a flat continuous vector of 3–24 dimensions, not a sequence of discrete tokens over a vocabulary. The trunk uses a linear input projection with the source's embedding-scale convention; the actor/critic head plays the de-embedding role.
+- **Self-attention and positional encoding** have nothing to operate on: the observation is a "sequence" of length one, so attention degenerates to a per-token projection. The recursive cell retains the channel-mixing half of each block.
+- **Per-instance embeddings (P3)** have no analogue: replay transitions are not identified, recurring instances.
+- **Adaptive computation with deep supervision (P1)** has no analogue under off-policy RL, which calls the trunk once per transition and does not revisit the same observation across optimiser steps: there is nothing for a halting policy to act on and no trajectory along which to supervise.
+
+To these we must add a choice that was not forced. **The recursion is re-initialised from fixed buffers on every forward call**, so no latent state persists between consecutive environment steps. At the time this was treated as the faithful reading of TRM, whose per-call recursion genuinely starts from learned-at-init constants. But consecutive states in a control task are highly correlated, and HRM-Agent's controlled comparison of exactly this choice (Dang & Rawlinson, 2025) finds that carrying the latent across timesteps converges faster than re-initialising it. Our port therefore implements their weaker variant. We regard this as the most likely single implementation cause of the results below, and §10 gives it its own experiment.
+
+Reduced width (hidden 128 versus 512 in the source) and the absent embedding/attention stack are why the trunks hold ≈790k rather than ≈7M parameters — a scale-appropriate adaptation to a 3–24-dimensional input, not a departure from the recursive core.
+
+### 5.3 Environments, delay conditions, seeds
+
+Two complexity axes were varied across three environments: *horizon and reward sparsity* (Pendulum-v1, 200-step horizon with dense per-step cost → MountainCarContinuous-v0, 999-step horizon with a single sparse terminal reward) and *dimensionality and dynamics coupling* (→ BipedalWalker-v3, 24-dimensional observation, 4-dimensional action, coupled underactuated dynamics).
+
+Delay conditions: 0-step and 1-step fixed action delay, both with augmentation, on the first two environments; on the third, a further condition with augmentation *disabled*. Three seeds per cell. Algorithm (DDPG; Lillicrap et al., 2016), training protocol and episode budget (200 episodes) held fixed throughout. Full factorial: 4 × 2 × 2 × 3 = 48 runs plus 6 × 3 × 3 = 54 runs, for **102 independent runs**, each an independent job on a shared HPC cluster (first 48 CPU-only; the BipedalWalker set on one NVIDIA V100 each). A data-logging naming collision that silently overwrote three cells was caught during quality assurance before analysis; the affected six runs were re-executed and the corrected set verified to contain n = 3 for all 54 cells.
+
+### 5.4 Metrics
+
+Final reward (mean over the last 100 episodes), wall-clock training time, and parameter count, reported as co-equal metrics. Every run additionally records per-episode telemetry — return, 100-episode moving average, actor loss and critic loss — which §7 uses to analyse *how* each trunk trained rather than only where it ended.
+
+## 6. Results: reward outcomes
+
+### 6.1 The three environments
+
+**Table 1. Final reward and wall-clock time by trunk and environment** (median, IQR; n = 6 per cell: 3 seeds × 2 delay conditions, pooled).
+
+| Trunk | Params | Pendulum-v1 reward | wall-clock | MountainCarContinuous-v0 reward | wall-clock |
 |---|---:|---|---:|---|---:|
 | DNN | 134,914 | −188.4 [−194.0, −174.0] | 11.7 min | −9.2 [−10.2, −8.5] | 32.5 min |
 | Transformer | 797,058 | −219.9 [−236.7, −218.7] | 57.7 min | −32.1 [−78.6, +19.7] | 195.3 min |
 | TRM | 787,842 | −216.7 [−231.1, −196.9] | 82.0 min | −8.8 [−9.7, −8.5] | 457.3 min |
 | LSTM | 166,562 | −1460.5 [−1464.8, −1442.0] | 10.3 min | −8.5 [−9.6, −8.4] | 38.0 min |
 
-![Final reward by architecture and environment](figures/fig1_reward_by_arch_env.png)
-
-![Wall-clock training time by architecture and environment](figures/fig2_wallclock_by_arch_env.png)
-
-**Table 2. Primary pre-registered test** (TRM vs. DNN, TRM vs. Transformer; pooled one-sided sign test, n = 6 per cell).
+**Table 2. Primary pre-registered test** (pooled one-sided sign test, n = 6 per cell).
 
 | Comparison | Environment | TRM wins / total | one-sided p |
 |---|---|---:|---:|
@@ -108,140 +171,207 @@ All 48 planned runs completed. Table 1 reports final reward (median, IQR) and wa
 | TRM − Transformer | Pendulum-v1 | 3/6 | 0.656 |
 | TRM − Transformer | MountainCarContinuous-v0 | 4/6 | 0.344 |
 
-On Pendulum-v1, TRM was significantly worse than DNN — all six seed-pairs favored DNN (p = 0.0156, below the pre-registered 0.0313 threshold, indicating significant evidence of a TRM deficit rather than an advantage). This is materially different from the informal pilot's "comparable reward" characterization; the full six-seed replication under this codebase shows a real, consistent gap. TRM vs. Transformer on Pendulum was an even 3/6 split (not significant).
+On Pendulum-v1 the memoryless MLP outperformed the recursive trunk in all six seed-pairs (p = 0.0156). The margin, under fixed delay with augmentation, is 37.1 reward units (−194.0 vs. −231.1). In context: an untrained policy scores around −1460 — as the failed LSTM runs incidentally demonstrate — and the best result observed anywhere in this study is −169.9, so the deficit is roughly 3% of the span between untrained and best-observed. It is statistically consistent but modest, and it is not a collapse. Against the Transformer, the recursive trunk was indistinguishable (3/6). On MountainCarContinuous-v0, no comparison approached significance.
 
-On MountainCarContinuous-v0, neither comparison reached the pre-registered significance threshold in either direction: TRM vs. DNN was an exact 3/6 tie (p = 0.656), and TRM vs. Transformer favored TRM 4/6 but fell short of significance (p = 0.344).
+The LSTM's failure on Pendulum-v1 (median −1460.5, matching an untrained policy, while learning normally on the other two environments) is reported for completeness but not interpreted as evidence about recurrence: per Ni et al. (2022), recurrent model-free baselines are highly tuning-sensitive and a well-configured one is competitive with specialised POMDP methods, so a single failed configuration is an artefact of our setup rather than a property of the architecture class.
 
-![TRM's reward advantage vs. task complexity](figures/fig3_trm_advantage_trend.png)
+![Final reward by trunk and environment](figures/fig1_reward_by_arch_env.png)
 
-The median TRM-advantage delta moved from −28.3 (Pendulum) to +0.4 (MountainCarContinuous) vs. DNN, and from +3.2 to +23.3 vs. Transformer — both monotonically increasing in the hypothesized direction. Neither rung reaches significance on its own for the MountainCarContinuous cell, so this is reported as a directional observation consistent with the pre-registered threshold prediction, not as confirmatory evidence.
+![Wall-clock training time by trunk and environment](figures/fig2_wallclock_by_arch_env.png)
 
-**Wall-clock and parameter count.** TRM's wall-clock overhead relative to DNN grew with task complexity: 7.0x on Pendulum-v1 (82.0 vs. 11.7 min) to 14.1x on MountainCarContinuous-v0 (457.3 vs. 32.5 min). Transformer's overhead grew more mildly (4.9x → 6.0x). TRM and Transformer have essentially the same parameter count (787,842 and 797,058, roughly 5.9x DNN's 134,914); LSTM is much closer to DNN in size (166,562, roughly 1.2x DNN).
+### 6.2 Validity: two of three environments are floor effects
 
-**Secondary, unplanned finding: LSTM failed to learn on Pendulum-v1.** Across all six seeds, the LSTM trunk's final reward (median −1460.5) matches an untrained/random policy, while it learned normally on MountainCarContinuous-v0 (median −8.5, on par with DNN and TRM). This produces a large, statistically "significant" TRM-vs-LSTM gap on Pendulum (6/6, p = 0.0156) that collapses on MountainCarContinuous (1/6, p = 0.109). This is treated as an artifact of the LSTM anomaly on this specific environment, not as evidence about TRM's mechanism, and is excluded from the primary result (Section 10).
+Before interpreting the harder environments as evidence of anything, it is necessary to establish whether the trunks learned the tasks at all. They largely did not, and this materially changes what the study can support.
 
-## 6. Results — BipedalWalker-v3
+**Table 3. Did learning occur?** Outcome against each task's own success criterion, across all 102 runs at a 200-episode budget.
 
-All 54 planned runs completed (6 architectures × 3 conditions × 3 seeds). Table 3 reports every (architecture, condition) cell: final reward (median, IQR), wall-clock training time (median), and parameter count. Each cell has n = 3 (three seeds); conditions are not pooled here, in contrast to Section 5 (Section 8).
+| Environment | Solved threshold | Best final | Median final | Verdict |
+|---|---:|---:|---:|---|
+| Pendulum-v1 | ≈ −150 | −169.9 | −219.9 | **learned** (untrained ≈ −1460) |
+| MountainCarContinuous-v0 | +90 | +45.6 | −8.9 | **exploration-limited, bimodal** |
+| BipedalWalker-v3 | +300 | −81.1 | −120.7 | **floor effect**, no run learned to walk |
 
-**Table 3. Final reward, wall-clock time, and parameter count, BipedalWalker-v3.**
+Only Pendulum-v1 produced a valid architecture comparison. On MountainCarContinuous-v0 the median run finishes at ≈ −9 — paying the action cost while never reaching the goal — with a minority of seeds solving it and consequently extreme across-seed variance (the Transformer's seed standard deviation there is 51.8 reward units). As §3.6 records, this is the documented DDPG-with-OU-noise failure mode on this task rather than an architectural signal. On BipedalWalker-v3 every run sits near the failure floor: the best final return across 54 runs is −81.1 against a +300 solved threshold, and no run finished positive; a 200-episode budget is roughly an order of magnitude short of what DDPG-class methods typically require.
 
-| Architecture | Params (no-delay / fixed-delay) | No-delay reward (median, IQR) | No-delay wall-clock | Fixed+aug reward (median, IQR) | Fixed+aug wall-clock | Fixed, no-aug reward (median, IQR) | Fixed, no-aug wall-clock |
-|---|---:|---|---:|---|---:|---|---:|
-| DNN | 146,693 / 148,741 | −116.6 [−119.3, −114.7] | 7.5 min | −127.2 [−130.6, −116.8] | 7.1 min | −118.4 [−122.2, −81.1] | 7.8 min |
-| Transformer | 813,957 / 817,029 | −107.3 [−108.5, −104.4] | 9.3 min | −107.1 [−126.8, −106.4] | 10.0 min | −121.8 [−125.4, −119.8] | 16.2 min |
-| LSTM | 168,325 / 168,581 | −115.4 [−121.1, −111.6] | 10.7 min | −124.2 [−125.7, −119.8] | 11.4 min | −117.1 [−120.6, −116.7] | 9.6 min |
-| TRM (base) | 793,733 / 794,757 | −119.8 [−127.1, −119.5] | 28.2 min | −121.9 [−127.7, −120.9] | 37.1 min | −119.7 [−134.8, −119.2] | 64.2 min |
-| TRM-hier6 | 793,733 / 794,757 | −125.7 [−130.1, −119.7] | 35.6 min | −122.1 [−124.7, −121.3] | 49.0 min | −133.2 [−136.1, −130.9] | 82.2 min |
-| TRM-singlez | 793,733 / 794,757 | −118.3 [−124.3, −115.3] | 28.2 min | −128.2 [−128.8, −119.9] | 56.4 min | −124.6 [−134.0, −119.6] | 61.9 min |
+The consequence cuts against our own design. **The complexity-scaling question was never put at risk.** The convergence to parity on the harder two environments is not evidence that recursion catches up as tasks get harder; it is what one observes when no architecture learns and all conditions collapse onto a shared floor. The remaining comparisons are reported for completeness but inherit this limitation.
 
-**Table 4. Primary TRM-versus-baseline comparison** (fixed+aug condition, for continuity with the decision rule used in Section 5; pooled sign test, n = 3 pairs — a lower-powered test than Section 5's n = 6; see Section 8).
+### 6.3 Recursive-structure and augmentation ablations
 
-| Comparison | TRM wins / total | Reward delta (per seed) | one-sided p |
-|---|---:|---|---:|
-| TRM − DNN | 2/3 | +6.3, −10.8, +8.7 | 0.5 |
-| TRM − Transformer | 0/3 | −14.4, −0.9, −14.7 | 0.125 |
-| TRM − LSTM | 1/3 | −1.1, −3.5, +3.9 | 0.5 |
+Across all six TRM-variant comparisons (base vs. hier6 and vs. singlez, at each of three conditions on BipedalWalker-v3, n = 3), no comparison shows a directionally consistent pattern: the sign reverses seed-to-seed while the magnitude is often comparable to the between-trunk differences of Table 1. Within the floor-effect caveat, the specific recursive structure makes no detectable difference, while `trm_hier6` and `trm_singlez` both cost strictly more wall-clock than the base variant.
 
-No comparison reaches significance in either direction. TRM vs. Transformer shows the most consistent pattern (0/3, all three seeds favoring Transformer), but the maximum achievable significance at n = 3 is p = 0.125, which cannot cross the conventional 0.05 threshold in either direction at this sample size.
+**Table 4. Augmentation on vs. off under fixed delay** (BipedalWalker-v3, paired by seed).
 
-![Final reward by architecture and condition](figures/fig4_reward_by_arch_cond.png)
-
-![Wall-clock training time by architecture and condition](figures/fig5_wallclock_by_arch_cond.png)
-
-**Table 5. TRM-variant comparisons** (TRM vs. `trm_hier6`, TRM vs. `trm_singlez`; paired sign test per condition, n = 3). Per-seed deltas are reported in addition to win/loss counts, since the counts alone obscure the variance in the underlying signal.
-
-| Comparison | Condition | Wins / total | Seed 1 | Seed 2 | Seed 3 | one-sided p |
-|---|---|---:|---:|---:|---:|---:|
-| TRM − hier6 | no-delay | 1/3 | +10.6 | −0.0 | −1.3 | 0.5 |
-| TRM − hier6 | fixed+aug | 2/3 | +1.2 | −6.3 | +2.9 | 0.5 |
-| TRM − hier6 | fixed, no-aug | 2/3 | −1.6 | +11.2 | +16.8 | 0.5 |
-| TRM − singlez | no-delay | 1/3 | +4.8 | −1.5 | −11.8 | 0.5 |
-| TRM − singlez | fixed+aug | 2/3 | −0.9 | +0.6 | +7.0 | 0.5 |
-| TRM − singlez | fixed, no-aug | 1/3 | −10.3 | −0.1 | +14.8 | 0.5 |
-
-All six comparisons split 1/3 or 2/3, and — unlike the augmentation ablation below — none shows a directionally consistent pattern: the sign of the delta reverses seed-to-seed while its magnitude is frequently comparable to the cross-architecture deltas in Table 3 (for example, +16.8 for TRM − hier6 under the no-augmentation condition). This is consistent with seed-to-seed training variance dominating any structural difference between the three recursive variants, rather than a genuine effect that narrowly missed significance. The three variants are statistically and practically indistinguishable from one another at this sample size, while `trm_hier6` and `trm_singlez` both incur strictly greater wall-clock cost than the base variant (6.9x and 8.0x relative to DNN, versus 5.2x for base TRM; Table 6), indicating that the additional structure carries cost without a corresponding benefit in this dataset.
-
-**Table 6. Augmentation ablation** (fixed+aug vs. fixed-noaug, paired by seed, per architecture).
-
-| Architecture | Aug better / total | Seed 1 | Seed 2 | Seed 3 | one-sided p |
+| Trunk | Aug better/total | Seed 1 | Seed 2 | Seed 3 | one-sided p |
 |---|---:|---:|---:|---:|---:|
 | DNN | 1/3 | −46.1 | +5.4 | −12.2 | 0.5 |
 | Transformer | 2/3 | +13.3 | −1.3 | +14.7 | 0.5 |
-| **LSTM** | **0/3** | **−3.1** | **−3.6** | **−8.6** | **0.125** |
+| LSTM | 0/3 | −3.1 | −3.6 | −8.6 | 0.125 |
 | TRM | 1/3 | +13.9 | −8.0 | −2.6 | 0.5 |
-| **TRM-hier6** | **3/3** | **+11.1** | **+9.6** | **+11.3** | **0.125** |
+| TRM-hier6 | 3/3 | +11.1 | +9.6 | +11.3 | 0.125 |
 | TRM-singlez | 2/3 | +4.6 | −8.6 | +5.2 | 0.5 |
 
-Two architectures reach the n = 3 ceiling (3/3 or 0/3 agreement, p = 0.125, the strongest result obtainable at this sample size). **TRM-hier6** benefited from augmentation in all three seeds, with deltas clustered tightly (+11.1, +9.6, +11.3) relative to every other row in this table; this is the most internally consistent effect observed anywhere in this study, though p = 0.125 does not constitute statistical significance. **LSTM** shows the corresponding pattern in the opposite direction: augmentation reduced reward in all three seeds, with comparable consistency (−3.1 to −8.6). The remaining four architectures show no consistent direction (DNN's −46.1 outlier against +5.4 and −12.2 is the most extreme case). No architecture shows a statistically significant benefit or cost from disabling augmentation at this complexity; the TRM-hier6/LSTM pattern is identified as the strongest candidate for a genuine effect in this study and is proposed as the primary follow-up target (Section 9).
+Two trunks reach the n = 3 ceiling (p = 0.125, the strongest attainable at this sample size): TRM-hier6 benefited from augmentation in all three seeds with unusually tightly clustered magnitudes, and the LSTM was harmed in all three. Both are candidate effects meriting a powered follow-up, not findings, and both inherit the floor-effect caveat. That augmentation shows no clear benefit for any trunk here is not evidence against augmentation; it is what a floor effect looks like.
 
-**Table 7. Wall-clock cost relative to DNN** (Table 3, fixed+aug column; DNN median = 7.1 min).
+![Final reward by trunk and condition, BipedalWalker-v3](figures/fig4_reward_by_arch_cond.png)
 
-| Architecture | Overhead vs. DNN |
-|---|---:|
-| Transformer | 1.4x |
-| LSTM | 1.6x |
-| TRM (base) | 5.2x |
-| TRM-hier6 | 6.9x |
-| TRM-singlez | 8.0x |
+![Augmentation ablation: per-seed reward deltas](figures/fig7_augmentation_ablation.png)
 
-TRM's overhead at this rung (5.2x–8.0x, depending on variant) falls between the two rungs in Section 5 in absolute terms (7.0x on Pendulum, 14.1x on MountainCarContinuous), though the two studies are not directly comparable owing to differing hardware (BipedalWalker-v3: GPU; Section 5: CPU-only). What is comparable across all three rungs is direction: TRM's wall-clock cost relative to DNN has exceeded 5x at every rung tested and has never decreased.
+### 6.4 Compute cost
 
-![TRM-family wall-clock overhead vs. DNN](figures/fig6_trm_overhead.png)
+**Table 5. Wall-clock cost relative to the DNN baseline** (median, fixed delay with augmentation).
 
-![Augmentation ablation: does observation-augmentation help under delay?](figures/fig7_augmentation_ablation.png)
+| Trunk | Pendulum-v1 | MountainCarContinuous-v0 | BipedalWalker-v3 |
+|---|---:|---:|---:|
+| Transformer | 4.9× | 6.0× | 1.4× |
+| LSTM | ≈0.9× | 1.2× | 1.6× |
+| TRM (base) | 6.7× | 12.8× | 5.2× |
+| TRM-hier6 | — | — | 6.9× |
+| TRM-singlez | — | — | 8.0× |
 
-## 7. Data-Quality Note (BipedalWalker-v3)
+Recursion's cost is unambiguous and reproduces on every environment and both hardware configurations: the recursive trunks never cost less than ≈5× the memoryless baseline and reached ≈13×. Cross-environment comparison of the multiple is confounded by hardware, but the direction is invariant, and no measured reward benefit offsets it anywhere in the study.
 
-A naming collision in the data-logging pipeline for the augmentation ablation caused three DNN result cells to be silently overwritten during the run. This was identified during quality assurance, prior to analysis. The affected six runs (3 seeds × {fixed+aug, fixed-noaug}) were re-executed, and the analysis in Section 6 uses the corrected result set, independently verified to contain n = 3 for each of the 54 (model, condition) cells with no gaps.
+![TRM-family wall-clock overhead](figures/fig6_trm_overhead.png)
+
+## 7. Mechanistic analysis
+
+Reward comparisons establish *that* recursion did not pay off; they do not say why. Because every run recorded per-episode actor and critic losses alongside returns, the existing 102 runs support a mechanistic analysis at no additional compute cost, discriminating an optimisation/conditioning deficit (E1) from slower learning at equal asymptote (E2), a lower asymptote (E3), and increased instability (E4).
+
+### 7.1 Value-fit quality
+
+The clearest signal in the study is not in the reward data. At matched episode budget, the recursive trunk fits the value function systematically worse than the memoryless MLP.
+
+**Table 6. Critic-loss sign tests against the DNN baseline.** Each cell is one (environment, delay condition) pair; "worse" means the trunk's median critic loss exceeded the DNN's. Early = first 25% of budget, late = final 25%.
+
+| Trunk | Params | Early: worse in | median ratio | p | Late: worse in | median ratio | p |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| TRM | 788k | **7/7** | 2.72× | **0.008** | 6/7 | 1.56× | 0.063 |
+| TRM-hier6 | 788k | 3/3 | 2.61× | 0.125 | 3/3 | 2.00× | 0.125 |
+| TRM-singlez | 788k | 3/3 | 3.41× | 0.125 | 3/3 | 1.68× | 0.125 |
+| Transformer | 797k | 6/7 | 2.64× | 0.063 | **7/7** | 6.51× | **0.008** |
+| LSTM | 167k | 3/7 | 0.95× | 0.773 | 5/7 | 3.89× | 0.227 |
+
+The recursive family shows elevated critic loss in every cell measured — 13 of 13 across the three variants, the base variant's 7/7 reaching p = 0.008. This is the only statistically significant *positive* detection in the study, in the sense of a consistently-signed effect rather than a failure to reject, and it supports E1: the recursive trunk is a worse value approximator *to train* here, not merely a worse performer.
+
+Two caveats bound the effect size. On MountainCarContinuous-v0 both trunks' critic losses are of order 10⁻⁶ — the value function is nearly constant because the goal is rarely reached — so the large ratios there are ratios between negligible quantities and should not be read as meaningful. The interpretable comparisons are Pendulum-v1 (1.18× early, 1.56× late) and BipedalWalker-v3 (2.7× early, 2.0× late). Late-training ratios are additionally contaminated by divergence on specific (trunk, environment) pairs — the Transformer on MountainCarContinuous, the LSTM on Pendulum — which is why the early window is primary.
+
+![Critic loss during training](figures/fig9_critic_loss_curves.png)
+
+### 7.2 Learning speed and stability are unaffected
+
+E2 and E4 are not supported. On Pendulum-v1 the recursive trunk reaches 90% of the study's per-environment performance span at essentially the same point as the MLP (median episode 117 vs. 115 under fixed delay; 105 vs. 103 undelayed), and the normalised area under its learning curve is nearly identical (0.701 vs. 0.719). It is not learning more slowly; it tracks the same trajectory to a slightly lower plateau. Across-seed standard deviation of final return shows no systematic inflation (TRM/DNN ratios across the seven cells: 0.39, 0.51, 0.70, 0.99, 1.01, 1.48, 1.84). That leaves E1 and E3 as the pattern consistent with the data.
+
+![Learning curves under 1-step delay with augmentation](figures/fig8_learning_curves.png)
+
+### 7.3 The deficit is not specific to recursion
+
+Here the analysis undercuts the most convenient interpretation. If the value-fit deficit were caused specifically by recursion — for instance by the truncation leaving 14 of 21 cell applications untrained — a similarly-sized *non-recursive* trunk should not show it. The Transformer does: 6/7 early and 7/7 late, with a *larger* median late ratio (6.51×) than the recursive trunk's (1.56×). The small LSTM shows no early deficit at all (3/7, median 0.95×).
+
+Ordering trunks by parameter count makes the pattern legible: the four high-capacity trunks (788k–797k) all sit well above the 135k MLP's value-fit quality early in training, while the 167k LSTM sits at parity. Capacity under a fixed sample budget is therefore at least as good an explanation as recursion, and on this evidence a better one — and, per §3.5, an expected one: naive capacity scaling is known not to help in deep RL (Ota et al., 2021), with plasticity and capacity loss implicated specifically in scaling failures (Klein et al., 2024; Abbas et al., 2023).
+
+![Value-fit deficit by trunk, ordered by parameter count](figures/fig10_capacity_vs_valuefit.png)
+
+The pattern is not a clean capacity law either: the small LSTM is catastrophically the worst trunk on Pendulum-v1, so trunk-specific optimisation pathologies exist independent of size. What the data support is narrower and firmer: **at a 200-episode budget, both ≈790k-parameter trunk families fit the value function substantially worse than a 135k MLP, and recursion is not distinguishable as the cause.**
+
+### 7.4 Synthesis
+
+The recursive trunk's reward deficit on the one validly-tested environment is accompanied by a consistent value-fit deficit it shares with the other high-capacity trunk, at unchanged learning speed and stability. Recursion adds computation but not sample efficiency, so it pays the high-capacity trunk's optimisation penalty without an offsetting benefit. Whether recursion *itself* carries an additional penalty — as the untrained-gradient argument of §5.2 predicts — cannot be determined here, because parameter count and recursion are confounded in the design.
 
 ## 8. Discussion
 
-**Primary hypothesis, across all three rungs.** TRM did not merely fail to show an advantage on the simplest task, as the informal pilot suggested — it was significantly worse than DNN on Pendulum-v1 in the full replication. That deficit closed to a statistical tie on MountainCarContinuous-v0, directionally consistent with the pre-registered threshold prediction, but never reached significance in the positive direction. On BipedalWalker-v3, a second, independent complexity axis, the same pattern held: no significant TRM deficit, but also no significant TRM advantage, on any comparison — architecture, TRM-variant, or augmentation condition. A genuinely increasing advantage would be expected to appear as a directional trend even before reaching significance; none is observed on the second axis. Taken together, this is consistent with H0 (advantage remains flat) rather than H1 (advantage increases with complexity).
+### 8.1 What this study licenses, and what it does not
 
-**On the TRM-variant ablation.** The three recursive variants tested on BipedalWalker-v3 — base, `trm_hier6`, `trm_singlez` — do not separate from one another at any condition, and the seed-to-seed sign reversals in Table 5 are consistent with a genuine absence of structural effect rather than an underpowered real one. Combined with the primary result, this weakens the claim that any particular recursive structure performs useful work at this task's complexity, as distinct from the broader claim that recursive computation does not yet demonstrate benefit here.
+It licenses: on a delay-conditioned continuous-control task where learning demonstrably occurred, a faithful-but-Reset-Z port of TRM's recursive mechanism was outperformed — consistently across seeds, modestly in magnitude — by a memoryless MLP with 5.8× fewer parameters, while costing 5–14× more wall-clock time; the specific recursive structure was immaterial; and the recursive trunk trained to a measurably worse value fit.
 
-**On the augmentation ablation.** BipedalWalker-v3 is the first environment in this study at which a no-augmentation condition was tested; the first two rungs evaluated only the augmented condition. Two results merit individual discussion: TRM-hier6 benefited from augmentation in all three seeds with tightly clustered magnitudes, and LSTM was harmed by it in all three seeds, also with reasonable consistency. Neither result reaches conventional significance — n = 3 caps both at p = 0.125 — but the internal consistency of both, set against the sign-reversing pattern observed everywhere else in the table, including base TRM, identifies them as the most credible non-null signal in this study. This is reported as **a candidate effect meriting targeted follow-up (Section 9), not a finding**: treating it as confirmed would overstate what n = 3 supports, while treating it as indistinguishable from the other four architectures would disregard a genuine qualitative distinction in the raw data — magnitude and direction agreeing across every seed.
+It does not license: any claim about recursion at higher task complexity, because the harder environments never left the floor (§6.2); any claim that recursion *per se* caused the value-fit deficit, because a similarly-sized non-recursive trunk shows the same deficit (§7.3); any claim that recursive models cannot be trained by RL, which HRM-Agent refutes directly (§3.2); or any claim against TRM's published results, which concern a different regime and are not contested here.
 
-**On the LSTM comparison (depth-of-refinement vs. breadth-of-memory).** The comparison the LSTM trunk was added to enable is inconclusive on Pendulum-v1, not because the design was wrong, but because the LSTM result there is itself anomalous (Section 5) rather than a clean baseline. On MountainCarContinuous-v0, where LSTM learned normally, its median reward (−8.5) was statistically indistinguishable from TRM's (−8.8) and DNN's (−9.2); on BipedalWalker-v3, LSTM again tracks DNN and TRM closely at every condition except the augmentation ablation discussed above. Across the study, there is no evidence that either "depth of per-step refinement" (TRM) or "breadth of memory" (a recurrent mechanism, even in this stateless-per-call scoped form) is doing meaningfully more work than a plain MLP, with the single exception of the augmentation-ablation signal, which cuts in TRM-hier6's favor and against LSTM.
+Nor is this the first test of recursive reasoning under RL. HRM-Agent preceded it and succeeded. What distinguishes our setting is continuous actions, delay-induced partial observability, an actor–critic learner — and, less creditably, a latent-initialisation choice that their controlled comparison identifies as the weaker option.
 
-**On cost.** TRM's wall-clock overhead relative to DNN has not fallen below approximately 5x at any rung tested, and reached as high as 14x on MountainCarContinuous-v0. Whatever is happening to TRM's reward competitiveness, its cost is not staying flat relative to DNN as complexity increases — at no rung has this cost been offset by a measured reward benefit, and at no rung has it been small enough to be immaterial against an uncertain future benefit. A practitioner choosing between these trunks today, at this evidence level, has no basis to prefer TRM on either reward or cost grounds across the complexity range tested.
+### 8.2 The three preconditions, graded
 
-## 9. Synthesis
+**P1 (refinement continuity) — best supported, and now partly external.** The port supplies one gradient at the recursion's endpoint, against a bootstrapped target, from a cold-started latent. Two independent results bear on the two halves: ARC Prize (2025) find training-time refinement depth dominates inference-time depth by >15pp, and Dang & Rawlinson (2025) find carrying the latent beats re-initialising it. The predicted consequence — a poorly-conditioned approximator visible as a worse value fit rather than slower learning — is what §7.1–7.2 observe, though the confound of §7.3 prevents attributing it to this mechanism specifically.
 
-Across the full study: three environments (Pendulum-v1, MountainCarContinuous-v0, BipedalWalker-v3), spanning two independently varied complexity axes (horizon/sparsity; dimensionality/coupling), six architecture families, and 102 training runs. Across every pairwise comparison run, **exactly one** result reaches statistical significance: TRM performed significantly worse than DNN on Pendulum-v1 (p = 0.016). Every other comparison — on MountainCarContinuous-v0, and every comparison on BipedalWalker-v3, including the TRM-variant and augmentation ablations — failed to reach significance in either direction.
+**P2 (structured, correctable answer) — plausible, and complicated in-domain.** A 1–4 dimensional continuous action offers no partial-correctness structure. Notably, Roye-Azar et al. (2026) find most of TRM's accuracy arrives at the first recursion step even on grids, which suggests the exploitable structure may be shallower than assumed even where it exists. Our study contains no manipulation isolating P2.
 
-This outcome — one significant deficit, zero significant advantages, cost consistently elevated — is reported directly rather than reframed as inconclusive. Two independent complexity axes have now been tested, and neither shows the hypothesized growing advantage. The one candidate departure from pure noise — the TRM-hier6/LSTM augmentation-ablation split (Section 6) — is flagged for follow-up precisely because it is the only pattern in the entire dataset with internally consistent direction and magnitude across seeds; it is not treated as evidence for the general hypothesis, since it concerns a specific architecture pair under one ablation, not TRM-versus-baseline scaling with complexity. A third complexity axis — higher-dimensional continuous control with more strongly coupled dynamics (e.g., a MuJoCo environment) — remains untested and is the natural candidate for extending the ladder further.
+**P3 (per-instance adaptive capacity) — plausible, load-bearing in-domain, untestable here.** Removing the puzzle identifier drops TRM to zero accuracy (Roye-Azar et al., 2026), and ARC Prize (2025) characterise HRM as transductive test-time training. If a substantial share of the published benefit rests on per-instance conditioning, no architectural port to replay-based RL can carry it, and the transfer question is partly answered before any experiment is run.
 
-## 10. Limitations
+### 8.3 The parameter-count assumption, and how the analysis inverted it
 
-- **Statistical power differs by rung, and BipedalWalker-v3's primary comparison is under-powered by design.** The Pendulum-v1/MountainCarContinuous-v0 comparisons pool n = 6 (3 seeds × 2 delay conditions), reaching p ≤ 0.0313 on a 5/6 or 6/6 sweep. An earlier n = 3-only design was rejected during Section 5's design phase specifically because it was mathematically unable to reach this threshold (best case p = 0.125). BipedalWalker-v3's primary comparison returns to n = 3, with no second axis available to pool against, reproducing the exact limitation the earlier design was rejected for. No comparison on BipedalWalker-v3 could have reached conventional significance in TRM's favor regardless of true effect size. A follow-up should increase seed count (five or more) or introduce a second poolable condition.
-- **Single environment carries the core empirical test on the horizon/sparsity axis.** The Section 5 result rests substantially on one sparse-reward environment (MountainCarContinuous-v0) at n = 6 (minimum achievable p ≈ 0.03). A clean result at this scale is evidence for or against the specific pre-registered threshold prediction, not a fully general claim about complexity-scaling on that axis alone — addressed in this study by testing a second, independent axis (BipedalWalker-v3), and would benefit further from a third (MuJoCo).
-- **Complexity axes are not independently manipulated within an environment.** The three complexity dimensions of interest (dimensionality, horizon, dynamics coupling) are realized by swapping whole environments rather than holding two axes fixed while varying the third; per-environment axis values are reported descriptively, but attributing an observed effect to one axis specifically is not supported by this design.
-- **GPU utilization on BipedalWalker-v3 is measurable, moderate, and approximately constant across architectures.** An initial smoke test suggested negligible GPU utilization; per-job cluster resource accounting, sampled across DNN, TRM, TRM-hier6, and TRM-singlez runs, instead shows 31–38% GPU compute efficiency and approximately 550–580 MiB of the 40,960 MiB available GPU memory in use, consistently across the architectures sampled. Because efficiency does not vary meaningfully by architecture, the wall-clock overhead differences in Section 6 reflect real differences in the computation each trunk performs, rather than uneven GPU utilization across architectures. Cross-environment wall-clock comparisons (Section 5 vs. Section 6) remain hardware-confounded (CPU vs. GPU), so only the direction of the cost trend, not its exact multiple, should be read across environments.
-- **The LSTM trunk is a scoped mechanistic control, not a full recurrent policy.** It processes the same per-call augmented observation as the other trunks, with no hidden state persisted across environment steps — a deliberate scoping choice to avoid redesigning the training loop's replay-buffer sampling, stated here so the depth-of-refinement/breadth-of-memory contrast is not overclaimed as a like-for-like replication of Bakker (2007)'s cross-episode recurrent policy.
-- **Algorithm and hyperparameters are fixed to DDPG** throughout, matching the original pilot; TD3/SAC or different learning rates/network widths are not tested here.
+The original design deliberately compared a small MLP against a larger recursive trunk, reasoning that TRM's 5.8× capacity premium would be *repaid* at higher complexity, and that the natural follow-up — scaling the MLP to parameter parity — would then show recursion rather than size was responsible. That plan presupposed an advantage to attribute.
+
+The mechanistic analysis inverts the role of the same experiment. If the value-fit deficit tracks capacity under a fixed sample budget (§7.3), the parameter mismatch is not a conservative choice handicapping the MLP; it is a confound handicapping the *recursive trunk*, and the observed deficit may be substantially an artefact of size. The capacity-matched MLP therefore changes from a confirmatory follow-up into the study's most diagnostic missing experiment:
+
+- If a ≈790k MLP also fits value worse than the 135k MLP and loses reward accordingly, the deficit of §6.1 is largely a capacity effect, and comparing TRM against a 135k baseline was never a fair test of recursion.
+- If a ≈790k MLP matches the 135k MLP, something specific to the high-capacity trunk *families* — tied-weight recursion with truncated gradients, or attention — is implicated, and the recursion-specific account survives.
+
+Either outcome is informative, and neither is available from present data. This is the clearest instance in the study of analysis changing the experimental question rather than answering it.
+
+### 8.4 Cost, and the practical reading
+
+Whatever the resolution, the cost ledger is not in doubt: 5–14× wall-clock overhead on every environment and both hardware configurations, with no measured reward benefit anywhere. For a practitioner choosing a trunk for delay-conditioned continuous control at this scale today, the evidence supports the memoryless MLP. That is a narrow, budget-specific recommendation, not a claim about the architecture's ceiling.
+
+## 9. Threats to validity
+
+- **Episode budget (most serious).** 200 episodes suffices for Pendulum-v1 and not for the other two (§6.2). This invalidates the complexity comparison, weakens both ablations, and is the first thing a replication should change.
+- **Latent re-initialisation.** Our port implements HRM-Agent's weaker "Reset Z" variant (§5.2). This is a design shortfall, not an inherent property of TRM, and it may account for much of the result.
+- **Capacity confound.** Recursion and parameter count are not independently varied (§8.3).
+- **Statistical power.** Primary tests pool to n = 6 (minimum achievable p ≈ 0.03); third-environment ablations are n = 3 (minimum p = 0.125). Henderson et al. (2018) and Agarwal et al. (2021) show this regime is unreliable for cross-condition comparison — Type I error above 50% at five runs per task — and recommend interquartile-mean reporting over more seeds, which a replication should adopt.
+- **Stationary policies over augmented states.** Derman et al. (2021) prove stationary Markov policies are sub-optimal in general under execution delay and report divergence for augmentation-based approaches. At *m* = 1 this is a mild caveat, but our conditioning method is a defensible baseline rather than a neutral choice.
+- **Single algorithm.** DDPG throughout, matching the original pilot; it is independently known to be brittle on two of our three tasks (§3.6). TD3 or SAC would raise the floor and might change which environments are valid.
+- **Complexity axes are not independently manipulated.** They are realised by swapping whole environments.
+- **The LSTM is a scoped control, not a tuned recurrent policy** (§6.1).
+- **Effect-size framing.** The one significant reward result is ≈3% of the untrained-to-best span: consistent but small.
+
+## 10. Experimental programme
+
+Five experiments, ordered by diagnostic value per unit compute, each with the prediction that discriminates H_transfer from H_precondition.
+
+**E1 — Capacity-matched MLP (highest priority).** A ≈790k MLP (widening [256, 256] to [624, 624], which gives 788,114 parameters against TRM's 787,842) against the 135k baseline and the recursive trunk on Pendulum-v1 under both delay conditions, 6 seeds; ≈24 runs, and the MLP is the cheapest trunk. *Predictions:* under a capacity explanation the large MLP degrades toward the recursive trunk; under a recursion-specific explanation it matches the small MLP, isolating the deficit to the recursive/attention families. Gates the interpretation of §6.1.
+
+**E2 — Carried latent ("Carry Z").** Initialise `z_H`/`z_L` from the previous environment step's final values instead of the fixed buffers, per Dang & Rawlinson (2025); Pendulum-v1, both delay conditions, 6 seeds. A contained change to the trunk's forward signature plus per-environment latent bookkeeping in the agent. *Predictions:* H_precondition expects a partial recovery of the gap, since it restores one of the two forms of refinement continuity; H_transfer expects little change. This is the cheapest test of the most likely implementation cause.
+
+**E3 — Recursion-depth sweep.** `H_cycles` ∈ {1, 3, 6} at fixed capacity on Pendulum-v1, 6 seeds — a configuration change requiring no new code. `H_cycles` = 1 removes recursion while holding parameters fixed, making it the cleanest isolation of mechanism from capacity. *Predictions:* H_transfer expects reward to improve or at least not degrade with depth; H_precondition expects reward flat-to-worse with linearly growing cost. Roye-Azar et al. (2026) observing that most accuracy arrives at the first recursion step even in-domain makes the flat outcome the more likely one.
+
+**E4 — Extended budget on the harder environments.** Re-run MountainCarContinuous-v0 and BipedalWalker-v3 at a budget sufficient to leave the floor — the former with parameter-space noise or another exploration fix rather than more episodes alone (§3.6), the latter at ≥2000 episodes or with TD3/SAC — 3 seeds, DNN and TRM only. *Prediction:* this is the only route to an actual test of the complexity-scaling question, which currently stands untested rather than disconfirmed.
+
+**E5 — Restoring per-cycle supervision.** Two variants: (a) backpropagate through all outer cycles, removing the one-step truncation; (b) apply the critic loss to every outer cycle's output rather than only the last — a deep-supervision surrogate in the sense of Lee et al. (2015). Deep Equilibrium Models (Bai et al., 2019) offer a third, principled route: solve for the fixed point and differentiate implicitly, avoiding truncation entirely at constant memory. *Predictions:* if any closes part of the gap, P1 is supported constructively — the mechanism transfers when its training discipline is ported with it, a more useful and more favourable conclusion for the method than a bare negative result.
+
+E1, E2 and E3 together cost less than the original 54-job matrix and would resolve the central ambiguities of §7.4 and §8.3. They are the recommended immediate step; E5 is the most scientifically interesting and should follow.
 
 ## 11. Conclusion
 
-Under model-free, delay-robust continuous control with observation augmentation, TRM's recursive weight-tied trunk was significantly worse than a memoryless DNN on the lowest-complexity task tested (Pendulum-v1, p = 0.016, 6/6 seeds) — a materially different picture than an earlier informal pilot's "comparable reward" characterization. On a higher-complexity task along the same axis (MountainCarContinuous-v0, ~5x longer horizon, sparse reward), that deficit closed to a statistical tie against both DNN and Transformer, moving in the direction the pre-registered hypothesis predicted, but never reaching significance in TRM's favor. On a second, independent complexity axis (BipedalWalker-v3, higher-dimensional state/action space with coupled dynamics), extended to include two further TRM variants and an augmentation ablation, **no comparison reached statistical significance in TRM's favor** at any architecture pairing, TRM-variant pairing, or augmentation condition.
+We set out to test whether the parameter-efficiency benefit reported for Tiny Recursive Models survives transfer to delay-conditioned continuous control under model-free actor–critic learning. On the one environment where every trunk demonstrably learned the task, it did not: a memoryless MLP with 5.8× fewer parameters outperformed the recursive trunk in all six seed-pairs (p = 0.016) by a consistent but modest margin, the specific recursive structure was immaterial, and recursion cost 5–14× the wall-clock time throughout without a measured benefit anywhere.
 
-We therefore report the general complexity-scaling hypothesis as **disconfirmed across the two complexity axes tested** — dimensionality/coupling in addition to horizon/sparsity — while TRM's wall-clock cost relative to DNN grew or held substantial at every rung (7.0x → 14.1x → 5.2x–8.0x). At the evidence level established across 102 runs and three environments, TRM's recursive mechanism does not earn its overhead in model-free, delay-robust continuous control as tested here. One candidate signal — a consistent augmentation-ablation split between TRM-hier6 (helped) and LSTM (hurt) — is identified as worth a small, targeted, adequately powered follow-up before any further complexity rung is added (Section 9); absent that follow-up producing a genuine effect, the recommended next step is closing this empirical line and reporting the study's negative result as final, rather than continuing to test new environments in the hope of a positive one.
+Three qualifications, all from post-hoc analysis, determine what that means. Two of the three environments never left the failure floor, so the complexity-scaling question was never put at risk and stands untested rather than disconfirmed. The value-fit deficit that accompanies the reward deficit is shared by a similarly-sized non-recursive trunk and absent in a small one, so it tracks capacity — a known difficulty in deep RL — rather than recursion, and parameter count is confounded with architecture in the direction opposite to our design's assumption. And our port re-initialises the recursive latent every call, the weaker of two variants that independent work on recursive reasoning under RL has explicitly compared.
 
-## 12. Next Steps
+That independent work also supplies the appropriate frame. Recursive reasoning models *can* be trained by reinforcement learning alone, and do well on dynamic discrete navigation when the latent is carried across timesteps. Meanwhile, analyses of TRM and HRM in their original domain attribute their performance largely to training-time outer-loop refinement, per-instance identity conditioning and test-time compute — precisely the components an architecture-only port leaves behind, one of which collapses the model to zero accuracy when removed. Read against that literature, our result is neither a refutation of recursive computation nor a surprise: it is what one should expect when the mechanism is transplanted without the discipline that makes it work, into a regime where its answer object has no correctable structure and its capacity is a liability rather than an asset.
 
-Rather than adding a further complexity rung immediately, the first priority is a small, adequately powered follow-up on the one candidate signal identified in Sections 6 and 9, before allocating further compute to a new environment.
-
-1. **Recommended next: power the augmentation-ablation signal adequately.** A follow-up study of approximately 24 runs (TRM-hier6 and LSTM × augmented/unaugmented × 6 seeds) to test the one candidate effect identified in this study at adequate power (p ≤ 0.03 achievable on a clean sweep).
-2. **Contingent: a higher-dimensional complexity rung (e.g., MuJoCo).** Completes the originally motivated three-axis ladder; contingent on the outcome of Priority 1.
-3. **Not recommended: an additional TRM variant or algorithm substitution.** No observed trend across this study to extrapolate from; declined explicitly rather than left implicit.
+The honest summary is therefore specific rather than sweeping. Recursion did not pay for itself in our port, we can name three reasons and rank our confidence in each, and we can specify five experiments — two of them cheap and immediately runnable — that would separate the fixable causes from the fundamental ones. We make no claim that recursive computation is unsuited to reinforcement learning, and none against TRM's published results. What this work contributes is a measurement of where a naive port fails, why, and what it would take to do better.
 
 ## References
 
-1. Jain, A. & Linares, R. (2025). *Tiny Recursive Control: Iterative Reasoning for Efficient Optimal Control.* arXiv:2512.16824.
-2. Wijayatunga, M. & Armellin, R. (2026). *Tiny Recursive Models for Solving the J2-Perturbed Lambert Problem.* arXiv:2606.00895.
-3. Jolicoeur-Martineau, A. (2025). *Less is More: Recursive Reasoning with Tiny Networks.* arXiv:2510.04871.
-4. Katsikopoulos, K. V. & Engelbrecht, S. E. (2003). Markov decision processes with delays and asynchronous cost collection. *IEEE Trans. Automatic Control*, 48(4), 568–574.
-5. Ramstedt, S., Bouteiller, Y., Beltrame, G., Pal, C., & Binas, J. (2021). Reinforcement Learning with Random Delays. *ICLR 2021*. arXiv:2010.02966.
-6. Morad, S., Kortvelesy, R., Bettini, M., Liwicki, S., & Prorok, A. (2023). POPGym: Benchmarking Partially Observable Reinforcement Learning. arXiv:2303.01859.
-7. Bakker, B. (2007). Solving Deep Memory POMDPs with Recurrent Policy Gradients. *ICANN 2007*.
+1. Jolicoeur-Martineau, A. (2025). *Less is More: Recursive Reasoning with Tiny Networks.* arXiv:2510.04871.
+2. Wang, G., Li, J., Sun, Y., Chen, X., Liu, C., Wu, Y., Lu, M., Song, S., & Abbasi Yadkori, Y. (2025). *Hierarchical Reasoning Model.* arXiv:2506.21734.
+3. ARC Prize (2025). *The Hidden Drivers of HRM's Performance on ARC-AGI.* https://arcprize.org/blog/hrm-analysis
+4. Roye-Azar, A., Vargas-Naranjo, S., Ghai, D., Balamurugan, N., & Amir, R. (2026). *Tiny Recursive Models on ARC-AGI-1: Inductive Biases, Identity Conditioning, and Test-Time Compute.* arXiv:2512.11847.
+5. Dang, L. H. & Rawlinson, D. (2025). *HRM-Agent: Training a recurrent reasoning model in dynamic environments using reinforcement learning.* arXiv:2510.22832.
+6. Jain, A. & Linares, R. (2025). *Tiny Recursive Control: Iterative Reasoning for Efficient Optimal Control.* arXiv:2512.16824.
+7. Wijayatunga, M. & Armellin, R. (2026). *Tiny Recursive Models for Solving the J2-Perturbed Lambert Problem.* arXiv:2606.00895.
+8. Asadulaev, A., Banerjee, R., Karray, F., & Takac, M. (2025). *Latent Reasoning in TRMs is Secretly a Policy Improvement Operator.* arXiv:2511.16886.
+9. Bai, S., Kolter, J. Z., & Koltun, V. (2019). *Deep Equilibrium Models.* NeurIPS 2019. arXiv:1909.01377.
+10. Graves, A. (2016). *Adaptive Computation Time for Recurrent Neural Networks.* arXiv:1603.08983.
+11. Banino, A., Balaguer, J., & Blundell, C. (2021). *PonderNet: Learning to Ponder.* ICML 2021 AutoML Workshop. arXiv:2107.05407.
+12. Lee, C.-Y., Xie, S., Gallagher, P., Zhang, Z., & Tu, Z. (2015). *Deeply-Supervised Nets.* AISTATS 2015. arXiv:1409.5185.
+13. Katsikopoulos, K. V. & Engelbrecht, S. E. (2003). Markov decision processes with delays and asynchronous cost collection. *IEEE Transactions on Automatic Control*, 48(4), 568–574.
+14. Derman, E., Dalal, G., & Mannor, S. (2021). *Acting in Delayed Environments with Non-Stationary Markov Policies.* ICLR 2021. arXiv:2101.11992.
+15. Ramstedt, S., Bouteiller, Y., Beltrame, G., Pal, C., & Binas, J. (2021). *Reinforcement Learning with Random Delays.* ICLR 2021. arXiv:2010.02966.
+16. Bakker, B. (2007). Solving Deep Memory POMDPs with Recurrent Policy Gradients. *ICANN 2007*.
+17. Morad, S., Kortvelesy, R., Bettini, M., Liwicki, S., & Prorok, A. (2023). *POPGym: Benchmarking Partially Observable Reinforcement Learning.* ICLR 2023. arXiv:2303.01859.
+18. Ni, T., Eysenbach, B., & Salakhutdinov, R. (2022). *Recurrent Model-Free RL Can Be a Strong Baseline for Many POMDPs.* ICML 2022. arXiv:2110.05038.
+19. Ota, K., Jha, D. K., & Kanezaki, A. (2021). *Training Larger Networks for Deep Reinforcement Learning.* arXiv:2102.07920.
+20. Klein, T., Miklautz, L., Sidak, K., Plant, C., & Tschiatschek, S. (2024). *Plasticity Loss in Deep Reinforcement Learning: A Survey.* arXiv:2411.04832.
+21. Abbas, Z., Zhao, R., Modayil, J., White, A., & Machado, M. C. (2023). *Loss of Plasticity in Continual Deep Reinforcement Learning.* CoLLAs 2023. arXiv:2303.07507.
+22. Henderson, P., Islam, R., Bachman, P., Pineau, J., Precup, D., & Meger, D. (2018). *Deep Reinforcement Learning that Matters.* AAAI 2018. arXiv:1709.06560.
+23. Agarwal, R., Schwarzer, M., Castro, P. S., Courville, A., & Bellemare, M. G. (2021). *Deep Reinforcement Learning at the Edge of the Statistical Precipice.* NeurIPS 2021. arXiv:2108.13264.
+24. Matheron, G., Perrin, N., & Sigaud, O. (2019). *The problem with DDPG: understanding failures in deterministic environments with sparse rewards.* arXiv:1911.11679.
+25. Plappert, M., Houthooft, R., Dhariwal, P., Sidor, S., Chen, R. Y., Chen, X., Asfour, T., Abbeel, P., & Andrychowicz, M. (2018). *Parameter Space Noise for Exploration.* ICLR 2018. arXiv:1706.01905.
+26. Lillicrap, T. P., Hunt, J. J., Pritzel, A., Heess, N., Erez, T., Tassa, Y., Silver, D., & Wierstra, D. (2016). *Continuous control with deep reinforcement learning.* ICLR 2016. arXiv:1509.02971.
