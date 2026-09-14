@@ -1,0 +1,1325 @@
+{
+ "n_runs": 102,
+ "window_episodes": 50,
+ "pooled_envs": [
+  "Pendulum-v1",
+  "BipedalWalker-v3"
+ ],
+ "caveats": [
+  "Actions are exploration-noisy (OU noise added in _select_action); the rate statistic mixes policy behaviour with a common noise process.",
+  "A degenerate constant policy scores as maximally smooth -- regularity is only interpretable jointly with return.",
+  "MountainCarContinuous-v0 excluded from pooled tests (floor effect).",
+  "Matched-wall-clock reading assumes constant time per episode within a run."
+ ],
+ "cells": {
+  "BipedalWalker-v3__fixed-aug__dnn": {
+   "n": 3,
+   "return_median": -127.2,
+   "action_rate_median": 0.5466,
+   "action_magnitude_median": 0.782,
+   "action_rate_norm_median": 0.699,
+   "saturation_median": 0.37,
+   "param_count": 148741
+  },
+  "BipedalWalker-v3__fixed-aug__lstm": {
+   "n": 3,
+   "return_median": -124.2,
+   "action_rate_median": 0.0874,
+   "action_magnitude_median": 0.689,
+   "action_rate_norm_median": 0.157,
+   "saturation_median": 0.291,
+   "param_count": 168581
+  },
+  "BipedalWalker-v3__fixed-aug__transformer": {
+   "n": 3,
+   "return_median": -107.1,
+   "action_rate_median": 0.0127,
+   "action_magnitude_median": 0.927,
+   "action_rate_norm_median": 0.014,
+   "saturation_median": 0.537,
+   "param_count": 817029
+  },
+  "BipedalWalker-v3__fixed-aug__trm": {
+   "n": 3,
+   "return_median": -121.9,
+   "action_rate_median": 0.142,
+   "action_magnitude_median": 0.854,
+   "action_rate_norm_median": 0.168,
+   "saturation_median": 0.491,
+   "param_count": 794757
+  },
+  "BipedalWalker-v3__fixed-aug__trm_hier6": {
+   "n": 3,
+   "return_median": -122.1,
+   "action_rate_median": 0.2531,
+   "action_magnitude_median": 0.854,
+   "action_rate_norm_median": 0.298,
+   "saturation_median": 0.48,
+   "param_count": 794757
+  },
+  "BipedalWalker-v3__fixed-aug__trm_singlez": {
+   "n": 3,
+   "return_median": -128.2,
+   "action_rate_median": 0.1965,
+   "action_magnitude_median": 0.82,
+   "action_rate_norm_median": 0.243,
+   "saturation_median": 0.436,
+   "param_count": 794757
+  },
+  "BipedalWalker-v3__fixed-noaug__dnn": {
+   "n": 3,
+   "return_median": -118.4,
+   "action_rate_median": 0.3233,
+   "action_magnitude_median": 0.725,
+   "action_rate_norm_median": 0.49,
+   "saturation_median": 0.311,
+   "param_count": 146693
+  },
+  "BipedalWalker-v3__fixed-noaug__lstm": {
+   "n": 3,
+   "return_median": -117.1,
+   "action_rate_median": 0.0667,
+   "action_magnitude_median": 0.633,
+   "action_rate_norm_median": 0.118,
+   "saturation_median": 0.228,
+   "param_count": 168325
+  },
+  "BipedalWalker-v3__fixed-noaug__transformer": {
+   "n": 3,
+   "return_median": -121.8,
+   "action_rate_median": 0.0154,
+   "action_magnitude_median": 0.924,
+   "action_rate_norm_median": 0.017,
+   "saturation_median": 0.541,
+   "param_count": 813957
+  },
+  "BipedalWalker-v3__fixed-noaug__trm": {
+   "n": 3,
+   "return_median": -119.7,
+   "action_rate_median": 0.1149,
+   "action_magnitude_median": 0.868,
+   "action_rate_norm_median": 0.134,
+   "saturation_median": 0.473,
+   "param_count": 793733
+  },
+  "BipedalWalker-v3__fixed-noaug__trm_hier6": {
+   "n": 3,
+   "return_median": -133.2,
+   "action_rate_median": 0.1055,
+   "action_magnitude_median": 0.816,
+   "action_rate_norm_median": 0.129,
+   "saturation_median": 0.446,
+   "param_count": 793733
+  },
+  "BipedalWalker-v3__fixed-noaug__trm_singlez": {
+   "n": 3,
+   "return_median": -124.6,
+   "action_rate_median": 0.1368,
+   "action_magnitude_median": 0.803,
+   "action_rate_norm_median": 0.17,
+   "saturation_median": 0.41,
+   "param_count": 793733
+  },
+  "BipedalWalker-v3__none__dnn": {
+   "n": 3,
+   "return_median": -116.6,
+   "action_rate_median": 0.2372,
+   "action_magnitude_median": 0.719,
+   "action_rate_norm_median": 0.327,
+   "saturation_median": 0.331,
+   "param_count": 146693
+  },
+  "BipedalWalker-v3__none__lstm": {
+   "n": 3,
+   "return_median": -115.4,
+   "action_rate_median": 0.0515,
+   "action_magnitude_median": 0.576,
+   "action_rate_norm_median": 0.081,
+   "saturation_median": 0.197,
+   "param_count": 168325
+  },
+  "BipedalWalker-v3__none__transformer": {
+   "n": 3,
+   "return_median": -107.3,
+   "action_rate_median": 0.0364,
+   "action_magnitude_median": 0.893,
+   "action_rate_norm_median": 0.041,
+   "saturation_median": 0.464,
+   "param_count": 813957
+  },
+  "BipedalWalker-v3__none__trm": {
+   "n": 3,
+   "return_median": -119.8,
+   "action_rate_median": 0.1826,
+   "action_magnitude_median": 0.835,
+   "action_rate_norm_median": 0.207,
+   "saturation_median": 0.436,
+   "param_count": 793733
+  },
+  "BipedalWalker-v3__none__trm_hier6": {
+   "n": 3,
+   "return_median": -125.7,
+   "action_rate_median": 0.1667,
+   "action_magnitude_median": 0.829,
+   "action_rate_norm_median": 0.201,
+   "saturation_median": 0.427,
+   "param_count": 793733
+  },
+  "BipedalWalker-v3__none__trm_singlez": {
+   "n": 3,
+   "return_median": -118.3,
+   "action_rate_median": 0.2042,
+   "action_magnitude_median": 0.831,
+   "action_rate_norm_median": 0.246,
+   "saturation_median": 0.427,
+   "param_count": 793733
+  },
+  "MountainCarContinuous-v0__fixed-aug__dnn": {
+   "n": 3,
+   "return_median": -10.2,
+   "action_rate_median": 0.0275,
+   "action_magnitude_median": 0.241,
+   "action_rate_norm_median": 0.106,
+   "saturation_median": 0.001,
+   "param_count": 134402
+  },
+  "MountainCarContinuous-v0__fixed-aug__lstm": {
+   "n": 3,
+   "return_median": -8.4,
+   "action_rate_median": 0.0161,
+   "action_magnitude_median": 0.236,
+   "action_rate_norm_median": 0.068,
+   "saturation_median": 0.001,
+   "param_count": 166498
+  },
+  "MountainCarContinuous-v0__fixed-aug__transformer": {
+   "n": 3,
+   "return_median": -9.9,
+   "action_rate_median": 0.022,
+   "action_magnitude_median": 0.512,
+   "action_rate_norm_median": 0.043,
+   "saturation_median": 0.213,
+   "param_count": 796290
+  },
+  "MountainCarContinuous-v0__fixed-aug__trm": {
+   "n": 3,
+   "return_median": -9.0,
+   "action_rate_median": 0.0171,
+   "action_magnitude_median": 0.239,
+   "action_rate_norm_median": 0.072,
+   "saturation_median": 0.002,
+   "param_count": 787586
+  },
+  "MountainCarContinuous-v0__none__dnn": {
+   "n": 3,
+   "return_median": -8.5,
+   "action_rate_median": 0.0161,
+   "action_magnitude_median": 0.235,
+   "action_rate_norm_median": 0.068,
+   "saturation_median": 0.001,
+   "param_count": 133890
+  },
+  "MountainCarContinuous-v0__none__lstm": {
+   "n": 3,
+   "return_median": -8.5,
+   "action_rate_median": 0.0161,
+   "action_magnitude_median": 0.236,
+   "action_rate_norm_median": 0.068,
+   "saturation_median": 0.001,
+   "param_count": 166434
+  },
+  "MountainCarContinuous-v0__none__transformer": {
+   "n": 3,
+   "return_median": -54.2,
+   "action_rate_median": 0.009,
+   "action_magnitude_median": 0.889,
+   "action_rate_norm_median": 0.01,
+   "saturation_median": 0.506,
+   "param_count": 795522
+  },
+  "MountainCarContinuous-v0__none__trm": {
+   "n": 3,
+   "return_median": -8.5,
+   "action_rate_median": 0.0161,
+   "action_magnitude_median": 0.237,
+   "action_rate_norm_median": 0.068,
+   "saturation_median": 0.001,
+   "param_count": 787330
+  },
+  "Pendulum-v1__fixed-aug__dnn": {
+   "n": 3,
+   "return_median": -194.0,
+   "action_rate_median": 0.6025,
+   "action_magnitude_median": 0.817,
+   "action_rate_norm_median": 0.61,
+   "saturation_median": 0.375,
+   "param_count": 134914
+  },
+  "Pendulum-v1__fixed-aug__lstm": {
+   "n": 3,
+   "return_median": -1458.1,
+   "action_rate_median": 0.0169,
+   "action_magnitude_median": 1.865,
+   "action_rate_norm_median": 0.009,
+   "saturation_median": 0.997,
+   "param_count": 166562
+  },
+  "Pendulum-v1__fixed-aug__transformer": {
+   "n": 3,
+   "return_median": -220.0,
+   "action_rate_median": 1.0725,
+   "action_magnitude_median": 1.419,
+   "action_rate_norm_median": 0.756,
+   "saturation_median": 0.735,
+   "param_count": 797058
+  },
+  "Pendulum-v1__fixed-aug__trm": {
+   "n": 3,
+   "return_median": -231.1,
+   "action_rate_median": 0.2552,
+   "action_magnitude_median": 0.967,
+   "action_rate_norm_median": 0.264,
+   "saturation_median": 0.446,
+   "param_count": 787842
+  },
+  "Pendulum-v1__none__dnn": {
+   "n": 3,
+   "return_median": -174.0,
+   "action_rate_median": 1.4023,
+   "action_magnitude_median": 1.041,
+   "action_rate_norm_median": 1.325,
+   "saturation_median": 0.539,
+   "param_count": 134402
+  },
+  "Pendulum-v1__none__lstm": {
+   "n": 3,
+   "return_median": -1463.0,
+   "action_rate_median": 0.0169,
+   "action_magnitude_median": 1.865,
+   "action_rate_norm_median": 0.009,
+   "saturation_median": 0.993,
+   "param_count": 166498
+  },
+  "Pendulum-v1__none__transformer": {
+   "n": 3,
+   "return_median": -219.7,
+   "action_rate_median": 0.1344,
+   "action_magnitude_median": 1.014,
+   "action_rate_norm_median": 0.216,
+   "saturation_median": 0.477,
+   "param_count": 796290
+  },
+  "Pendulum-v1__none__trm": {
+   "n": 3,
+   "return_median": -196.9,
+   "action_rate_median": 0.6382,
+   "action_magnitude_median": 1.041,
+   "action_rate_norm_median": 0.613,
+   "saturation_median": 0.5,
+   "param_count": 787586
+  }
+ },
+ "regularity_sign_tests": {
+  "trm__action_rate_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 13,
+   "median_ratio": 0.423,
+   "one_sided_p_smoother": 0.00369
+  },
+  "trm_hier6__action_rate_vs_dnn": {
+   "n_pairs": 9,
+   "n_smoother_than_dnn": 9,
+   "median_ratio": 0.389,
+   "one_sided_p_smoother": 0.00195
+  },
+  "trm_singlez__action_rate_vs_dnn": {
+   "n_pairs": 9,
+   "n_smoother_than_dnn": 7,
+   "median_ratio": 0.536,
+   "one_sided_p_smoother": 0.08984
+  },
+  "transformer__action_rate_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 13,
+   "median_ratio": 0.101,
+   "one_sided_p_smoother": 0.00369
+  },
+  "lstm__action_rate_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 14,
+   "median_ratio": 0.161,
+   "one_sided_p_smoother": 0.00049
+  },
+  "trm__action_rate_norm_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 13,
+   "median_ratio": 0.428,
+   "one_sided_p_smoother": 0.00369
+  },
+  "trm_hier6__action_rate_norm_vs_dnn": {
+   "n_pairs": 9,
+   "n_smoother_than_dnn": 9,
+   "median_ratio": 0.337,
+   "one_sided_p_smoother": 0.00195
+  },
+  "trm_singlez__action_rate_norm_vs_dnn": {
+   "n_pairs": 9,
+   "n_smoother_than_dnn": 8,
+   "median_ratio": 0.493,
+   "one_sided_p_smoother": 0.01953
+  },
+  "transformer__action_rate_norm_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 13,
+   "median_ratio": 0.125,
+   "one_sided_p_smoother": 0.00369
+  },
+  "lstm__action_rate_norm_vs_dnn": {
+   "n_pairs": 15,
+   "n_smoother_than_dnn": 14,
+   "median_ratio": 0.181,
+   "one_sided_p_smoother": 0.00049
+  }
+ },
+ "matched_wallclock": {
+  "rows": [
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 5.0,
+    "dnn_final": -127.2,
+    "model_final": -119.8,
+    "model_at_dnn_wallclock": -118.2,
+    "model_episodes_done_at_dnn_wallclock": 161
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 5.0,
+    "dnn_final": -127.2,
+    "model_final": -106.4,
+    "model_at_dnn_wallclock": -112.5,
+    "model_episodes_done_at_dnn_wallclock": 100
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 5.0,
+    "dnn_final": -127.2,
+    "model_final": -120.9,
+    "model_at_dnn_wallclock": -129.3,
+    "model_episodes_done_at_dnn_wallclock": 26
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 5.0,
+    "dnn_final": -127.2,
+    "model_final": -122.1,
+    "model_at_dnn_wallclock": -123.3,
+    "model_episodes_done_at_dnn_wallclock": 28
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 5.0,
+    "dnn_final": -127.2,
+    "model_final": -119.9,
+    "model_at_dnn_wallclock": -120.5,
+    "model_episodes_done_at_dnn_wallclock": 21
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 9.0,
+    "dnn_final": -116.8,
+    "model_final": -124.2,
+    "model_at_dnn_wallclock": -113.3,
+    "model_episodes_done_at_dnn_wallclock": 140
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 9.0,
+    "dnn_final": -116.8,
+    "model_final": -126.8,
+    "model_at_dnn_wallclock": -117.2,
+    "model_episodes_done_at_dnn_wallclock": 92
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 9.0,
+    "dnn_final": -116.8,
+    "model_final": -127.7,
+    "model_at_dnn_wallclock": -123.2,
+    "model_episodes_done_at_dnn_wallclock": 44
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 9.0,
+    "dnn_final": -116.8,
+    "model_final": -121.3,
+    "model_at_dnn_wallclock": -127.8,
+    "model_episodes_done_at_dnn_wallclock": 36
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 9.0,
+    "dnn_final": -116.8,
+    "model_final": -128.2,
+    "model_at_dnn_wallclock": -122.7,
+    "model_episodes_done_at_dnn_wallclock": 25
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 7.1,
+    "dnn_final": -130.6,
+    "model_final": -125.7,
+    "model_at_dnn_wallclock": -114.2,
+    "model_episodes_done_at_dnn_wallclock": 124
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 7.1,
+    "dnn_final": -130.6,
+    "model_final": -107.1,
+    "model_at_dnn_wallclock": -107.1,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 7.1,
+    "dnn_final": -130.6,
+    "model_final": -121.9,
+    "model_at_dnn_wallclock": -123.0,
+    "model_episodes_done_at_dnn_wallclock": 42
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 7.1,
+    "dnn_final": -130.6,
+    "model_final": -124.7,
+    "model_at_dnn_wallclock": -119.5,
+    "model_episodes_done_at_dnn_wallclock": 28
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 7.1,
+    "dnn_final": -130.6,
+    "model_final": -128.8,
+    "model_at_dnn_wallclock": -121.1,
+    "model_episodes_done_at_dnn_wallclock": 25
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 11.3,
+    "dnn_final": -81.1,
+    "model_final": -116.7,
+    "model_at_dnn_wallclock": -116.7,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 11.3,
+    "dnn_final": -81.1,
+    "model_final": -119.8,
+    "model_at_dnn_wallclock": -110.6,
+    "model_episodes_done_at_dnn_wallclock": 139
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 11.3,
+    "dnn_final": -81.1,
+    "model_final": -134.8,
+    "model_at_dnn_wallclock": -112.2,
+    "model_episodes_done_at_dnn_wallclock": 35
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 1,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 11.3,
+    "dnn_final": -81.1,
+    "model_final": -133.2,
+    "model_at_dnn_wallclock": -119.5,
+    "model_episodes_done_at_dnn_wallclock": 27
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 1,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 11.3,
+    "dnn_final": -81.1,
+    "model_final": -124.6,
+    "model_at_dnn_wallclock": -126.1,
+    "model_episodes_done_at_dnn_wallclock": 35
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 4.9,
+    "dnn_final": -122.2,
+    "model_final": -120.6,
+    "model_at_dnn_wallclock": -124.2,
+    "model_episodes_done_at_dnn_wallclock": 81
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 4.9,
+    "dnn_final": -122.2,
+    "model_final": -125.4,
+    "model_at_dnn_wallclock": -126.5,
+    "model_episodes_done_at_dnn_wallclock": 30
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 4.9,
+    "dnn_final": -122.2,
+    "model_final": -119.7,
+    "model_at_dnn_wallclock": -134.1,
+    "model_episodes_done_at_dnn_wallclock": 11
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 2,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 4.9,
+    "dnn_final": -122.2,
+    "model_final": -130.9,
+    "model_at_dnn_wallclock": -128.6,
+    "model_episodes_done_at_dnn_wallclock": 15
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 2,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 4.9,
+    "dnn_final": -122.2,
+    "model_final": -119.6,
+    "model_at_dnn_wallclock": -120.5,
+    "model_episodes_done_at_dnn_wallclock": 43
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 7.8,
+    "dnn_final": -118.4,
+    "model_final": -117.1,
+    "model_at_dnn_wallclock": -117.1,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 7.8,
+    "dnn_final": -118.4,
+    "model_final": -121.8,
+    "model_at_dnn_wallclock": -119.1,
+    "model_episodes_done_at_dnn_wallclock": 100
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 7.8,
+    "dnn_final": -118.4,
+    "model_final": -119.2,
+    "model_at_dnn_wallclock": -130.1,
+    "model_episodes_done_at_dnn_wallclock": 29
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 3,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 7.8,
+    "dnn_final": -118.4,
+    "model_final": -136.1,
+    "model_at_dnn_wallclock": -142.4,
+    "model_episodes_done_at_dnn_wallclock": 14
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "fixed-noaug",
+    "seed": 3,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 7.8,
+    "dnn_final": -118.4,
+    "model_final": -134.0,
+    "model_at_dnn_wallclock": -117.0,
+    "model_episodes_done_at_dnn_wallclock": 25
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 6.9,
+    "dnn_final": -116.6,
+    "model_final": -111.6,
+    "model_at_dnn_wallclock": -117.3,
+    "model_episodes_done_at_dnn_wallclock": 128
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 6.9,
+    "dnn_final": -116.6,
+    "model_final": -104.4,
+    "model_at_dnn_wallclock": -115.3,
+    "model_episodes_done_at_dnn_wallclock": 108
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 1,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 6.9,
+    "dnn_final": -116.6,
+    "model_final": -130.1,
+    "model_at_dnn_wallclock": -120.1,
+    "model_episodes_done_at_dnn_wallclock": 38
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 6.9,
+    "dnn_final": -116.6,
+    "model_final": -119.5,
+    "model_at_dnn_wallclock": -109.1,
+    "model_episodes_done_at_dnn_wallclock": 47
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 1,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 6.9,
+    "dnn_final": -116.6,
+    "model_final": -124.3,
+    "model_at_dnn_wallclock": -111.5,
+    "model_episodes_done_at_dnn_wallclock": 46
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 9.1,
+    "dnn_final": -114.7,
+    "model_final": -121.1,
+    "model_at_dnn_wallclock": -121.1,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 9.1,
+    "dnn_final": -114.7,
+    "model_final": -107.3,
+    "model_at_dnn_wallclock": -107.3,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 2,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 9.1,
+    "dnn_final": -114.7,
+    "model_final": -119.7,
+    "model_at_dnn_wallclock": -119.0,
+    "model_episodes_done_at_dnn_wallclock": 55
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 9.1,
+    "dnn_final": -114.7,
+    "model_final": -119.8,
+    "model_at_dnn_wallclock": -111.6,
+    "model_episodes_done_at_dnn_wallclock": 64
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 2,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 9.1,
+    "dnn_final": -114.7,
+    "model_final": -118.3,
+    "model_at_dnn_wallclock": -110.5,
+    "model_episodes_done_at_dnn_wallclock": 64
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 7.5,
+    "dnn_final": -119.3,
+    "model_final": -115.4,
+    "model_at_dnn_wallclock": -129.8,
+    "model_episodes_done_at_dnn_wallclock": 78
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 7.5,
+    "dnn_final": -119.3,
+    "model_final": -108.5,
+    "model_at_dnn_wallclock": -119.2,
+    "model_episodes_done_at_dnn_wallclock": 161
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 3,
+    "model": "trm_hier6",
+    "dnn_wallclock_min": 7.5,
+    "dnn_final": -119.3,
+    "model_final": -125.7,
+    "model_at_dnn_wallclock": -118.8,
+    "model_episodes_done_at_dnn_wallclock": 26
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 7.5,
+    "dnn_final": -119.3,
+    "model_final": -127.1,
+    "model_at_dnn_wallclock": -114.0,
+    "model_episodes_done_at_dnn_wallclock": 68
+   },
+   {
+    "env": "BipedalWalker-v3",
+    "cond": "none",
+    "seed": 3,
+    "model": "trm_singlez",
+    "dnn_wallclock_min": 7.5,
+    "dnn_final": -119.3,
+    "model_final": -115.3,
+    "model_at_dnn_wallclock": -117.2,
+    "model_episodes_done_at_dnn_wallclock": 87
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 41.1,
+    "dnn_final": -10.4,
+    "model_final": -9.6,
+    "model_at_dnn_wallclock": -9.9,
+    "model_episodes_done_at_dnn_wallclock": 188
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 41.1,
+    "dnn_final": -10.4,
+    "model_final": 19.7,
+    "model_at_dnn_wallclock": -43.2,
+    "model_episodes_done_at_dnn_wallclock": 32
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 41.1,
+    "dnn_final": -10.4,
+    "model_final": -9.8,
+    "model_at_dnn_wallclock": -11.9,
+    "model_episodes_done_at_dnn_wallclock": 17
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 35.9,
+    "dnn_final": -8.7,
+    "model_final": -8.4,
+    "model_at_dnn_wallclock": -8.8,
+    "model_episodes_done_at_dnn_wallclock": 165
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 35.9,
+    "dnn_final": -8.7,
+    "model_final": -9.9,
+    "model_at_dnn_wallclock": -34.2,
+    "model_episodes_done_at_dnn_wallclock": 40
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 35.9,
+    "dnn_final": -8.7,
+    "model_final": -9.0,
+    "model_at_dnn_wallclock": -11.6,
+    "model_episodes_done_at_dnn_wallclock": 15
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 19.1,
+    "dnn_final": -10.2,
+    "model_final": -7.9,
+    "model_at_dnn_wallclock": -9.6,
+    "model_episodes_done_at_dnn_wallclock": 130
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 19.1,
+    "dnn_final": -10.2,
+    "model_final": -81.2,
+    "model_at_dnn_wallclock": -17.5,
+    "model_episodes_done_at_dnn_wallclock": 15
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 19.1,
+    "dnn_final": -10.2,
+    "model_final": -8.5,
+    "model_at_dnn_wallclock": -15.1,
+    "model_episodes_done_at_dnn_wallclock": 10
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 29.2,
+    "dnn_final": -9.7,
+    "model_final": -9.7,
+    "model_at_dnn_wallclock": -9.3,
+    "model_episodes_done_at_dnn_wallclock": 145
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 29.2,
+    "dnn_final": -9.7,
+    "model_final": 45.6,
+    "model_at_dnn_wallclock": -12.6,
+    "model_episodes_done_at_dnn_wallclock": 55
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 29.2,
+    "dnn_final": -9.7,
+    "model_final": -9.7,
+    "model_at_dnn_wallclock": -11.5,
+    "model_episodes_done_at_dnn_wallclock": 12
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 181.8,
+    "dnn_final": -8.4,
+    "model_final": -8.5,
+    "model_at_dnn_wallclock": -8.5,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 181.8,
+    "dnn_final": -8.4,
+    "model_final": -54.2,
+    "model_at_dnn_wallclock": -54.2,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 181.8,
+    "dnn_final": -8.4,
+    "model_final": -8.5,
+    "model_at_dnn_wallclock": -9.4,
+    "model_episodes_done_at_dnn_wallclock": 127
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 17.8,
+    "dnn_final": -8.5,
+    "model_final": -8.5,
+    "model_at_dnn_wallclock": -9.4,
+    "model_episodes_done_at_dnn_wallclock": 137
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 17.8,
+    "dnn_final": -8.5,
+    "model_final": -78.6,
+    "model_at_dnn_wallclock": -15.6,
+    "model_episodes_done_at_dnn_wallclock": 16
+   },
+   {
+    "env": "MountainCarContinuous-v0",
+    "cond": "none",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 17.8,
+    "dnn_final": -8.5,
+    "model_final": -8.5,
+    "model_at_dnn_wallclock": -17.2,
+    "model_episodes_done_at_dnn_wallclock": 7
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 11.9,
+    "dnn_final": -197.8,
+    "model_final": -1464.8,
+    "model_at_dnn_wallclock": -1464.8,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 11.9,
+    "dnn_final": -197.8,
+    "model_final": -220.0,
+    "model_at_dnn_wallclock": -821.1,
+    "model_episodes_done_at_dnn_wallclock": 76
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 11.9,
+    "dnn_final": -197.8,
+    "model_final": -230.9,
+    "model_at_dnn_wallclock": -878.6,
+    "model_episodes_done_at_dnn_wallclock": 30
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 21.2,
+    "dnn_final": -194.0,
+    "model_final": -1132.9,
+    "model_at_dnn_wallclock": -1132.9,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 21.2,
+    "dnn_final": -194.0,
+    "model_final": -218.7,
+    "model_at_dnn_wallclock": -878.4,
+    "model_episodes_done_at_dnn_wallclock": 75
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 21.2,
+    "dnn_final": -194.0,
+    "model_final": -231.1,
+    "model_at_dnn_wallclock": -851.5,
+    "model_episodes_done_at_dnn_wallclock": 43
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 12.7,
+    "dnn_final": -190.9,
+    "model_final": -1458.1,
+    "model_at_dnn_wallclock": -1458.1,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 12.7,
+    "dnn_final": -190.9,
+    "model_final": -236.7,
+    "model_at_dnn_wallclock": -1356.3,
+    "model_episodes_done_at_dnn_wallclock": 25
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "fixed-aug",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 12.7,
+    "dnn_final": -190.9,
+    "model_final": -240.0,
+    "model_at_dnn_wallclock": -1202.3,
+    "model_episodes_done_at_dnn_wallclock": 30
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 1,
+    "model": "lstm",
+    "dnn_wallclock_min": 2.5,
+    "dnn_final": -169.9,
+    "model_final": -1442.0,
+    "model_at_dnn_wallclock": -1405.9,
+    "model_episodes_done_at_dnn_wallclock": 67
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 1,
+    "model": "transformer",
+    "dnn_wallclock_min": 2.5,
+    "dnn_final": -169.9,
+    "model_final": -219.7,
+    "model_at_dnn_wallclock": -1359.6,
+    "model_episodes_done_at_dnn_wallclock": 16
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 1,
+    "model": "trm",
+    "dnn_wallclock_min": 2.5,
+    "dnn_final": -169.9,
+    "model_final": -202.4,
+    "model_at_dnn_wallclock": -1247.1,
+    "model_episodes_done_at_dnn_wallclock": 6
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 2,
+    "model": "lstm",
+    "dnn_wallclock_min": 11.4,
+    "dnn_final": -174.0,
+    "model_final": -1474.2,
+    "model_at_dnn_wallclock": -1474.2,
+    "model_episodes_done_at_dnn_wallclock": 200
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 2,
+    "model": "transformer",
+    "dnn_wallclock_min": 11.4,
+    "dnn_final": -174.0,
+    "model_final": -199.3,
+    "model_at_dnn_wallclock": -728.7,
+    "model_episodes_done_at_dnn_wallclock": 33
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 2,
+    "model": "trm",
+    "dnn_wallclock_min": 11.4,
+    "dnn_final": -174.0,
+    "model_final": -196.9,
+    "model_at_dnn_wallclock": -487.8,
+    "model_episodes_done_at_dnn_wallclock": 44
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 3,
+    "model": "lstm",
+    "dnn_wallclock_min": 4.0,
+    "dnn_final": -185.9,
+    "model_final": -1463.0,
+    "model_at_dnn_wallclock": -1397.8,
+    "model_episodes_done_at_dnn_wallclock": 77
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 3,
+    "model": "transformer",
+    "dnn_wallclock_min": 4.0,
+    "dnn_final": -185.9,
+    "model_final": -1463.0,
+    "model_at_dnn_wallclock": -1393.8,
+    "model_episodes_done_at_dnn_wallclock": 13
+   },
+   {
+    "env": "Pendulum-v1",
+    "cond": "none",
+    "seed": 3,
+    "model": "trm",
+    "dnn_wallclock_min": 4.0,
+    "dnn_final": -185.9,
+    "model_final": -186.0,
+    "model_at_dnn_wallclock": -1389.5,
+    "model_episodes_done_at_dnn_wallclock": 9
+   }
+  ],
+  "summary": {
+   "BipedalWalker-v3__lstm": {
+    "n": 9,
+    "median_delta_vs_dnn_final": -0.7
+   },
+   "BipedalWalker-v3__transformer": {
+    "n": 9,
+    "median_delta_vs_dnn_final": 0.1
+   },
+   "BipedalWalker-v3__trm": {
+    "n": 9,
+    "median_delta_vs_dnn_final": -2.1
+   },
+   "BipedalWalker-v3__trm_hier6": {
+    "n": 9,
+    "median_delta_vs_dnn_final": -4.3
+   },
+   "BipedalWalker-v3__trm_singlez": {
+    "n": 9,
+    "median_delta_vs_dnn_final": 2.1
+   },
+   "MountainCarContinuous-v0__lstm": {
+    "n": 6,
+    "median_delta_vs_dnn_final": 0.2
+   },
+   "MountainCarContinuous-v0__transformer": {
+    "n": 6,
+    "median_delta_vs_dnn_final": -16.4
+   },
+   "MountainCarContinuous-v0__trm": {
+    "n": 6,
+    "median_delta_vs_dnn_final": -2.3
+   },
+   "Pendulum-v1__lstm": {
+    "n": 6,
+    "median_delta_vs_dnn_final": -1251.5
+   },
+   "Pendulum-v1__transformer": {
+    "n": 6,
+    "median_delta_vs_dnn_final": -924.9
+   },
+   "Pendulum-v1__trm": {
+    "n": 6,
+    "median_delta_vs_dnn_final": -846.1
+   }
+  }
+ }
+}

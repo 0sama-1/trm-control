@@ -1,0 +1,595 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{ragged2e}
+\usepackage{microtype}
+\usepackage{fancyvrb}
+\setlength{\emergencystretch}{3em}
+\sloppy
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\renewcommand{\arraystretch}{1.22}
+\definecolor{gateamber}{HTML}{B0670A}
+\newcommand{\gate}[1]{\textcolor{gateamber}{\textbf{#1}}}
+
+\title{Phase 3 Plan: Does Recursion Have Anything Left To Infer?\\[4pt]
+\large Experiment plan for \code{trm-delay-robust-scaling}}
+\author{}
+\date{Drafted 2026-09-14 against the Phase 1 + Phase 2 evidence base\\
+(102 completed runs; all 102 checkpoints verified present on Katana). No compute submitted.}
+
+\begin{document}
+\maketitle
+{\small\tableofcontents}
+\bigskip
+
+\section*{0. The one-paragraph version}
+
+Phases 1 and 2 measured a recursive trunk under the one delay condition where the theory says recursion is unnecessary. Fixed, known, 1-step delay plus action-queue augmentation restores an exact sufficient statistic --- our own \code{augmentation.md} \S5--6 proves and verifies it for this wrapper --- so there was no residual uncertainty for iterative refinement to resolve, and our trunk could not have resolved it anyway because it re-initialises its latent on every forward call. Under those conditions a null result is the \emph{predicted} outcome, not evidence against recursive computation. Phase 3 therefore stops adding complexity rungs and instead (a)~removes the three confounds that make the current negative uninterpretable, (b)~tests recursion where the conditioning genuinely leaves something to infer, and (c)~opens a second evaluation axis the project has never measured --- the control-engineering quality of the resulting controller, which is what decides whether a trunk is usable in a robot at all. Stage~0 costs 18 training jobs plus one zero-training evaluation pass over checkpoints we already own, and can kill the whole phase for about four CPU-hours.
+
+\section{What the evidence actually supports}
+
+\subsection{The ledger}
+
+\begin{center}
+\begin{tabular}{@{}p{0.55\textwidth}p{0.25\textwidth}p{0.12\textwidth}@{}}
+\toprule
+\textbf{Established} & \textbf{Strength} & \textbf{Source} \\
+\midrule
+On the one environment where every trunk learned, TRM loses to a 5.8$\times$ smaller MLP in 6/6 seed-pairs by 37.1 reward units & $p = 0.016$; $\approx$3\% of the untrained$\to$best span & report \S6.1 \\
+Recursion costs 5--14$\times$ the MLP's training wall-clock everywhere & invariant in direction & report \S6.4 \\
+The recursive trunks fit the value function worse at matched budget (7/7 cells early, median 2.72$\times$) & $p = 0.008$ & report \S7.1 \\
+That deficit is \textbf{not} recursion-specific --- the 797k Transformer shows it, the 167k LSTM does not & contradicts the convenient reading & report \S7.3 \\
+Learning speed and seed stability are unaffected & episodes-to-90\% 117 vs 115 & report \S7.2 \\
+Two of three environments never left the failure floor & best BipedalWalker $-81.1$ vs $+300$ solved & report \S6.2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The three confounds, restated as design faults rather than caveats}
+
+\paragraph{C-1 --- Capacity is perfectly confounded with architecture.} Every recursive trunk in the study holds $\approx$788k parameters and every MLP holds $\approx$135k. No cell of the design varies one while holding the other. Because the 797k Transformer reproduces the value-fit deficit and the 167k LSTM does not, capacity is currently the \emph{better-supported} explanation of the headline result, and it runs in the direction opposite to what the original design assumed. Until this is crossed, the Phase 1 headline is not a measurement of recursion.
+
+\paragraph{C-2 --- The port implements the weaker of two known latent-initialisation variants.} \code{TRMTrunk.forward} expands \code{H\_init}/\code{L\_init} fresh on every call, so nothing persists between consecutive environment steps. HRM-Agent (Dang \& Rawlinson, 2025) compare exactly this choice and find carrying the latent converges faster in 4 of 5 runs. A trunk with no cross-step state cannot perform state estimation, which is the mechanism the project's own framing claims to be testing.
+
+\paragraph{C-3 --- The delay condition leaves nothing to infer.} Under \code{FixedDelay(1)} with \code{augment\_obs=true}, the pending-action queue is exact --- verified in \code{augmentation.md} \S6 against a recorded action sequence, all 5 delay values $\times$ 10 steps, zero mismatches. The augmented observation is a sufficient statistic for the delayed MDP (Katsikopoulos \& Engelbrecht, 2003). An architecture whose hypothesised advantage is \emph{inferring missing state} was given a task with no missing state.
+
+The project's own documentation already names the regime where this stops being true. \code{augmentation.md} \S5, ``Known limitation: exact for fixed delay, approximate for stochastic/time-varying'':
+
+\begin{quote}\small
+For \code{StochasticDelay}/\code{TimeVaryingDelay}, whose per-step \code{d} can be \emph{less} than \code{max\_delay}, the actually-applied action isn't always the oldest one in the buffer, so the exposed ``pending queue'' is a reasonable proxy \dots{} rather than a proven sufficient statistic. Extending \S3's guarantee to a resampled-every-step delay isn't a small change (\textbf{the agent would need to reason about a delay it can't observe in advance}) \dots
+\end{quote}
+
+That last clause is an inference problem, written into the codebase before the experiment that failed to test it. \code{conf/delay/stochastic.yaml} and \code{conf/delay/time\_varying.yaml} have existed since the beginning and \textbf{have never been run}: all 102 runs used \code{delay=none} or \code{delay=fixed value=1}.
+
+\paragraph{A fourth gap, for completeness.} \code{project-config.yaml} names the delay axis as ``observation delay, actuation delay, and jitter''. \code{DelayedEnv} implements \textbf{actuation delay only} --- it queues the agent's action and applies an older one; the observation returned is always current. Observation delay and jitter have no implementation and no config group. They are listed in the exploration inventory (\S6, items B7--B8) rather than folded into the critical path, but the project should stop describing them as tested axes.
+
+\subsection{What this means for the current report}
+
+The report's \S10 programme (E1--E5) is sound but under-specified in two places, and Phase 3 supersedes it:
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{E1 (capacity-matched MLP) is only half the fix.} Growing the MLP to 788k leaves the comparison at one capacity level. Shrinking the recursive trunk to $\approx$135k as well turns it into a 2$\times$2 factorial and is the only version that can attribute the deficit.
+\item \textbf{E2 (Carry-Z) is not a ``contained change''.} Off-policy replay samples i.i.d.\ transitions with no latent attached. Carrying a latent at acting time but resetting it at update time is inconsistent and would confound the result. \S7 specifies the R2D2-style stored-state fix and books real engineering time for it.
+\end{itemize}
+
+\section{The Phase 3 hypothesis}
+
+\paragraph{H3 --- Residual-uncertainty hypothesis.} Weight-tied recursive computation earns its cost in model-free continuous control only where two conditions hold jointly: \textbf{(i)} the agent's conditioning leaves residual state uncertainty that iteration could resolve, and \textbf{(ii)} the trunk can carry information across decision steps so that the iteration has something to accumulate. Phases 1--2 satisfied neither. Their null is therefore the outcome H3 predicts, and Phase 3's job is to construct the conditions under which H3 makes a \emph{different} prediction from the alternatives, then check.
+
+The alternatives are not ``recursion works'' but the two deflationary accounts the current data actually support:
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{H\textsubscript{cap} --- capacity.} The deficits track parameter count under a fixed sample budget; recursion is irrelevant either way (Ota et al., 2021; Klein et al., 2024).
+\item \textbf{H\textsubscript{null} --- no transfer.} Recursive refinement is a property of supervised, revisitable, compositionally-correctable problems and does not transfer to model-free continuous control under any conditioning; the cost is always net negative.
+\end{itemize}
+
+\subsection{Sub-hypotheses and discriminating predictions}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.16\textwidth}p{0.20\textwidth}p{0.13\textwidth}p{0.19\textwidth}l@{}}
+\toprule
+\textbf{\#} & \textbf{Claim} & \textbf{H3 predicts} & \textbf{H\textsubscript{cap}} & \textbf{H\textsubscript{null}} & \textbf{Stage} \\
+\midrule
+H3.1 & deficit is capacity & small-TRM $\approx$ small-MLP; large-MLP $\approx$ large-TRM & same & large-MLP $\approx$ small-MLP; TRM worse at both sizes & 1 \\
+H3.2 & \textbf{uncertainty $\times$ memory} & Carry-Z $-$ MLP $\leq 0$ at fixed delay, \textbf{$> 0$} at stochastic & no interaction & $\leq 0$ everywhere & 2 \\
+H3.3 & depth pays only with something to infer & flat in \code{H\_cycles} at fixed delay, rising at stochastic & flat everywhere & flat-to-worse, cost linear in depth & 1, 2 \\
+H3.4 & return traded for command regularity & recursive trunks smoother at matched return & tracks architecture class & no consistent difference & 0 \\
+H3.5 & graceful degradation off-nominal & flatter curves vs delay mismatch, noise & no difference & no difference or worse & 0 \\
+H3.6 & real-time feasible at robot rates & quantify latency vs control period & --- & --- & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+H3.2 is the load-bearing row, and it is deliberately framed as an \textbf{interaction, not a main effect}. A capacity explanation cannot produce a sign flip across delay conditions using the identical networks, and neither can a tuning artefact that applies uniformly. A predicted change of sign across conditions is the strongest thing this design can ask for at the seed counts available.
+
+\subsection{Why this hypothesis is consistent with the data rather than a rescue of it}
+
+H3 does not require any Phase 1/2 number to be wrong. It reinterprets them:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item 0/6 seed-pairs at fixed-known delay is what H3 predicts (condition (i) violated, cost still paid).
+\item A value-fit deficit shared with the Transformer is what H3 predicts (nothing to infer $\Rightarrow$ recursion contributes capacity and nothing else, and capacity is a liability at this budget).
+\item No difference between \code{trm}, \code{trm\_hier6} and \code{trm\_singlez} is what H3 predicts (varying the recursive \emph{structure} changes nothing when the recursion has no signal to work on).
+\item 5--14$\times$ cost with no benefit is what H3 predicts for a mechanism running with its input information already complete.
+\end{itemize}
+
+H3 also makes a prediction the project can be held to: \textbf{if the interaction in H3.2 does not appear, H3 is dead} and the conclusion becomes H\textsubscript{null} with all three confounds removed --- a considerably stronger negative result than the one currently drafted, and one that closes the question rather than leaving it open.
+
+\section{The missing axis: what makes a trunk usable in a control system}
+
+The project scores trunks on return, training wall-clock, and parameter count. A controls or robotics reader needs three things none of those supply, and all three are cheap to obtain.
+
+\paragraph{3.1 Command quality.} A controller that achieves the same return while commanding twice the actuator rate is a worse controller: actuator wear, thermal load, gearbox backlash and vibration scale with command rate, not with reward. Standard measures --- control effort $\int u^2\,dt$, command rate $|\Delta u|$, jerk $|\Delta^2 u|$, saturation fraction, sign-reversal rate, and the fraction of command power above a cutoff frequency --- are computable directly from rollouts.
+
+\paragraph{3.2 Robustness envelope, not point performance.} Every number in the project so far was measured under the exact conditions the policy trained in. A controller is judged on its margin: how far the plant can drift, how much the delay can vary, how noisy the sensor can get before performance collapses. Because delay-robustness is this project's founding axis, the absence of any off-nominal measurement is the largest single gap in the evidence base.
+
+\paragraph{3.3 Real-time feasibility.} Training wall-clock is the wrong cost for deployment. The deployment cost is per-decision inference latency against the control period. At \code{H\_cycles=3, L\_cycles=6} the TRM trunk performs \textbf{21 applications of the shared cell per forward pass} (18 inner updates plus 3 outer), each two SwiGLU blocks, versus the MLP's two matrix multiplies --- and both actor \emph{and} critic pay it during training while only the actor pays at deployment. Whether that is 0.4\,ms or 4\,ms at batch~1 on a CPU decides whether the trunk is admissible at 100\,Hz, 500\,Hz, or not at all. \textbf{The project has never measured it.} It is a one-hour experiment.
+
+These three, plus return and parameters, form the \textbf{deployment scorecard} Phase 3 reports for every trunk.
+
+\section{The stage plan}
+
+Six stages. Each names its entry condition, exactly what runs, what is measured, the pre-registered statistic, and the gate that decides whether the next stage happens. Only Stage~0 is committed at sign-off.
+
+\subsection{Stage map}
+
+\begin{Verbatim}[fontsize=\footnotesize,frame=single,framesep=7pt,rulecolor=\color{gray}]
+Stage 0   headroom probe (18) + checkpoint battery (0 training)   ~30 CPU-h
+   |
+   +-- G0 fails --> no headroom: no architecture can win here.
+   |                Write up Stage 0 + Stage 1. Phase ends.
+   v
+Stage 1   capacity x depth factorial (72)            ~60 CPU-h + 25 GPU-h
+   |      (not gated by G0 -- its question stands either way)
+   +-- G1 ------->  attribution: capacity or architecture? Both inform.
+   v                Sets the capacity level Stage 2 runs at.
+Stage 2   uncertainty x memory (72, +24 optional)    ~70 CPU-h + 40 GPU-h
+   |
+   +-- G2 fails --> no interaction: report H_null with all three
+   |                confounds removed. Stronger than the current draft.
+   v
+Stage 3   generalisation: TD3 (24) + unstable plant (9 + 48)      ~75 GPU-h
+   |
+   +-- G3 fails --> stop; P1 loses its constructive test.
+   v
+Stage 4   restore the training discipline (36)                    ~45 GPU-h
+   |
+   v
+Stage 5   synthesis -- report revision, no compute
+\end{Verbatim}
+
+\subsection{Stage 0 --- Is there a question, and what has already been paid for?}
+
+\textbf{Entry:} none. This is the only stage committed at sign-off.
+
+\subsubsection{S0.1 --- Headroom probe (18 jobs)}
+
+Before asking whether recursion can exploit residual uncertainty, establish that residual uncertainty \emph{costs anything}. Three arms, MLP only, Pendulum-v1, DDPG, 200 episodes, seeds 1--6:
+
+\begin{center}\small
+\begin{tabular}{@{}lp{0.36\textwidth}p{0.38\textwidth}@{}}
+\toprule
+\textbf{Arm} & \textbf{Condition} & \textbf{Hydra overrides} \\
+\midrule
+A1 & fixed $d{=}1$ + augmentation (the Phase 1 condition; sufficient statistic) & \code{delay=fixed delay.value=1 augment\_obs=true} \\
+A2 & stochastic $d \sim U\{0..4\}$ + augmentation (approximate) & \code{delay=stochastic delay.min=0 delay.max=4 augment\_obs=true} \\
+A3 & A2 + \textbf{delay oracle}: realised $d_t$ appended to the observation & \code{\dots\ delay.expose\_realised=true} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\code{info["delay\_sampled\_steps"]} already carries the realised delay; exposing it in the observation is ${\sim}$10 lines in \code{DelayedEnv} (engineering item E-4). Arm A3 is an \emph{information upper bound}: the best any architecture could do by resolving the delay, handed over for free rather than inferred.
+
+\begin{Verbatim}[fontsize=\footnotesize,frame=single,framesep=6pt,rulecolor=\color{gray}]
+python3 main.py arch=ddpg model=dnn env=pendulum \
+  delay=stochastic delay.min=0 delay.max=4 augment_obs=true \
+  arch.total_episodes=200 seed=$S wandb.enabled=false \
+  print_stat_every=20 record_every=1000 eval_every=10 \
+  results_folder=results_p3s0 track_step_history=true
+\end{Verbatim}
+
+PBS: \code{select=1:ncpus=2:mem=8gb}, \code{walltime=04:00:00}, queue \code{mech12}. $\approx$4 CPU-hours total.
+
+\textbf{Measured:} final avg100 return; the \code{eval\_return} curve at 10-episode resolution; per-seed paired differences A3~$-$~A2 and A2~$-$~A1.
+
+\textbf{Statistic:} one-sided sign test on per-seed A3~$-$~A2 ($n = 6$), plus the effect size in reward units against the pooled across-seed standard deviation.
+
+\begin{quote}
+\gate{Gate G0.} A3 must beat A2 by more than the pooled seed spread, sign-consistent in $\geq$5 of 6 seeds. If it does not, there is no headroom for inference to recover, \textbf{no architecture can win at this condition}, Stage~2 is void, and the phase ends after Stage~1. Cost of learning this: about four CPU-hours.
+\end{quote}
+
+\subsubsection{S0.2 --- Checkpoint battery (0 training jobs)}
+
+204 checkpoints totalling 1.6\,GB sit in \code{/srv/scratch/z5308482/trm-control/models}. Each run's \code{model\_id} in its results JSON maps to one file; \textbf{all 102 Phase 1--2 runs were confirmed present} (the remaining 102 files are earlier archived runs). Every trained policy from both phases can be re-evaluated without retraining anything.
+
+Per checkpoint, deterministic policy, no exploration noise:
+
+\begin{center}\small
+\begin{tabular}{@{}lp{0.30\textwidth}p{0.38\textwidth}@{}}
+\toprule
+\textbf{Probe} & \textbf{Grid} & \textbf{Yields} \\
+\midrule
+Nominal performance & 20 episodes, unseen seeds & IQM return + stratified bootstrap CI \\
+Command quality & same rollouts & $\int u^2/T$, $|\Delta u|$, $|\Delta^2 u|$, saturation \%, reversals/s, HF power fraction, mechanical work \\
+Delay mismatch & test-time $d \in \{0,\dots,5\}$ against a policy trained at $d{=}1$ & degradation curve, empirical delay margin \\
+Sensor noise & $\sigma \in \{0, .01, .05, .10\}\times$ obs scale & noise-rejection curve \\
+Plant perturbation & Pendulum $m, l \in \{0.7, \dots, 1.3\}\times$ & model-mismatch curve \\
+Actuator dropout & $p \in \{0, .05, .10\}$ & fault tolerance \\
+Inference latency & CPU 1-thread b1; GPU b1; b256 & p50/p99 ms, max control rate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+PBS: \code{select=1:ncpus=2:mem=8gb}, \code{walltime=00:30:00}, queue \code{mech12}, ${\sim}$102 jobs. The latency benchmark runs as two dedicated jobs with \code{OMP\_NUM\_THREADS=1} and \code{torch.set\_num\_threads(1)} so the batch-1 timing is not contaminated by thread scheduling. $\approx$25 CPU-hours total.
+
+\textbf{Deliverable:} \code{analysis\_w0.json}; the deployment scorecard; return-versus-effort Pareto front; degradation curves; the latency-versus-control-rate table. This tests H3.4--H3.6 and produces the whole of \S3 before any new training job is submitted. \textbf{Gate:} none --- S0.2 runs regardless of G0 and its output survives every branch of the plan.
+
+\subsection{Stage 1 --- Attribution: capacity or recursion?}
+
+\textbf{Entry:} none. Not gated by G0 --- its question stands whatever the headroom probe says, and its answer is needed to configure Stage~2.
+
+Pendulum-v1, DDPG, 200 episodes (matching Phase 1 exactly so the existing runs remain comparable), conditions \{no-delay, fixed $d{=}1$ + aug\}, seeds 1--6. Six arms forming a 2$\times$2 in architecture $\times$ capacity plus two depth arms at identical parameter count:
+
+\begin{center}\small
+\begin{tabular}{@{}lp{0.26\textwidth}rp{0.24\textwidth}@{}}
+\toprule
+\textbf{Arm} & \textbf{Config} & \textbf{Params} & \textbf{Role} \\
+\midrule
+\code{dnn} & \code{[256,256]} & 134{,}914 & existing small MLP \\
+\code{trm\_small} & \code{hidden\_size=44, L\_layers=2} & \textbf{135{,}654} & recursion at MLP capacity ($+0.55\%$) \\
+\code{dnn\_large} & \code{[624,624]} & 788{,}114 & MLP at recursive capacity ($+0.03\%$) \\
+\code{trm} & \code{hidden\_size=128} & 787{,}842 & existing recursive trunk \\
+\code{trm\_h1} & \code{trm}, \code{H\_cycles=1} & 787{,}842 & \textbf{recursion off, params identical} \\
+\code{trm\_h6} & \code{trm}, \code{H\_cycles=6} & 787{,}842 & double depth, params identical \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Parameter counts are derived from the trunk's exact construction (two SwiGLU blocks at the source's inner width, plus input projection and head) and the formula is verified exactly against two measured runs --- TRM on Pendulum (787{,}842) and on BipedalWalker with augmentation (794{,}757). \code{dnn\_large.yaml} already exists with the same verification; \code{trm\_small.yaml} is one file. Under stochastic delay (\code{max\_delay=4}, obs dim 7) the matching holds: 135{,}918 vs 136{,}450, and 788{,}610 vs 791{,}858.
+
+\code{trm\_h1} is the cleanest control in the entire project: it removes the outer recursion while changing \emph{nothing} about parameter count, optimiser, or input. \code{H\_cycles} also sets the compute directly --- 7 cell applications per forward pass at \code{H\_cycles=1}, 21 at 3, 42 at 6, with the gradient reaching only 7 in every case.
+
+\textbf{Jobs:} 6 arms $\times$ 2 conditions $\times$ 6 seeds = \textbf{72}. MLP arms \code{mech12} (\code{ncpus=2:mem=8gb}, 04:00:00); TRM arms \code{mechgpu12} (\code{ncpus=2:mem=16gb:ngpus=1}, 06:00:00). $\approx$60 CPU-h + 25 GPU-h.
+
+\textbf{Measured:} final avg100 return; the full critic/actor-loss telemetry re-run through the existing \code{analyze\_mechanism.py} pipeline at each capacity level; wall-clock; per-decision latency for each arm, folded in from the S0.2 benchmark.
+
+\textbf{Statistic:} paired sign tests within each capacity level ($n = 12$ per contrast, pooling both delay conditions), plus the 2$\times$2 interaction of architecture $\times$ capacity on median return.
+
+\begin{quote}
+\gate{Gate G1 --- attribution.} No kill branch; both outcomes are informative and both change the report.
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=3pt]
+\item \code{dnn\_large} degrades toward \code{trm} \emph{and} \code{trm\_small} improves toward \code{dnn} $\Rightarrow$ the Phase 1 headline is largely a capacity artefact, must be restated, and Stage~2 runs at matched capacity only.
+\item Both MLPs equal and both TRMs equal-and-worse $\Rightarrow$ the deficit is architecture-family; H\textsubscript{cap} weakens and the recursion-specific account survives into Stage~2.
+\item \code{trm\_h1} $\approx$ \code{trm} $\Rightarrow$ depth is inert at this delay condition, reproducing Roye-Azar et al.'s ``shallow effective recursion'' outside its original domain.
+\end{itemize}
+\end{quote}
+
+\subsection{Stage 2 --- The decisive test: uncertainty $\times$ memory}
+
+\textbf{Entry:} G0 passed, and G1 has fixed the capacity level.
+
+\begin{center}\small
+\begin{tabular}{@{}lp{0.60\textwidth}@{}}
+\toprule
+\textbf{Trunk} & \textbf{What it isolates} \\
+\midrule
+\code{dnn} at the G1 capacity & the memoryless baseline \\
+\code{trm} (Reset-Z, current port) & recursion without cross-step memory \\
+\code{trm\_carryz} & recursion \emph{with} cross-step memory --- the C-2 fix \\
+\code{lstm}, state carried, tuned per Ni et al. & the honest memory baseline; a beaten recurrent baseline that was never tuned proves nothing \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Three conditions, ordered by residual uncertainty:
+
+\begin{center}\small
+\begin{tabular}{@{}llp{0.22\textwidth}p{0.36\textwidth}@{}}
+\toprule
+ & \textbf{Condition} & \textbf{Sufficient statistic?} & \textbf{Overrides} \\
+\midrule
+C1 & fixed $d{=}1$ + aug & yes, proven and verified & \code{delay=fixed delay.value=1 augment\_obs=true} \\
+C3 & stochastic $d \sim U\{0..4\}$ + aug & no --- documented approximation & \code{delay=stochastic delay.min=0 delay.max=4 augment\_obs=true} \\
+C4 & stochastic $d \sim U\{0..4\}$, no aug & no --- withheld entirely & \code{\dots\ augment\_obs=false} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Seeds 1--6. $4 \times 3 \times 6 = \mathbf{72}$ jobs. C0 (no delay) and C2 (fixed, no aug) are already covered by Stage~1 and Phase~2 respectively. $\approx$70 CPU-h + 40 GPU-h.
+
+\textbf{Pre-registered primary statistic}, fixed before submission: the interaction contrast
+\[
+\Delta = \bigl[\mathrm{med}(\text{TRM}_{\text{carryz}}) - \mathrm{med}(\text{DNN})\bigr]_{\text{C3}} - \bigl[\mathrm{med}(\text{TRM}_{\text{carryz}}) - \mathrm{med}(\text{DNN})\bigr]_{\text{C1}}
+\]
+tested by a one-sided sign test on per-seed paired differences, $n = 6$. \textbf{Secondary:} Carry-Z vs Reset-Z at each condition, which isolates C-2 independently of the delay axis; and the C4 replication of the same contrast.
+
+\textbf{Optional C5 ($+24$ jobs).} \code{delay=time\_varying} with the existing schedule makes the delay \emph{non-stationary} rather than merely random --- the regime in which Derman et al.\ (2021) prove stationary policies over augmented states are sub-optimal in general. The sharpest version of the test, and the most defensible place in the project for a recursive trunk to win. Recommended if C3 shows any interaction at all.
+
+\begin{quote}
+\gate{Gate G2 --- interaction.} The contrast must flip sign from C1 to C3, sign-consistent in $\geq$5 of 6 seeds. If it does not, \textbf{H3 is rejected}: report H\textsubscript{null} with all three confounds removed, which is a stronger and more final negative than the current draft. Stages 3 and 4 do not run.
+\end{quote}
+
+\subsection{Stage 3 --- Does the finding generalise?}
+
+\textbf{Entry:} G2 shows an interaction.
+
+\paragraph{S3.1 --- Algorithm cross-check (24 jobs).} DDPG is documented as brittle on two of our three environments, and its OU exploration is itself a confound on the command-regularity measure of \S5. \code{src/algos/td3.py} is implemented and has never been used by this project. Re-run the decisive contrast --- 2 trunks (\code{dnn}, \code{trm\_carryz}) $\times$ \{C1, C3\} $\times$ 6 seeds --- under \code{arch=td3}. If the interaction reproduces, the finding is not DDPG-specific; if it inverts, that is a finding in itself. $\approx$25 GPU-h.
+
+\paragraph{S3.2 --- A second rung chosen for control-theoretic reasons (9 pilot + 48).} Replace BipedalWalker-v3 with \textbf{InvertedDoublePendulum-v5}. The rationale is specific rather than ``harder'': it is an \emph{open-loop unstable} plant with a short time constant, so delay directly consumes stability margin --- delay does not merely obscure the state, it destabilises. It gives natural control metrics (time-to-fall, RMS pole angle, control effort), trains fast, and MuJoCo has been Apache-2.0 and pip-installable for years, so the licence gating recorded in earlier phases is stale and should be rechecked rather than inherited (engineering item E-7). \emph{Pilot first:} 1 trunk $\times$ 3 seeds $\times$ budget $\in \{200, 600, 1500\}$ episodes, to find the budget at which the baseline reaches the solved threshold. Phase~2's floor effect was caused precisely by skipping this step; no full matrix is submitted until a pilot shows the environment is learnable within budget. Then 4 trunks $\times$ \{C1, C3\} $\times$ 6 seeds = 48. $\approx$50 GPU-h.
+
+\paragraph{S3.3 --- Retire the floor-effect environments.} MountainCarContinuous-v0 and BipedalWalker-v3 stay in the report as documented failure modes (Matheron et al., 2019) but are not re-run at higher budget: a third environment adds nothing until the mechanism question is settled on a rung that works.
+
+\begin{quote}
+\gate{Gate G3 --- continuity.} Carry-Z must beat Reset-Z somewhere (evaluated on Stage~2 data, re-checked on Stage~3). If it does not, Stage~4 does not run and precondition P1 loses its constructive test.
+\end{quote}
+
+\subsection{Stage 4 --- Restore the training discipline}
+
+\textbf{Entry:} G3 passed --- refinement continuity has traction. Three variants of the recursive trunk at fixed parameters, \{C1, C3\}, 6 seeds = \textbf{36 jobs}, $\approx$45 GPU-h:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{(a) No truncation.} Backpropagate through all outer cycles. Currently 14 of 21 cell applications receive no gradient at all.
+\item \textbf{(b) Per-cycle supervision.} Apply the critic loss to every outer cycle's readout --- a deep-supervision surrogate (Lee et al., 2015) for the mechanism ARC Prize (2025) identify as HRM's true driver, and the closest available analogue to TRM's deep supervision over \code{halt\_max\_steps}.
+\item \textbf{(c) Fixed-point / DEQ readout.} Iterate to convergence and differentiate implicitly (Bai et al., 2019), removing truncation entirely at constant memory. The most scientifically interesting and the most speculative.
+\end{itemize}
+
+This is the only stage that can produce a \emph{constructive} positive result --- the mechanism transfers when its training discipline is ported with it --- rather than a conditional one.
+
+\subsection{Stage 5 --- Synthesis}
+
+No compute. Report revisions: \S6.1 restated per G1; a new command-quality and robustness section built on the Stage~0 scorecard; the cost ledger reported three ways (matched episodes, matched wall-clock, matched inference latency); \S10's E1--E5 superseded by whichever stages ran; and the threats-to-validity section updated to record which of the three confounds were actually removed.
+
+\subsection{Gate summary}
+
+\begin{center}\small
+\begin{tabular}{@{}p{0.15\textwidth}p{0.28\textwidth}p{0.10\textwidth}p{0.37\textwidth}@{}}
+\toprule
+\textbf{Gate} & \textbf{Test} & \textbf{On} & \textbf{If it fails} \\
+\midrule
+G0 --- headroom & oracle-delay MLP $>$ augmented MLP at stochastic delay, $>$ seed spread, $\geq$5/6 seeds & Stage 0 & Stage 2 void. Phase ends after Stage 1; write up. \\
+G1 --- attribution & 2$\times$2 architecture $\times$ capacity contrast & Stage 1 & No failure branch; both outcomes restate report \S6.1 and set Stage 2's capacity. \\
+G2 --- interaction & (Carry-Z $-$ MLP) flips sign C1$\to$C3, $\geq$5/6 seeds & Stage 2 & H3 rejected. Report H\textsubscript{null} with all three confounds removed. Stages 3--4 do not run. \\
+G3 --- continuity & Carry-Z $>$ Reset-Z at any condition & Stage 2/3 & Stage 4 does not run; P1 loses its constructive test. \\
+G4 --- practicality & some trunk sits favourably on the return/effort/latency front & Stage 0 & Report the trade as unfavourable; the deployment recommendation stands with the MLP. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Budget rollup}
+
+\begin{center}\small
+\begin{tabular}{@{}lp{0.26\textwidth}rp{0.20\textwidth}p{0.18\textwidth}@{}}
+\toprule
+\textbf{Stage} & \textbf{Contents} & \textbf{Jobs} & \textbf{Est. cost} & \textbf{Committed?} \\
+\midrule
+0 & headroom probe + checkpoint battery & 18 + ${\sim}$102 & $\approx$30 CPU-h & \textbf{yes, at sign-off} \\
+1 & capacity $\times$ depth factorial & 72 & $\approx$60 CPU-h + 25 GPU-h & on Stage 0 completion \\
+2 & uncertainty $\times$ memory (+24 optional) & 72 (+24) & $\approx$70 CPU-h + 40 GPU-h & G0 \\
+3 & TD3 cross-check + unstable-plant rung & 24 + 9 + 48 & $\approx$75 GPU-h & G2 \\
+4 & training discipline & 36 & $\approx$45 GPU-h & G3 \\
+5 & synthesis & 0 & --- & always \\
+\midrule
+ & \textbf{total if every gate passes} & \textbf{279} (+24) & $\approx$290 CPU-h + 185 GPU-h & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All jobs are PBS submissions on Katana under group \code{MECH}, $\leq$12\,h walltime, following \code{experiments/phase2\_submit.sh} as the template. \textbf{Committed at sign-off: Stage~0 only --- 120 jobs, $\approx$30 CPU-hours, no GPU allocation.} Everything after it is conditional on a decision rule stated here in advance. For comparison, Phases 1 and 2 together committed 102 jobs unconditionally.
+
+\textbf{Seeds.} 6 per cell throughout, pooled where the design permits, giving a floor of $p = 0.0156$ on a clean sweep. Agarwal et al.\ (2021) show 5 runs per task yields Type I error above 50\% for point estimates; IQM-with-bootstrap-CI reporting is the mitigation where seed counts cannot rise further, and no Phase 3 comparison runs at $n = 3$.
+
+\textbf{What would make Phase 3 a success.} Not a positive result. Either of these is a complete outcome: (a) recursion wins where residual uncertainty exists and memory is carried, with a quantified cost ledger and control-quality scorecard saying whether the win is worth buying; or (b) it does not, with capacity crossed, the latent carried, the delay genuinely uncertain, and the environments validated --- at which point the negative result is about recursive computation in continuous control rather than about our port of it.
+
+\section{Preliminary signal already in the banked data}
+
+Running the command-quality measure of \S3.1 over the existing \code{step\_history} --- 102 runs, no new compute (\code{experiments/analyze\_control\_quality.py}) --- turns up a pattern the project has not reported. \textbf{Every non-MLP trunk commands a markedly smoother action sequence than the MLP.} Paired per seed and condition across Pendulum-v1 and BipedalWalker-v3 (MountainCarContinuous excluded as a floor effect), median ratio of mean $|\Delta a|$ against the DNN baseline:
+
+\begin{center}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Trunk} & \textbf{Smoother than DNN} & \textbf{Median ratio} & \textbf{one-sided $p$} \\
+\midrule
+TRM & 13/15 & 0.42$\times$ & 0.004 \\
+TRM-hier6 & 9/9 & 0.39$\times$ & 0.002 \\
+TRM-singlez & 7/9 & 0.54$\times$ & 0.090 \\
+Transformer & 13/15 & 0.10$\times$ & 0.004 \\
+LSTM & 14/15 & 0.16$\times$ & 0.0005 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+On Pendulum-v1 alone, TRM commands 0.37$\times$ the DNN's action rate (5/6 seed-pairs, $p = 0.109$) while losing 37 reward units --- roughly a \textbf{2.7$\times$ reduction in actuator activity for 3\% of the performance span}. That is the shape of trade a controls engineer makes deliberately.
+
+\textbf{Three reasons this is a candidate signal and not yet a finding}, all of which Stage 0.2 is designed to settle:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \textbf{The actions are exploration-noisy.} DDPG adds OU noise inside \code{\_select\_action}, so the statistic mixes policy behaviour with a common noise process. Stage 0.2 measures deterministic rollouts.
+\item \textbf{A dead policy is maximally smooth.} The LSTM scores smoothest on Pendulum while returning $-1460$, i.e.\ untrained. Regularity is interpretable only jointly with return, which is why Stage 0.2 reports a Pareto front rather than a ranking.
+\item \textbf{It is not recursion-specific either.} The LSTM and Transformer are smoother than TRM. The honest reading is that \emph{the plain MLP is the outlier in command regularity}, and the question worth asking is whether that costs it anything in a real actuator --- not whether TRM is special. Same confound shape as report \S7.3, and reported the same way.
+\end{enumerate}
+
+\subsection{The cost ledger, restated the way a practitioner reads it}
+
+The report's headline deficit of 37 reward units is the generous reading, obtained by giving both trunks the same number of \emph{episodes}. Giving them the same number of \emph{minutes} --- the resource a practitioner actually allocates --- reads very differently. On Pendulum-v1, at the wall-clock moment the MLP's run has finished, the recursive trunk has completed 6--44 of its 200 episodes and sits at $-488$ to $-1390$, against an untrained policy's $\approx -1460$:
+
+\begin{center}
+\begin{tabular}{@{}lp{0.30\textwidth}p{0.28\textwidth}@{}}
+\toprule
+\textbf{Reading} & \textbf{TRM $-$ DNN on Pendulum-v1} & \textbf{Share of untrained$\to$best span} \\
+\midrule
+Matched episodes (as reported) & $-37$ & $\approx$3\% \\
+Matched wall-clock & $\approx -846$ & $\approx$58\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Both numbers are true and they answer different questions. Phase 3 reports both on every comparison, and adds the third --- matched \emph{inference} latency --- which is the only one that survives to deployment.
+
+\section{Exploration inventory}
+
+Everything the project could pursue, grouped by what it would settle. Status is one of \textbf{stage N} (on the critical path), \textbf{candidate} (worth doing, not scheduled), \textbf{done} (already answered), or \textbf{declined} (with the reason).
+
+\subsection{A. Mechanism --- what does recursion actually contribute?}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.26\textwidth}p{0.34\textwidth}ll@{}}
+\toprule
+\textbf{\#} & \textbf{Question} & \textbf{What would answer it} & \textbf{Cost} & \textbf{Status} \\
+\midrule
+A1 & Is the deficit capacity or recursion? & 2$\times$2 architecture $\times$ capacity at matched parameters & 48 jobs & \textbf{stage 1} \\
+A2 & Does depth help at fixed capacity? & \code{H\_cycles} $\in \{1,3,6\}$; 1 removes recursion, parameters unchanged & 24 jobs & \textbf{stage 1} \\
+A3 & Does carrying the latent matter? & Carry-Z vs Reset-Z, both delay regimes & in stage 2 & \textbf{stage 2} \\
+A4 & Does gradient truncation hurt? & backprop through all outer cycles (14 of 21 applications untrained today) & 12 jobs & \textbf{stage 4} \\
+A5 & Does per-cycle supervision recover it? & critic loss on every outer cycle's readout & 12 jobs & \textbf{stage 4} \\
+A6 & Principled alternative to truncation? & DEQ fixed-point readout, implicit differentiation & 12 jobs & \textbf{stage 4} \\
+A7 & Can adaptive computation kill the cost premium? & ACT/PonderNet halting; if most decisions need one cycle the 5--14$\times$ multiple collapses & ${\sim}$24 jobs & candidate \\
+A8 & Does per-instance conditioning transfer (P3)? & under domain randomisation each episode \emph{is} an instance; a per-episode embedding is system identification & ${\sim}$36 jobs & candidate \\
+A9 & Does the recursive \emph{structure} matter? & already run: sign-inconsistent, noise-dominated deltas & --- & \textbf{done} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{B. Conditioning --- what is the agent told about the delay?}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.28\textwidth}p{0.36\textwidth}p{0.17\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Condition} & \textbf{Sufficient statistic?} & \textbf{Status} \\
+\midrule
+B1 & fixed $d{=}1$ + augmentation & yes --- proven and verified in \code{augmentation.md} & \textbf{done} \\
+B2 & fixed $d{=}1$, no augmentation & no & \textbf{done} (BipedalWalker only) \\
+B3 & stochastic $d \sim U\{0..4\}$ + aug & no --- documented approximation & \textbf{stages 0, 2} \\
+B4 & stochastic $d \sim U\{0..4\}$, no aug & no --- withheld entirely & \textbf{stage 2} \\
+B5 & stochastic + delay oracle & yes by construction --- an information upper bound & \textbf{stage 0} \\
+B6 & time-varying (non-stationary) delay & no; Derman et al.\ prove stationary augmented policies sub-optimal here & \textbf{stage 2, optional} \\
+B7 & \textbf{observation delay} & not implemented --- \code{DelayedEnv} delays actions only, though \code{project-config.yaml} names it as an axis & candidate, needs code \\
+B8 & \textbf{jitter} & not implemented; no config group exists & candidate, needs code \\
+B9 & longer delays, $d \in \{2,4,8\}$ & augmentation's cost is exponential in the delay; the regime where it should break down & candidate, ${\sim}$36 jobs \\
+B10 & test-time delay mismatch & zero-cost from banked checkpoints & \textbf{stage 0} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{C. Control practicality --- is any of this a usable controller?}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.27\textwidth}p{0.36\textwidth}p{0.16\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Question} & \textbf{Measure} & \textbf{Status} \\
+\midrule
+C1 & How hard does each trunk work the actuator? & $\int u^2/T$, $|\Delta u|$, jerk, saturation \%, reversals/s, HF power fraction & \textbf{stage 0} \\
+C2 & How far can the plant drift before failure? & mass/length sweep, sensor noise, actuator dropout & \textbf{stage 0} \\
+C3 & Can it close a real control loop? & batch-1 latency on one CPU thread, p50/p99, against 100\,Hz / 500\,Hz / 1\,kHz & \textbf{stage 0} \\
+C4 & What is the actual trade? & return-vs-effort-vs-latency Pareto front, not a ranking & \textbf{stage 0} \\
+C5 & What is the \emph{delay margin}, as control theory defines it? & linearise the policy by finite-differencing its Jacobian, close the loop with the linearised plant, compute gain/phase margin and critical delay & candidate --- highest-value item here \\
+C6 & What do you get per hour, not per episode? & reward at matched wall-clock on every comparison & reporting mode \\
+C7 & What does it cost in energy? & mechanical work from the same rollouts & \textbf{stage 0} \\
+C8 & Does it generalise off-distribution? & train under domain randomisation, evaluate on held-out parameters & candidate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{D. Task selection}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.26\textwidth}p{0.42\textwidth}p{0.14\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Environment} & \textbf{Why} & \textbf{Status} \\
+\midrule
+D1 & Pendulum-v1 & the only validated rung; every trunk demonstrably learns & \textbf{all stages} \\
+D2 & InvertedDoublePendulum-v5 & open-loop unstable, short time constant: delay consumes stability margin rather than merely obscuring state & \textbf{stage 3} \\
+D3 & budget pilot before any new rung & Phase 2's floor effect came from skipping exactly this & \textbf{stage 3} \\
+D4 & Reacher-v5, HalfCheetah-v5 & natural tracking-error metrics; higher dimensionality & candidate \\
+D5 & MountainCar, BipedalWalker & floor effects at the budget run; retained as documented failure modes & \textbf{retired} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{E. Learner \quad F. Methodology \quad G. Out of scope}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.62\textwidth}p{0.18\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Item} & \textbf{Status} \\
+\midrule
+E1 & Is the finding DDPG-specific? TD3 cross-check (\code{src/algos/td3.py} exists, never used) & \textbf{stage 3} \\
+E2 & Does a maximum-entropy learner change it? SAC (\code{src/algos/sac.py} exists, never used) & candidate \\
+E3 & Parameter-space noise to fix MountainCar exploration & declined --- env retired \\
+E4 & A \emph{tuned} recurrent baseline as the real comparator (Ni et al.) & \textbf{stage 2} \\
+\midrule
+F1 & 6 seeds minimum per cell; IQM + stratified bootstrap CI & all stages \\
+F2 & One pre-registered primary statistic per stage, fixed before submission & all stages \\
+F3 & Kill criteria written before compute is spent & this document \\
+F4 & Every cost claim reported three ways: episodes, wall-clock, inference latency & all stages \\
+F5 & Commit-after-each-unit discipline for code & all stages \\
+\midrule
+G1 & Embedded deployment, quantisation, flash/SRAM/energy budgets & out of scope \\
+G2 & Hardware-in-the-loop, real robot & out of scope \\
+G3 & TRM as a model-based MPC corrector & a different project \\
+G4 & A third arbitrary complexity rung & declined \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Engineering required before submission}
+
+\begin{center}\footnotesize
+\begin{tabular}{@{}lp{0.34\textwidth}p{0.16\textwidth}lll@{}}
+\toprule
+\textbf{\#} & \textbf{Work} & \textbf{Where} & \textbf{Risk} & \textbf{Est.} & \textbf{Needed by} \\
+\midrule
+E-1 & Evaluation harness: checkpoint loader, deterministic rollouts, metrics, perturbation grids & \code{src/eval.py} & low & 2\,d & stage 0 \\
+E-2 & \textbf{Carry-Z with correct off-policy semantics} & trunk, algos, buffer & \textbf{high} & 3\,d & stage 2 \\
+E-3 & Perturbation wrappers: obs noise, plant scaling, actuator dropout & \code{src/perturb.py} & low & 0.5\,d & stage 0 \\
+E-4 & Delay-oracle arm: append realised $d_t$ & \code{delays.py} & low & 2\,h & stage 0 \\
+E-5 & Configs: \code{trm\_small}, \code{trm\_h1}, \code{trm\_h6}, \code{trm\_carryz}, \code{stochastic\_u4} & \code{conf/} & low & 1\,h & stages 1--2 \\
+E-6 & Latency benchmark (CPU 1-thread b1, GPU, p50/p99) & \code{experiments/} & low & 0.5\,d & stage 0 \\
+E-7 & MuJoCo dependency check on Katana + env config & \code{setup/}, \code{conf/env/} & medium & 0.5\,d & stage 3 \\
+E-8 & Deep-supervision and no-truncation variants & trunk, update step & medium & 2\,d & stage 4 \\
+E-9 & \emph{(optional)} observation-delay and jitter wrappers (B7--B8) & \code{delays.py} & medium & 1\,d & unscheduled \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{E-2 is the plan's main technical risk.} Carrying a latent across environment steps is easy at acting time and wrong at update time: off-policy replay samples i.i.d.\ transitions with no latent attached, so the update would refine from a cold latent while the behaviour policy refined from a warm one. Three options, in descending preference: \textbf{(1) stored state (R2D2-style)} --- write the carry into the replay buffer alongside the transition and use the stored, slightly stale value during updates; cheapest, well-precedented, introduces representational drift as weights move. \textbf{(2) burn-in} --- store short sequences ($k \approx 8$) and recompute the carry by rolling the trunk forward over the prefix under \code{no\_grad}; more faithful, roughly $k\times$ the update cost, requires a sequence buffer. \textbf{(3) carry at act, reset at update} --- rejected: it makes the acting and learning policies structurally different and would confound exactly the comparison Stage~2 exists to make. Recommendation: implement (1), with (2) behind a config flag. Whichever is chosen must be recorded in the report as a design decision on the same footing as Reset-Z was --- that is how C-2 happened.
+
+\section{Deliverables and immediate next action}
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \code{experiments/analysis\_w0.json} + deployment scorecard, Pareto front, robustness-envelope figures, latency table (Stage 0).
+\item \code{experiments/analysis\_s1.json} + the 2$\times$2 capacity attribution and depth sweep (Stage 1).
+\item \code{experiments/analysis\_s2.json} + the interaction contrast, pre-registered (Stage 2).
+\item \code{analysis\_s3.json}, \code{analysis\_s4.json} if those stages run.
+\item Report revisions per \S4.8.
+\item Code: \code{src/eval.py}, \code{src/perturb.py}, Carry-Z trunk and buffer changes, new configs, submission scripts --- each committed as it lands.
+\end{enumerate}
+
+\paragraph{Immediate next action.} Approve or amend \textbf{Stage~0} --- the 18-job headroom probe plus the zero-training checkpoint battery, $\approx$30 CPU-hours in total, no GPU allocation, no new training matrix. It is the cheapest possible test of whether the rest of the phase has a question to answer, and the battery delivers the entire control-practicality axis regardless of how the gate resolves.
+
+\section*{References}
+\small\RaggedRight
+Agarwal, R. et al.\ (2021). \emph{Deep Reinforcement Learning at the Edge of the Statistical Precipice.} NeurIPS. arXiv:2108.13264 ---
+ARC Prize (2025). \emph{The Hidden Drivers of HRM's Performance on ARC-AGI.} ---
+Bai, S., Kolter, J.\,Z. \& Koltun, V. (2019). \emph{Deep Equilibrium Models.} NeurIPS. arXiv:1909.01377 ---
+Banino, A., Balaguer, J. \& Blundell, C. (2021). \emph{PonderNet.} arXiv:2107.05407 ---
+Dang, L.\,H. \& Rawlinson, D. (2025). \emph{HRM-Agent.} arXiv:2510.22832 ---
+Derman, E., Dalal, G. \& Mannor, S. (2021). \emph{Acting in Delayed Environments with Non-Stationary Markov Policies.} ICLR. arXiv:2101.11992 ---
+Kapturowski, S. et al.\ (2019). \emph{Recurrent Experience Replay in Distributed RL (R2D2).} ICLR ---
+Katsikopoulos, K.\,V. \& Engelbrecht, S.\,E. (2003). Markov decision processes with delays. \emph{IEEE TAC} 48(4) ---
+Klein, T. et al.\ (2024). \emph{Plasticity Loss in Deep RL: A Survey.} arXiv:2411.04832 ---
+Lee, C.-Y. et al.\ (2015). \emph{Deeply-Supervised Nets.} AISTATS ---
+Matheron, G., Perrin, N. \& Sigaud, O. (2019). \emph{The problem with DDPG.} arXiv:1911.11679 ---
+Ni, T., Eysenbach, B. \& Salakhutdinov, R. (2022). \emph{Recurrent Model-Free RL Can Be a Strong Baseline for Many POMDPs.} ICML. arXiv:2110.05038 ---
+Ota, K., Jha, D.\,K. \& Kanezaki, A. (2021). \emph{Training Larger Networks for Deep RL.} arXiv:2102.07920 ---
+Plappert, M. et al.\ (2018). \emph{Parameter Space Noise for Exploration.} ICLR. arXiv:1706.01905 ---
+Roye-Azar, A. et al.\ (2026). \emph{Tiny Recursive Models on ARC-AGI-1.} arXiv:2512.11847
+
+\end{document}

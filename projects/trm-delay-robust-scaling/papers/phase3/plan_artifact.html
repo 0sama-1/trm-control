@@ -1,0 +1,945 @@
+<title>Does Recursion Have Anything Left To Infer?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --paper:#e8ecee; --surface:#f4f7f8; --raised:#fdfefe; --sunk:#dfe6e9;
+  --ink:#111a20; --ink-soft:#38464e; --muted:#66757e;
+  --rule:#ccd6db; --rule-strong:#a5b4bc;
+  --accent:#0a6aa3; --accent-wash:#dce9f1;
+  --signal:#b0670a; --signal-wash:#f2e6d4;
+  --good:#2c6a4f; --good-wash:#dbe9e2;
+  --series-a:#0a6aa3; --series-b:#b0670a;
+  --shadow:0 1px 1px rgba(17,26,32,.04), 0 6px 18px rgba(17,26,32,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d1418; --surface:#131c21; --raised:#19242a; --sunk:#0a1013;
+    --ink:#e0e8ec; --ink-soft:#bcc8cf; --muted:#7a8b94;
+    --rule:#25333a; --rule-strong:#3a4a53;
+    --accent:#3d94c6; --accent-wash:#12262f;
+    --signal:#bd8430; --signal-wash:#2a2013;
+    --good:#5fae86; --good-wash:#132419;
+    --series-a:#3d94c6; --series-b:#bd8430;
+    --shadow:0 1px 1px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.34);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d1418; --surface:#131c21; --raised:#19242a; --sunk:#0a1013;
+  --ink:#e0e8ec; --ink-soft:#bcc8cf; --muted:#7a8b94;
+  --rule:#25333a; --rule-strong:#3a4a53;
+  --accent:#3d94c6; --accent-wash:#12262f;
+  --signal:#bd8430; --signal-wash:#2a2013;
+  --good:#5fae86; --good-wash:#132419;
+  --series-a:#3d94c6; --series-b:#bd8430;
+  --shadow:0 1px 1px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.34);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.mono,code,th,.tag,.tile-num,.pill{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+h1,h2,h3,h4,.tag,.tile-label{font-family:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif}
+code{font-size:.84em;background:var(--sunk);border:1px solid var(--rule);border-radius:3px;padding:.05em .32em;white-space:nowrap}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+.col{max-width:690px}
+
+/* masthead */
+.masthead{background:var(--surface);border-bottom:1px solid var(--rule-strong)}
+.masthead-inner{padding-block:38px 30px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.eyebrow .sep{color:var(--rule-strong)}
+h1{font-size:clamp(31px,5.4vw,48px);line-height:1.06;font-weight:700;letter-spacing:-.018em;
+  margin:0 0 16px;text-wrap:balance;max-width:15ch}
+.standfirst{font-size:19px;line-height:1.55;color:var(--ink-soft);margin:0;max-width:62ch}
+.masthead-meta{display:flex;gap:8px 26px;flex-wrap:wrap;margin-top:24px;padding-top:18px;border-top:1px solid var(--rule);
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+.masthead-meta b{color:var(--ink-soft);font-weight:500}
+
+/* stat strip */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border-block:1px solid var(--rule)}
+.tile{background:var(--surface);padding:18px 18px 16px}
+.tile-num{font-size:27px;font-weight:600;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.tile-num.sig{color:var(--signal)}
+.tile-label{font-size:12.5px;line-height:1.35;color:var(--muted);margin-top:6px;max-width:23ch}
+@media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr)}}
+
+/* sections */
+section{padding-block:44px;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:0}
+.sec-head{display:flex;gap:14px;align-items:baseline;margin-bottom:10px}
+.sec-num{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--accent);letter-spacing:.08em;padding-top:4px}
+h2{font-size:clamp(23px,3.2vw,29px);font-weight:600;letter-spacing:-.012em;margin:0;text-wrap:balance}
+h3{font-size:19px;font-weight:600;margin:34px 0 8px;letter-spacing:-.005em}
+h4{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:26px 0 8px}
+p{margin:0 0 16px}
+.lede{font-size:18.5px;color:var(--ink-soft);margin-bottom:22px}
+ul,ol{margin:0 0 16px;padding-left:1.25em}
+li{margin-bottom:7px}
+strong{font-weight:600}
+
+/* cards */
+.confounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:26px 0}
+.confound{background:var(--raised);border:1px solid var(--rule);border-top:3px solid var(--signal);
+  border-radius:3px;padding:16px 17px 14px;box-shadow:var(--shadow)}
+.confound .tag{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--signal);font-weight:600}
+.confound h4{margin:7px 0 7px;font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15.5px;
+  text-transform:none;letter-spacing:0;color:var(--ink);line-height:1.3}
+.confound p{font-size:14.5px;line-height:1.5;color:var(--ink-soft);margin:0}
+
+blockquote{margin:26px 0;padding:16px 20px;background:var(--sunk);border-left:3px solid var(--rule-strong);
+  font-size:15.5px;line-height:1.58;color:var(--ink-soft)}
+blockquote p:last-child{margin:0}
+blockquote cite{display:block;margin-top:10px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  font-style:normal;color:var(--muted)}
+
+.hypothesis{background:var(--accent-wash);border:1px solid var(--accent);border-radius:3px;padding:22px 24px;margin:26px 0}
+.hypothesis .tag{display:inline-block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin-bottom:9px}
+.hypothesis p{margin:0;font-size:17.5px;line-height:1.55}
+.hypothesis p + p{margin-top:12px;font-size:16px;color:var(--ink-soft)}
+
+/* tables */
+.tablewrap{overflow-x:auto;margin:22px 0;border:1px solid var(--rule);border-radius:3px;background:var(--raised)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:540px}
+thead th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:11px 14px;border-bottom:1px solid var(--rule-strong);background:var(--surface);
+  vertical-align:bottom;white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top;line-height:1.45;color:var(--ink-soft)}
+tbody tr:last-child td{border-bottom:0}
+td:first-child{color:var(--ink);font-weight:600}
+td.idx{font-family:"IBM Plex Mono",monospace;font-weight:500;color:var(--muted);white-space:nowrap}
+.num{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hero-row td{background:var(--accent-wash)}
+.hero-row td:first-child{color:var(--accent)}
+tfoot td{padding:11px 14px;border-top:1px solid var(--rule-strong);background:var(--surface);color:var(--ink);font-weight:600}
+
+/* status pills */
+.pill{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:20px;
+  padding:2px 8px;white-space:nowrap;border:1px solid transparent}
+.p-stage{background:var(--accent-wash);color:var(--accent);border-color:var(--accent)}
+.p-cand{background:transparent;color:var(--muted);border-color:var(--rule-strong)}
+.p-done{background:var(--good-wash);color:var(--good);border-color:var(--good)}
+.p-decl{background:transparent;color:var(--muted);border-color:var(--rule)}
+.p-code{background:var(--signal-wash);color:var(--signal);border-color:var(--signal)}
+
+/* stage panels */
+.stage{background:var(--raised);border:1px solid var(--rule);border-radius:3px;margin:20px 0;box-shadow:var(--shadow)}
+.stage.committed{border-color:var(--accent);border-width:1.5px}
+.stage-head{display:flex;gap:14px;align-items:flex-start;padding:16px 18px 13px;border-bottom:1px solid var(--rule)}
+.stage-id{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--raised);
+  background:var(--accent);border-radius:3px;padding:5px 10px;flex:none;letter-spacing:.02em;line-height:1.2}
+.stage-id.free{background:var(--good)}
+.stage-id.cond{background:var(--muted)}
+.stage-title{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:18.5px;font-weight:600;line-height:1.25;margin:2px 0 3px}
+.stage-entry{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted)}
+.stage-body{padding:16px 18px}
+.stage-body > :last-child{margin-bottom:0}
+.stage-body p{font-size:15.5px;line-height:1.56;margin:0 0 13px}
+.stage-body h4{margin:20px 0 8px}
+.stage-body .tablewrap{margin:14px 0}
+.stage-meta{display:flex;gap:1px;background:var(--rule);border-top:1px solid var(--rule);flex-wrap:wrap}
+.stage-meta div{background:var(--surface);padding:10px 14px;flex:1 1 130px;min-width:0}
+.stage-meta dt{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.stage-meta dd{margin:3px 0 0;font-size:13.5px;color:var(--ink);font-family:"IBM Plex Mono",monospace;line-height:1.35}
+.stage-meta dd.small{font-family:"Source Serif 4",serif;font-size:13.5px;color:var(--ink-soft)}
+
+pre.cmd{margin:14px 0;padding:13px 15px;background:var(--sunk);border:1px solid var(--rule);border-radius:3px;
+  overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.6;color:var(--ink-soft)}
+pre.cmd b{color:var(--ink);font-weight:500}
+
+.gatebox{background:var(--signal-wash);border:1px solid var(--signal);border-radius:3px;padding:14px 17px;margin:16px 0}
+.gatebox .tag{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--signal);font-weight:600}
+.gatebox p{margin:7px 0 0;font-size:15px;line-height:1.5;color:var(--ink-soft)}
+.gatebox ul{margin:8px 0 0;font-size:14.5px;color:var(--ink-soft)}
+.gatebox.neutral{background:var(--accent-wash);border-color:var(--accent)}
+.gatebox.neutral .tag{color:var(--accent)}
+
+/* figures */
+figure{margin:30px 0;background:var(--raised);border:1px solid var(--rule);border-radius:3px;padding:20px 20px 16px}
+figcaption{font-size:13.5px;line-height:1.5;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--rule)}
+.fig-title{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:16px;font-weight:600;margin:0 0 4px;color:var(--ink)}
+.fig-sub{font-size:13.5px;color:var(--muted);margin:0 0 16px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace}
+.swatch{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+svg{display:block;width:100%;height:auto;max-width:100%}
+.tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;z-index:20;
+  background:var(--ink);color:var(--paper);font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+  line-height:1.45;padding:7px 9px;border-radius:3px;max-width:250px;box-shadow:var(--shadow)}
+
+/* closing */
+.action{background:var(--surface);border-top:1px solid var(--rule-strong);padding-block:38px}
+.action h2{margin-bottom:12px}
+footer{padding-block:26px 40px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--muted);line-height:1.7}
+</style>
+
+<div class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="eyebrow">
+      <span>trm-delay-robust-scaling</span><span class="sep">/</span>
+      <span>phase 3 experiment plan</span><span class="sep">/</span>
+      <span>draft 2026-09-14</span>
+    </div>
+    <h1>Does recursion have anything left to infer?</h1>
+    <p class="standfirst">Phases 1 and 2 tested a recursive trunk under the one delay condition where the theory says recursion is unnecessary — and got the result that condition predicts. Phase 3 removes the three confounds, tests recursion where the conditioning genuinely leaves something to infer, and opens the axis the project has never measured: whether any of these trunks makes a usable controller.</p>
+    <div class="masthead-meta">
+      <span><b>Evidence base</b> 102 runs · 3 environments · 6 trunks</span>
+      <span><b>Status</b> no compute submitted</span>
+      <span><b>Asks for</b> Stage 0 sign-off</span>
+    </div>
+  </div>
+</div>
+
+<div class="tiles">
+  <div class="tile"><div class="tile-num">102</div><div class="tile-label">runs banked, every one with per-step telemetry</div></div>
+  <div class="tile"><div class="tile-num">102 / 102</div><div class="tile-label">checkpoints verified present — re-usable with zero new training</div></div>
+  <div class="tile"><div class="tile-num sig">18</div><div class="tile-label">jobs to the gate that can kill the whole phase</div></div>
+  <div class="tile"><div class="tile-num">0</div><div class="tile-label">GPU-hours committed before that gate resolves</div></div>
+</div>
+
+<div class="wrap">
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The null was pre-ordained</h2></div>
+    <p class="lede">Not wrong — pre-ordained. Every number Phase 1 and Phase 2 produced stands. What they cannot do is answer the question they were built to ask.</p>
+    <p>Under <code>FixedDelay(1)</code> with <code>augment_obs=true</code>, the queue of pending actions appended to the observation is <em>exact</em>. Our own <code>augmentation.md</code> §6 verifies it against a recorded action sequence — five delay values × ten steps, zero mismatches — and Katsikopoulos &amp; Engelbrecht (2003) prove the augmented state is a sufficient statistic for the delayed MDP. An architecture whose hypothesised advantage is <em>inferring missing state</em> was handed a task with no missing state, and charged 5–14× the wall-clock for the privilege.</p>
+    <p>That is not a fringe reading of the design. It is written into the repository:</p>
+  </div>
+
+  <div class="col">
+  <blockquote>
+    <p>For <code>StochasticDelay</code>/<code>TimeVaryingDelay</code>, whose per-step <code>d</code> can be <em>less</em> than <code>max_delay</code> … the exposed “pending queue” is a reasonable proxy … rather than a proven sufficient statistic. Extending §3's guarantee to a resampled-every-step delay isn't a small change (<strong>the agent would need to reason about a delay it can't observe in advance</strong>) …</p>
+    <cite>augmentation.md §5 — “Known limitation: exact for fixed delay, approximate for stochastic/time-varying”</cite>
+  </blockquote>
+  <p>That last clause describes an inference problem, written down before the experiment that failed to test it. <code>conf/delay/stochastic.yaml</code> and <code>conf/delay/time_varying.yaml</code> have existed since the start of the project and <strong>have never been run</strong>: all 102 runs used <code>delay=none</code> or <code>delay=fixed value=1</code>.</p>
+  </div>
+
+  <h3>Three confounds, restated as design faults</h3>
+  <div class="confounds">
+    <div class="confound">
+      <span class="tag">C-1 · capacity</span>
+      <h4>Capacity and architecture are perfectly confounded</h4>
+      <p>Every recursive trunk holds ≈788k parameters; every MLP holds ≈135k. No cell varies one while holding the other. Since the 797k Transformer reproduces the value-fit deficit and the 167k LSTM does not, capacity is currently the <em>better-supported</em> explanation — running opposite to the direction the design assumed.</p>
+    </div>
+    <div class="confound">
+      <span class="tag">C-2 · memory</span>
+      <h4>The port implements the weaker latent variant</h4>
+      <p><code>TRMTrunk.forward</code> expands <code>H_init</code>/<code>L_init</code> fresh on every call, so nothing persists between environment steps. HRM-Agent compares exactly this choice and finds carrying the latent converges faster in 4 of 5 runs. A trunk with no cross-step state cannot estimate state.</p>
+    </div>
+    <div class="confound">
+      <span class="tag">C-3 · the task</span>
+      <h4>The delay condition leaves nothing to infer</h4>
+      <p>Fixed, known, one-step delay with augmentation is a solved estimation problem. The recursion had no residual uncertainty to resolve, so it contributed capacity and cost and nothing else — which is precisely the measured outcome.</p>
+    </div>
+  </div>
+
+  <div class="col">
+    <h4>A fourth gap, for completeness</h4>
+    <p><code>project-config.yaml</code> names the delay axis as “observation delay, actuation delay, and jitter”. <code>DelayedEnv</code> implements <strong>actuation delay only</strong> — it queues the agent's action and applies an older one; the observation returned is always current. Observation delay and jitter have no implementation and no config group. They sit in the exploration inventory (§07, items B7–B8) rather than on the critical path, but the project should stop describing them as tested axes.</p>
+    <p>The consequence for the current report is specific: its programme item E1 (a capacity-matched MLP) is only half the fix, because growing the MLP leaves the comparison at one capacity level; and E2 (Carry-Z) is not the “contained change” it is described as, because off-policy replay samples transitions with no latent attached. Both are re-specified below.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">02</span><h2>The Phase 3 hypothesis</h2></div>
+  </div>
+  <div class="col">
+  <div class="hypothesis">
+    <span class="tag">H3 · residual-uncertainty hypothesis</span>
+    <p>Weight-tied recursive computation earns its cost in model-free continuous control only where two conditions hold jointly: <strong>(i)</strong> the conditioning leaves residual state uncertainty that iteration could resolve, and <strong>(ii)</strong> the trunk can carry information across decision steps, so the iteration has something to accumulate.</p>
+    <p>Phases 1–2 satisfied neither. Their null is the outcome H3 <em>predicts</em>. Phase 3's job is to build the conditions under which H3 makes a different prediction from the alternatives — then check.</p>
+  </div>
+  <p>The alternatives are not “recursion works”. They are the two deflationary accounts the data currently supports: <strong>H<sub>cap</sub></strong>, that the deficits track parameter count under a fixed sample budget and recursion is irrelevant either way; and <strong>H<sub>null</sub></strong>, that recursive refinement belongs to supervised, revisitable, compositionally-correctable problems and does not transfer here under any conditioning.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Claim</th><th>H3 predicts</th><th>H<sub>cap</sub> predicts</th><th>H<sub>null</sub> predicts</th><th>Stage</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="idx">H3.1</td><td>the deficit is a capacity artefact</td><td>small-TRM ≈ small-MLP; large-MLP ≈ large-TRM</td><td>same</td><td>large-MLP ≈ small-MLP; TRM worse at both sizes</td><td class="mono">1</td></tr>
+        <tr class="hero-row"><td class="idx">H3.2</td><td>uncertainty × memory interaction</td><td>Carry-Z − MLP ≤ 0 at fixed delay, <strong>&gt; 0</strong> at stochastic</td><td>no interaction — same nets both sides</td><td>≤ 0 everywhere</td><td class="mono">2</td></tr>
+        <tr><td class="idx">H3.3</td><td>depth pays only with something to infer</td><td>flat in <code>H_cycles</code> at fixed delay, rising at stochastic</td><td>flat everywhere</td><td>flat-to-worse, cost linear in depth</td><td class="mono">1 · 2</td></tr>
+        <tr><td class="idx">H3.4</td><td>return traded for command regularity</td><td>recursive trunks smoother at matched return</td><td>tracks architecture class, not recursion</td><td>no consistent difference</td><td class="mono">0</td></tr>
+        <tr><td class="idx">H3.5</td><td>graceful degradation off-nominal</td><td>flatter curves under delay mismatch and noise</td><td>no difference</td><td>no difference, or worse</td><td class="mono">0</td></tr>
+        <tr><td class="idx">H3.6</td><td>real-time feasible at robot rates</td><td colspan="2">quantify: latency per decision against the control period</td><td>—</td><td class="mono">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>H3.2 is the load-bearing row, and it is deliberately an interaction rather than a main effect.</strong> A capacity explanation cannot produce a sign flip across delay conditions using identical networks, and neither can a tuning artefact that applies uniformly. A predicted change of sign is the strongest thing this design can ask for at six seeds.</p>
+    <h4>Why this is consistent with the data, not a rescue of it</h4>
+    <p>H3 requires no Phase 1/2 number to be wrong. It reinterprets them: 0/6 seed-pairs at fixed-known delay is what H3 predicts; a value-fit deficit shared with the Transformer is what H3 predicts; no difference between <code>trm</code>, <code>trm_hier6</code> and <code>trm_singlez</code> is what H3 predicts, since varying the recursive <em>structure</em> changes nothing when the recursion has no signal to work on.</p>
+    <p>And H3 can be held to a prediction: <strong>if the interaction does not appear, H3 is dead</strong>, and the conclusion becomes H<sub>null</sub> with all three confounds removed — a considerably stronger negative than the one currently drafted, and one that closes the question instead of leaving it open.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">03</span><h2>The missing axis: is any of this a usable controller?</h2></div>
+    <p class="lede">The project scores trunks on return, training wall-clock and parameter count. A controls or robotics reader needs three things none of those supply — and all three are cheap.</p>
+    <h4>Command quality</h4>
+    <p>A controller that achieves the same return while commanding twice the actuator rate is a worse controller. Actuator wear, thermal load, gearbox backlash and vibration scale with command rate, not with reward. Control effort ∫u²dt, command rate |Δu|, jerk |Δ²u|, saturation fraction, sign-reversal rate and the fraction of command power above a cutoff are all computable directly from rollouts.</p>
+    <h4>Robustness envelope, not point performance</h4>
+    <p>Every number in the project so far was measured under exactly the conditions the policy trained in. A controller is judged on margin: how far the plant can drift, how much the delay can vary, how noisy the sensor can get before performance collapses. Since delay-robustness is this project's founding axis, the absence of any off-nominal measurement is the single largest gap in the evidence base.</p>
+    <h4>Real-time feasibility</h4>
+    <p>Training wall-clock is the wrong cost for deployment; per-decision inference latency against the control period is the right one. At <code>H_cycles=3, L_cycles=6</code> the TRM trunk performs <strong>21 applications of the shared cell per forward pass</strong> — 18 inner updates plus 3 outer — each two SwiGLU blocks, against the MLP's two matrix multiplies. Whether that lands at 0.4 ms or 4 ms at batch 1 on a CPU decides whether the trunk is admissible at 100 Hz, at 500 Hz, or not at all. <strong>The project has never measured it.</strong> It is a one-hour experiment.</p>
+  </div>
+
+  <figure>
+    <p class="fig-title">The same deficit, two ways of paying for it</p>
+    <p class="fig-sub">Pendulum-v1 final return, on the span between an untrained policy and the best result observed anywhere in the study.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--series-a)"></span>TRM</span>
+      <span><span class="swatch" style="background:var(--series-b)"></span>DNN [256,256]</span>
+    </div>
+    <svg viewBox="0 0 700 200" role="img" aria-label="Return axis from minus 1460, an untrained policy, to minus 170, the best result observed. The MLP finishes at minus 194 and TRM at matched episodes reaches minus 231, 37 units apart. TRM at matched wall-clock sits near minus 1040, about 846 units back.">
+      <line x1="40" y1="150" x2="660" y2="150" stroke="var(--rule-strong)" stroke-width="1"/>
+      <line x1="40" y1="145" x2="40" y2="155" stroke="var(--rule-strong)" stroke-width="1"/>
+      <line x1="660" y1="145" x2="660" y2="155" stroke="var(--rule-strong)" stroke-width="1"/>
+      <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--muted)">
+        <text x="40" y="170" text-anchor="start" fill="var(--ink-soft)">&#8722;1460</text>
+        <text x="40" y="185" text-anchor="start" font-size="10">untrained policy</text>
+        <text x="660" y="170" text-anchor="end" fill="var(--ink-soft)">&#8722;170</text>
+        <text x="660" y="185" text-anchor="end" font-size="10">best observed</text>
+      </g>
+      <g stroke="var(--series-a)" stroke-width="1">
+        <line x1="241.8" y1="128" x2="630.7" y2="128" stroke-dasharray="2 3"/>
+        <line x1="241.8" y1="124" x2="241.8" y2="132"/>
+        <line x1="630.7" y1="124" x2="630.7" y2="132"/>
+      </g>
+      <text x="436" y="120" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--series-a)">&#8776;846 reward units &#183; 58% of the span</text>
+      <g class="mark" data-tip="TRM at matched wall-clock &#183; median &#8776;&#8722;1040 across 6 Pendulum seed-pairs &#183; only 6 to 44 of 200 episodes completed">
+        <line x1="241.8" y1="150" x2="241.8" y2="110" stroke="var(--series-a)" stroke-width="2" stroke-dasharray="3 3"/>
+        <circle cx="241.8" cy="110" r="5.5" fill="var(--raised)" stroke="var(--series-a)" stroke-width="2.5"/>
+        <text x="241.8" y="76" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="var(--ink)">&#8776;&#8722;1040</text>
+        <text x="241.8" y="94" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--muted)">TRM &#183; matched wall-clock</text>
+      </g>
+      <g class="mark" data-tip="Matched episodes: DNN &#8722;194 vs TRM &#8722;231 &#183; the reported 37-unit deficit, 0/6 seed-pairs, p = 0.016">
+        <line x1="630.7" y1="150" x2="630.7" y2="110" stroke="var(--series-a)" stroke-width="2"/>
+        <line x1="648.5" y1="150" x2="648.5" y2="110" stroke="var(--series-b)" stroke-width="2"/>
+        <circle cx="630.7" cy="110" r="5.5" fill="var(--series-a)" stroke="var(--raised)" stroke-width="2"/>
+        <circle cx="648.5" cy="110" r="5.5" fill="var(--series-b)" stroke="var(--raised)" stroke-width="2"/>
+        <text x="660" y="76" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="15" fill="var(--ink)">&#8722;231 &#183; &#8722;194</text>
+        <text x="660" y="94" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--muted)">TRM &#183; DNN &#183; matched episodes</text>
+      </g>
+    </svg>
+    <figcaption>Both readings are true and they answer different questions. Giving each trunk the same number of <em>episodes</em> produces the reported 37-unit deficit; giving them the same number of <em>minutes</em> — the resource actually allocated — leaves the recursive trunk 6 to 44 episodes into its run, near an untrained policy, when the MLP has already finished. Phase 3 reports both on every comparison, and adds a third: matched inference latency, the only one that survives to deployment. Source: <code>experiments/analyze_control_quality.py</code>, 6 Pendulum-v1 seed-pairs.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">04</span><h2>The stage plan</h2></div>
+    <p class="lede">Six stages. Each names its entry condition, exactly what runs, what is measured, the pre-registered statistic, and the gate that decides whether the next stage happens. Only Stage 0 is committed at sign-off.</p>
+  </div>
+
+  <figure>
+    <p class="fig-title">Stage map and kill paths</p>
+    <p class="fig-sub">Every arrow out to the right is a place the phase can stop early with a reportable result.</p>
+    <svg viewBox="0 0 720 652" role="img" aria-label="Flow diagram. Stage 0, the headroom probe and checkpoint battery, leads to gate G0; if G0 fails the phase ends after Stage 1 and is written up. Stage 1, the capacity by depth factorial, is not gated by G0 and leads to gate G1, which has no kill branch and sets Stage 2's capacity. Stage 2, uncertainty by memory, leads to gate G2; if G2 fails, H-null is reported with all three confounds removed. Stage 3, generalisation, leads to gate G3; if G3 fails the work stops there. Stage 4 restores the training discipline and Stage 5 is synthesis.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--rule-strong)"/>
+        </marker>
+        <marker id="ars" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--signal)"/>
+        </marker>
+      </defs>
+
+      <!-- vertical connectors -->
+      <g stroke="var(--rule-strong)" stroke-width="1.5" marker-end="url(#ar)">
+        <line x1="235" y1="64" x2="235" y2="80"/>
+        <line x1="235" y1="118" x2="235" y2="134"/>
+        <line x1="235" y1="194" x2="235" y2="210"/>
+        <line x1="235" y1="248" x2="235" y2="264"/>
+        <line x1="235" y1="324" x2="235" y2="340"/>
+        <line x1="235" y1="378" x2="235" y2="394"/>
+        <line x1="235" y1="454" x2="235" y2="470"/>
+        <line x1="235" y1="508" x2="235" y2="524"/>
+        <line x1="235" y1="584" x2="235" y2="600"/>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">
+        <text x="243" y="132">yes</text>
+        <text x="243" y="262">then</text>
+        <text x="243" y="392">yes</text>
+        <text x="243" y="522">yes</text>
+      </g>
+
+      <!-- kill-branch connectors -->
+      <g stroke="var(--signal)" stroke-width="1.5" marker-end="url(#ars)">
+        <line x1="380" y1="101" x2="416" y2="101"/>
+        <line x1="380" y1="361" x2="416" y2="361"/>
+        <line x1="380" y1="491" x2="416" y2="491"/>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--signal)" text-anchor="middle">
+        <text x="398" y="95">no</text>
+        <text x="398" y="355">no</text>
+        <text x="398" y="485">no</text>
+      </g>
+
+      <!-- Stage 0 -->
+      <rect x="90" y="8" width="290" height="56" rx="3" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="2"/>
+      <text x="104" y="30" font-family="IBM Plex Sans Condensed, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Stage 0 · is there a question?</text>
+      <text x="104" y="48" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">18 jobs + 102 eval · ≈30 CPU-h · committed</text>
+      <!-- G0 -->
+      <rect x="90" y="84" width="290" height="34" rx="3" fill="none" stroke="var(--rule-strong)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="235" y="105" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink)">G0 · does resolving the delay buy anything?</text>
+      <!-- Stage 1 -->
+      <rect x="90" y="138" width="290" height="56" rx="3" fill="var(--raised)" stroke="var(--rule-strong)"/>
+      <text x="104" y="160" font-family="IBM Plex Sans Condensed, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Stage 1 · capacity × depth</text>
+      <text x="104" y="178" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">72 jobs · not gated by G0</text>
+      <!-- G1 -->
+      <rect x="90" y="214" width="290" height="34" rx="3" fill="none" stroke="var(--rule-strong)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="235" y="235" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink)">G1 · capacity, or architecture?</text>
+      <text x="416" y="232" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">no kill branch —</text>
+      <text x="416" y="246" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">both outcomes inform</text>
+      <!-- Stage 2 -->
+      <rect x="90" y="268" width="290" height="56" rx="3" fill="var(--raised)" stroke="var(--rule-strong)"/>
+      <text x="104" y="290" font-family="IBM Plex Sans Condensed, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Stage 2 · uncertainty × memory</text>
+      <text x="104" y="308" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">72 jobs (+24 optional) · the decisive test</text>
+      <!-- G2 -->
+      <rect x="90" y="344" width="290" height="34" rx="3" fill="none" stroke="var(--rule-strong)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="235" y="365" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink)">G2 · does the interaction appear?</text>
+      <!-- Stage 3 -->
+      <rect x="90" y="398" width="290" height="56" rx="3" fill="var(--raised)" stroke="var(--rule-strong)"/>
+      <text x="104" y="420" font-family="IBM Plex Sans Condensed, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Stage 3 · does it generalise?</text>
+      <text x="104" y="438" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">81 jobs · TD3 + unstable plant</text>
+      <!-- G3 -->
+      <rect x="90" y="474" width="290" height="34" rx="3" fill="none" stroke="var(--rule-strong)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="235" y="495" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink)">G3 · Carry-Z beats Reset-Z?</text>
+      <!-- Stage 4 -->
+      <rect x="90" y="528" width="290" height="56" rx="3" fill="var(--raised)" stroke="var(--rule-strong)"/>
+      <text x="104" y="550" font-family="IBM Plex Sans Condensed, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Stage 4 · restore the discipline</text>
+      <text x="104" y="568" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">36 jobs · the only constructive positive</text>
+      <!-- Stage 5 -->
+      <rect x="90" y="604" width="290" height="34" rx="3" fill="var(--surface)" stroke="var(--rule)"/>
+      <text x="235" y="625" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink-soft)">Stage 5 · synthesis, no compute</text>
+
+      <!-- kill boxes -->
+      <rect x="416" y="80" width="294" height="42" rx="3" fill="var(--signal-wash)" stroke="var(--signal)"/>
+      <text x="428" y="98" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">no headroom — no architecture can win.</text>
+      <text x="428" y="113" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">Write up Stage 0 + 1. Phase ends.</text>
+
+      <rect x="416" y="340" width="294" height="42" rx="3" fill="var(--signal-wash)" stroke="var(--signal)"/>
+      <text x="428" y="358" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">H3 rejected — report H_null with all</text>
+      <text x="428" y="373" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">three confounds removed.</text>
+
+      <rect x="416" y="470" width="294" height="42" rx="3" fill="var(--signal-wash)" stroke="var(--signal)"/>
+      <text x="428" y="488" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink)">stop at Stage 3 — refinement</text>
+      <text x="428" y="503" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">continuity loses its constructive test.</text>
+    </svg>
+    <figcaption>Stage 1 hangs off the main line deliberately: its question — is the measured deficit capacity or recursion? — stands whatever the headroom probe says, and its answer sets the capacity level Stage 2 runs at. Every other stage is downstream of a gate whose failure produces a publishable result rather than a dead end.</figcaption>
+  </figure>
+
+  <!-- STAGE 0 -->
+  <div class="stage committed">
+    <div class="stage-head">
+      <span class="stage-id free">S0</span>
+      <div>
+        <p class="stage-title">Is there a question, and what has already been paid for?</p>
+        <span class="stage-entry">entry: none — the only stage committed at sign-off</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <h4>S0.1 · Headroom probe — 18 jobs</h4>
+      <p>Before asking whether recursion can exploit residual uncertainty, establish that residual uncertainty <em>costs anything</em>. Three arms, MLP only, Pendulum-v1, DDPG, 200 episodes, seeds 1–6.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Arm</th><th>Condition</th><th>Hydra overrides</th></tr></thead>
+          <tbody>
+            <tr><td class="idx">A1</td><td>fixed d=1 + augmentation — the Phase 1 condition, a sufficient statistic</td><td class="mono">delay=fixed delay.value=1 augment_obs=true</td></tr>
+            <tr><td class="idx">A2</td><td>stochastic d ~ U{0…4} + augmentation — now only approximate</td><td class="mono">delay=stochastic delay.min=0 delay.max=4 augment_obs=true</td></tr>
+            <tr class="hero-row"><td class="idx">A3</td><td>A2 + <strong>delay oracle</strong>: the realised d<sub>t</sub> appended to the observation</td><td class="mono">… delay.expose_realised=true</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>info["delay_sampled_steps"]</code> already carries the realised delay, so exposing it is ~10 lines in <code>DelayedEnv</code>. Arm A3 is an <strong>information upper bound</strong>: the best any architecture could do by resolving the delay, handed over for free rather than inferred.</p>
+<pre class="cmd"><b>python3 main.py</b> arch=ddpg model=dnn env=pendulum \
+  delay=stochastic delay.min=0 delay.max=4 augment_obs=true \
+  arch.total_episodes=200 seed=$S wandb.enabled=false \
+  print_stat_every=20 record_every=1000 eval_every=10 \
+  results_folder=results_p3s0 track_step_history=true
+
+<b>#PBS</b> -l select=1:ncpus=2:mem=8gb    -l walltime=04:00:00   # queue mech12</pre>
+      <p><strong>Measured:</strong> final avg100 return; the <code>eval_return</code> curve at 10-episode resolution; per-seed paired differences A3−A2 and A2−A1. <strong>Statistic:</strong> one-sided sign test on per-seed A3−A2 (n = 6), plus the effect size in reward units against the pooled across-seed standard deviation.</p>
+
+      <div class="gatebox">
+        <span class="tag">gate G0 · kill criterion</span>
+        <p>A3 must beat A2 by more than the pooled seed spread, sign-consistent in ≥5 of 6 seeds. If it does not, there is no headroom for inference to recover, <strong>no architecture can win at this condition</strong>, Stage 2 is void, and the phase ends after Stage 1. Cost of learning this: about four CPU-hours.</p>
+      </div>
+
+      <h4>S0.2 · Checkpoint battery — 0 training jobs</h4>
+      <p>204 checkpoints totalling 1.6 GB sit in <code>/srv/scratch/z5308482/trm-control/models</code>. Each run's <code>model_id</code> maps to one file, and <strong>all 102 Phase 1–2 runs were confirmed present</strong> — the remaining 102 files are earlier archived runs. Every trained policy from both phases can be re-evaluated without retraining anything.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Probe</th><th>Grid</th><th>Yields</th></tr></thead>
+          <tbody>
+            <tr><td>Nominal performance</td><td>20 episodes, unseen seeds</td><td>IQM return + stratified bootstrap CI</td></tr>
+            <tr><td>Command quality</td><td>same rollouts</td><td>∫u²/T, |Δu|, |Δ²u|, saturation %, reversals/s, HF power fraction, mechanical work</td></tr>
+            <tr><td>Delay mismatch</td><td>test-time d ∈ {0…5} against a policy trained at d=1</td><td>degradation curve, empirical delay margin</td></tr>
+            <tr><td>Sensor noise</td><td>σ ∈ {0, .01, .05, .10} × obs scale</td><td>noise-rejection curve</td></tr>
+            <tr><td>Plant perturbation</td><td>Pendulum m, l ∈ {0.7 … 1.3}×</td><td>model-mismatch curve</td></tr>
+            <tr><td>Actuator dropout</td><td>p ∈ {0, .05, .10}</td><td>fault tolerance</td></tr>
+            <tr><td>Inference latency</td><td>CPU 1-thread b1; GPU b1; b256</td><td>p50/p99 ms per decision, max control rate</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The latency benchmark runs as two dedicated jobs with <code>OMP_NUM_THREADS=1</code> and <code>torch.set_num_threads(1)</code>, so batch-1 timing is not contaminated by thread scheduling. S0.2 tests H3.4–H3.6 and produces the whole of §03 before any new training job is submitted — and it runs regardless of G0, so its output survives every branch of the plan.</p>
+    </div>
+    <dl class="stage-meta">
+      <div><dt>Jobs</dt><dd>18 + ~102 eval</dd></div>
+      <div><dt>Est. cost</dt><dd>≈30 CPU-h · 0 GPU-h</dd></div>
+      <div><dt>Queue</dt><dd>mech12</dd></div>
+      <div><dt>Deliverable</dt><dd class="small">analysis_w0.json, deployment scorecard, Pareto front</dd></div>
+    </dl>
+  </div>
+
+  <!-- STAGE 1 -->
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-id">S1</span>
+      <div>
+        <p class="stage-title">Attribution — capacity or recursion?</p>
+        <span class="stage-entry">entry: none — not gated by G0; its answer configures Stage 2</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Pendulum-v1, DDPG, 200 episodes — matching Phase 1 exactly so the existing runs stay comparable — at no-delay and fixed d=1+aug, seeds 1–6. Six arms: a 2×2 in architecture × capacity, plus two depth arms at identical parameter count.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Arm</th><th>Config</th><th class="num">Params</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnn</code></td><td class="mono">[256, 256]</td><td class="num">134,914</td><td>existing small MLP</td></tr>
+            <tr class="hero-row"><td><code>trm_small</code></td><td class="mono">hidden_size=44, L_layers=2</td><td class="num">135,654</td><td>recursion at MLP capacity (+0.55%)</td></tr>
+            <tr><td><code>dnn_large</code></td><td class="mono">[624, 624]</td><td class="num">788,114</td><td>MLP at recursive capacity (+0.03%)</td></tr>
+            <tr><td><code>trm</code></td><td class="mono">hidden_size=128</td><td class="num">787,842</td><td>existing recursive trunk</td></tr>
+            <tr class="hero-row"><td><code>trm_h1</code></td><td class="mono">trm, H_cycles=1</td><td class="num">787,842</td><td>recursion off, parameters identical</td></tr>
+            <tr><td><code>trm_h6</code></td><td class="mono">trm, H_cycles=6</td><td class="num">787,842</td><td>double depth, parameters identical</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Parameter counts come from the trunk's exact construction, and the formula reproduces two measured runs exactly — TRM on Pendulum (787,842) and on BipedalWalker with augmentation (794,757). Under stochastic delay the matching holds too: 135,918 vs 136,450 and 788,610 vs 791,858.</p>
+      <p><code>trm_h1</code> is the cleanest control in the project: it removes the outer recursion while changing nothing about parameter count, optimiser or input. <code>H_cycles</code> also sets the compute directly — 7 cell applications per forward pass at 1, 21 at 3, 42 at 6, with the gradient reaching only 7 in every case.</p>
+      <p><strong>Measured:</strong> final return; the full critic/actor-loss telemetry re-run through the existing <code>analyze_mechanism.py</code> pipeline at each capacity level; wall-clock; per-decision latency folded in from S0.2. <strong>Statistic:</strong> paired sign tests within each capacity level (n = 12 per contrast, pooling both delay conditions), plus the 2×2 architecture × capacity interaction on median return.</p>
+      <div class="gatebox neutral">
+        <span class="tag">gate G1 · attribution — no kill branch</span>
+        <ul>
+          <li><code>dnn_large</code> degrades toward <code>trm</code> <em>and</em> <code>trm_small</code> improves toward <code>dnn</code> ⇒ the Phase 1 headline is largely a capacity artefact, must be restated, and Stage 2 runs at matched capacity only.</li>
+          <li>Both MLPs equal and both TRMs equal-and-worse ⇒ the deficit is architecture-family; H<sub>cap</sub> weakens and the recursion-specific account survives.</li>
+          <li><code>trm_h1</code> ≈ <code>trm</code> ⇒ depth is inert here, reproducing Roye-Azar et al.'s “shallow effective recursion” outside its original domain.</li>
+        </ul>
+      </div>
+    </div>
+    <dl class="stage-meta">
+      <div><dt>Jobs</dt><dd>6 × 2 × 6 = 72</dd></div>
+      <div><dt>Est. cost</dt><dd>≈60 CPU-h + 25 GPU-h</dd></div>
+      <div><dt>Queues</dt><dd>mech12 · mechgpu12</dd></div>
+      <div><dt>Decides</dt><dd class="small">whether the Phase 1 headline measured recursion or size</dd></div>
+    </dl>
+  </div>
+
+  <!-- STAGE 2 -->
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-id">S2</span>
+      <div>
+        <p class="stage-title">The decisive test — uncertainty × memory</p>
+        <span class="stage-entry">entry: G0 passed, and G1 has fixed the capacity level</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Trunk</th><th>What it isolates</th></tr></thead>
+          <tbody>
+            <tr><td><code>dnn</code> at the G1 capacity</td><td>the memoryless baseline</td></tr>
+            <tr><td><code>trm</code> (Reset-Z)</td><td>recursion without cross-step memory — the current port</td></tr>
+            <tr class="hero-row"><td><code>trm_carryz</code></td><td>recursion <em>with</em> cross-step memory — the C-2 fix</td></tr>
+            <tr><td><code>lstm</code>, state carried, tuned</td><td>the honest memory baseline; a beaten recurrent baseline that was never tuned proves nothing (Ni et al.)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Condition</th><th>Sufficient statistic?</th><th>Overrides</th></tr></thead>
+          <tbody>
+            <tr><td class="idx">C1 · fixed d=1 + aug</td><td>yes — proven and verified</td><td class="mono">delay=fixed delay.value=1 augment_obs=true</td></tr>
+            <tr><td class="idx">C3 · stochastic + aug</td><td>no — documented approximation</td><td class="mono">delay=stochastic delay.min=0 delay.max=4 augment_obs=true</td></tr>
+            <tr><td class="idx">C4 · stochastic, no aug</td><td>no — withheld entirely</td><td class="mono">… augment_obs=false</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Seeds 1–6, so 4 × 3 × 6 = <strong>72 jobs</strong>. C0 (no delay) and C2 (fixed, no aug) are already covered by Stage 1 and Phase 2 respectively.</p>
+      <p><strong>Pre-registered primary statistic</strong>, fixed before submission — the interaction contrast:</p>
+<pre class="cmd">Δ = [ med(TRM_carryz) − med(DNN) ]<sub>C3</sub>  −  [ med(TRM_carryz) − med(DNN) ]<sub>C1</sub>
+    one-sided sign test on per-seed paired differences, n = 6</pre>
+      <p><strong>Secondary:</strong> Carry-Z against Reset-Z at each condition, which isolates C-2 independently of the delay axis; and the C4 replication of the same contrast.</p>
+      <p><strong>Optional C5 (+24 jobs).</strong> <code>delay=time_varying</code> with the existing schedule makes the delay <em>non-stationary</em> rather than merely random — the regime where Derman et al. prove stationary policies over augmented states are sub-optimal in general. The sharpest version of the test, and the most defensible place in this project for a recursive trunk to win. Recommended if C3 shows any interaction at all.</p>
+      <div class="gatebox">
+        <span class="tag">gate G2 · kill criterion</span>
+        <p>The contrast must flip sign from C1 to C3, sign-consistent in ≥5 of 6 seeds. If it does not, <strong>H3 is rejected</strong>: report H<sub>null</sub> with all three confounds removed — a stronger and more final negative than the current draft. Stages 3 and 4 do not run.</p>
+      </div>
+    </div>
+    <dl class="stage-meta">
+      <div><dt>Jobs</dt><dd>72 (+24 optional)</dd></div>
+      <div><dt>Est. cost</dt><dd>≈70 CPU-h + 40 GPU-h</dd></div>
+      <div><dt>Needs</dt><dd class="small">Carry-Z engineering (E-2, the plan's main risk)</dd></div>
+    </dl>
+  </div>
+
+  <!-- STAGE 3 -->
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-id cond">S3</span>
+      <div>
+        <p class="stage-title">Does the finding generalise?</p>
+        <span class="stage-entry">entry: G2 shows an interaction</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <h4>S3.1 · Algorithm cross-check — 24 jobs</h4>
+      <p>DDPG is documented as brittle on two of our three environments, and its OU exploration is itself a confound on the command-regularity measure. <code>src/algos/td3.py</code> is implemented and has never been used by this project. Re-run the decisive contrast — 2 trunks × {C1, C3} × 6 seeds — under <code>arch=td3</code>. If the interaction reproduces, the finding is not DDPG-specific; if it inverts, that is a finding in itself.</p>
+      <h4>S3.2 · A rung chosen for control-theoretic reasons — 9 pilot + 48</h4>
+      <p>Replace BipedalWalker-v3 with <strong>InvertedDoublePendulum-v5</strong>. The rationale is specific rather than “harder”: it is an <em>open-loop unstable</em> plant with a short time constant, so delay directly consumes stability margin — delay does not merely obscure the state, it destabilises. It gives natural control metrics (time-to-fall, RMS pole angle, control effort), trains fast, and MuJoCo has been Apache-2.0 and pip-installable for years, so the licence gating recorded in earlier phases is stale and should be rechecked rather than inherited.</p>
+      <p><strong>Pilot first:</strong> 1 trunk × 3 seeds × budget ∈ {200, 600, 1500} episodes, to find the budget at which the baseline reaches the solved threshold. Phase 2's floor effect was caused precisely by skipping this step; no full matrix is submitted until a pilot shows the environment is learnable within budget. Then 4 trunks × {C1, C3} × 6 seeds = 48.</p>
+      <h4>S3.3 · Retire the floor-effect environments</h4>
+      <p>MountainCarContinuous-v0 and BipedalWalker-v3 stay in the report as documented failure modes but are not re-run at higher budget: a third environment adds nothing until the mechanism question is settled on a rung that works.</p>
+      <div class="gatebox">
+        <span class="tag">gate G3 · continuity</span>
+        <p>Carry-Z must beat Reset-Z somewhere — evaluated on Stage 2 data, re-checked on Stage 3. If it does not, Stage 4 does not run and precondition P1 loses its constructive test.</p>
+      </div>
+    </div>
+    <dl class="stage-meta">
+      <div><dt>Jobs</dt><dd>24 + 9 + 48 = 81</dd></div>
+      <div><dt>Est. cost</dt><dd>≈75 GPU-h</dd></div>
+      <div><dt>Needs</dt><dd class="small">MuJoCo dependency check on Katana (E-7)</dd></div>
+    </dl>
+  </div>
+
+  <!-- STAGE 4 -->
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-id cond">S4</span>
+      <div>
+        <p class="stage-title">Restore the training discipline</p>
+        <span class="stage-entry">entry: G3 passed — refinement continuity has traction</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>Three variants of the recursive trunk at fixed parameters, {C1, C3}, 6 seeds:</p>
+      <ul>
+        <li><strong>(a) No truncation.</strong> Backpropagate through all outer cycles. Currently 14 of 21 cell applications receive no gradient at all.</li>
+        <li><strong>(b) Per-cycle supervision.</strong> Apply the critic loss to every outer cycle's readout — a deep-supervision surrogate for the mechanism ARC Prize identify as HRM's true driver, and the closest available analogue to TRM's supervision over <code>halt_max_steps</code>.</li>
+        <li><strong>(c) Fixed-point / DEQ readout.</strong> Iterate to convergence and differentiate implicitly, removing truncation entirely at constant memory. The most interesting and the most speculative.</li>
+      </ul>
+      <p>This is the only stage that can produce a <em>constructive</em> positive result — the mechanism transfers when its training discipline is ported with it — rather than a conditional one.</p>
+    </div>
+    <dl class="stage-meta">
+      <div><dt>Jobs</dt><dd>3 × 2 × 6 = 36</dd></div>
+      <div><dt>Est. cost</dt><dd>≈45 GPU-h</dd></div>
+      <div><dt>Needs</dt><dd class="small">deep-supervision and no-truncation variants (E-8)</dd></div>
+    </dl>
+  </div>
+
+  <!-- STAGE 5 -->
+  <div class="stage">
+    <div class="stage-head">
+      <span class="stage-id cond">S5</span>
+      <div>
+        <p class="stage-title">Synthesis</p>
+        <span class="stage-entry">entry: always — whichever branch the phase ends on</span>
+      </div>
+    </div>
+    <div class="stage-body">
+      <p>No compute. Report revisions: §6.1 restated per G1; a new command-quality and robustness section built on the Stage 0 scorecard; the cost ledger reported three ways — matched episodes, matched wall-clock, matched inference latency; §10's E1–E5 superseded by whichever stages ran; and the threats-to-validity section updated to record which of the three confounds were actually removed.</p>
+    </div>
+  </div>
+
+  <h3>Gate summary</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Gate</th><th>Test</th><th>On</th><th>If it fails</th></tr></thead>
+      <tbody>
+        <tr class="hero-row"><td class="idx">G0 · headroom</td><td>oracle-delay MLP &gt; augmented MLP at stochastic delay, above seed spread, ≥5/6 seeds</td><td class="mono">S0</td><td>Stage 2 void. Phase ends after Stage 1; write up.</td></tr>
+        <tr><td class="idx">G1 · attribution</td><td>2×2 architecture × capacity contrast</td><td class="mono">S1</td><td>No failure branch; both outcomes restate report §6.1 and set Stage 2's capacity.</td></tr>
+        <tr class="hero-row"><td class="idx">G2 · interaction</td><td>(Carry-Z − MLP) flips sign C1→C3, ≥5/6 seeds</td><td class="mono">S2</td><td>H3 rejected. Report H<sub>null</sub> with all three confounds removed. Stages 3–4 do not run.</td></tr>
+        <tr><td class="idx">G3 · continuity</td><td>Carry-Z &gt; Reset-Z at any condition</td><td class="mono">S2/S3</td><td>Stage 4 does not run; P1 loses its constructive test.</td></tr>
+        <tr><td class="idx">G4 · practicality</td><td>some trunk sits favourably on the return/effort/latency front</td><td class="mono">S0</td><td>Report the trade as unfavourable; the deployment recommendation stands with the MLP.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Budget rollup</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Stage</th><th>Contents</th><th class="num">Jobs</th><th>Est. cost</th><th>Committed?</th></tr></thead>
+      <tbody>
+        <tr class="hero-row"><td class="idx">0</td><td>headroom probe + checkpoint battery</td><td class="num">18 + ~102</td><td class="mono">≈30 CPU-h</td><td><span class="pill p-stage">yes, at sign-off</span></td></tr>
+        <tr><td class="idx">1</td><td>capacity × depth factorial</td><td class="num">72</td><td class="mono">≈60 CPU-h + 25 GPU-h</td><td>on Stage 0 completion</td></tr>
+        <tr><td class="idx">2</td><td>uncertainty × memory (+24 optional)</td><td class="num">72</td><td class="mono">≈70 CPU-h + 40 GPU-h</td><td>gated by G0</td></tr>
+        <tr><td class="idx">3</td><td>TD3 cross-check + unstable-plant rung</td><td class="num">81</td><td class="mono">≈75 GPU-h</td><td>gated by G2</td></tr>
+        <tr><td class="idx">4</td><td>training discipline</td><td class="num">36</td><td class="mono">≈45 GPU-h</td><td>gated by G3</td></tr>
+        <tr><td class="idx">5</td><td>synthesis</td><td class="num">0</td><td class="mono">—</td><td>always</td></tr>
+      </tbody>
+      <tfoot><tr><td>Total if every gate passes</td><td>five stages of compute</td><td class="num">279 + ~102 eval</td><td class="mono">≈290 CPU-h + 185 GPU-h</td><td>—</td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="col">
+    <p>All jobs are PBS submissions on Katana under group <code>MECH</code>, ≤12 h walltime, following <code>experiments/phase2_submit.sh</code> as the template. <strong>Committed at sign-off: Stage 0 only — 120 jobs, ≈30 CPU-hours, no GPU allocation.</strong> For comparison, Phases 1 and 2 together committed 102 jobs unconditionally.</p>
+    <p>Six seeds per cell throughout, giving a floor of p = 0.0156 on a clean sweep. Agarwal et al. show 5 runs per task yields Type I error above 50% for point estimates; IQM-with-bootstrap-CI reporting is the mitigation where seed counts cannot rise further, and no Phase 3 comparison runs at n = 3.</p>
+    <h4>What would make Phase 3 a success</h4>
+    <p>Not a positive result. Either of these is a complete outcome: recursion wins where residual uncertainty exists and memory is carried, with a cost ledger and control-quality scorecard saying whether the win is worth buying — or it does not, with capacity crossed, the latent carried, the delay genuinely uncertain and the environments validated, at which point the negative result is about recursive computation in continuous control rather than about our port of it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">05</span><h2>A signal already sitting in the banked data</h2></div>
+    <p>Running the command-quality measure over the existing <code>step_history</code> — 102 runs, no new compute — turns up a pattern the project has never reported. Every non-MLP trunk commands a markedly smoother action sequence than the MLP.</p>
+  </div>
+
+  <figure>
+    <p class="fig-title">Command rate relative to the MLP baseline</p>
+    <p class="fig-sub">Median ratio of mean |Δa| against <code>dnn</code>, paired per seed and condition across Pendulum-v1 and BipedalWalker-v3. Lower is smoother; 1.0 is the baseline.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--series-a)"></span>recursive family</span>
+      <span><span class="swatch" style="background:var(--series-b)"></span>non-recursive comparators</span>
+    </div>
+    <svg viewBox="0 0 700 234" role="img" aria-label="Horizontal bars of median command-rate ratio against the MLP baseline: Transformer 0.10, LSTM 0.16, TRM-hier6 0.39, TRM 0.42, TRM-singlez 0.54, all below the 1.0 baseline.">
+      <g stroke="var(--rule)" stroke-width="1">
+        <line x1="150" y1="14" x2="150" y2="196"/>
+        <line x1="270" y1="14" x2="270" y2="196"/>
+        <line x1="390" y1="14" x2="390" y2="196"/>
+        <line x1="510" y1="14" x2="510" y2="196"/>
+      </g>
+      <line x1="630" y1="14" x2="630" y2="196" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="630" y="212" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-soft)">1.0 = dnn</text>
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">
+        <text x="150" y="212" text-anchor="middle">0</text>
+        <text x="270" y="212" text-anchor="middle">0.25</text>
+        <text x="390" y="212" text-anchor="middle">0.50</text>
+        <text x="510" y="212" text-anchor="middle">0.75</text>
+      </g>
+      <g font-family="IBM Plex Mono, monospace" font-size="12.5" fill="var(--ink)">
+        <g class="mark" data-tip="TRM &#183; 13 of 15 seed-pairs smoother &#183; median 0.42x &#183; p = 0.0037">
+          <text x="140" y="29" text-anchor="end">trm</text>
+          <rect x="150" y="18" width="201.6" height="15" rx="4" fill="var(--series-a)"/>
+          <text x="361" y="30" font-size="11.5" fill="var(--ink-soft)">0.42× · 13/15 · p 0.004</text>
+        </g>
+        <g class="mark" data-tip="TRM-hier6 &#183; 9 of 9 seed-pairs smoother &#183; median 0.39x &#183; p = 0.0019">
+          <text x="140" y="63" text-anchor="end">trm_hier6</text>
+          <rect x="150" y="52" width="187.2" height="15" rx="4" fill="var(--series-a)"/>
+          <text x="347" y="64" font-size="11.5" fill="var(--ink-soft)">0.39× · 9/9 · p 0.002</text>
+        </g>
+        <g class="mark" data-tip="TRM-singlez &#183; 7 of 9 seed-pairs smoother &#183; median 0.54x &#183; p = 0.090">
+          <text x="140" y="97" text-anchor="end">trm_singlez</text>
+          <rect x="150" y="86" width="259.2" height="15" rx="4" fill="var(--series-a)"/>
+          <text x="419" y="98" font-size="11.5" fill="var(--ink-soft)">0.54× · 7/9 · p 0.090</text>
+        </g>
+        <g class="mark" data-tip="Transformer &#183; 13 of 15 seed-pairs smoother &#183; median 0.10x &#183; p = 0.0037 — but near-constant output on BipedalWalker">
+          <text x="140" y="131" text-anchor="end">transformer</text>
+          <rect x="150" y="120" width="48" height="15" rx="4" fill="var(--series-b)"/>
+          <text x="208" y="132" font-size="11.5" fill="var(--ink-soft)">0.10× · 13/15 · p 0.004</text>
+        </g>
+        <g class="mark" data-tip="LSTM &#183; 14 of 15 seed-pairs smoother &#183; median 0.16x &#183; p = 0.0005 — but returns −1460 on Pendulum, i.e. untrained">
+          <text x="140" y="165" text-anchor="end">lstm</text>
+          <rect x="150" y="154" width="76.8" height="15" rx="4" fill="var(--series-b)"/>
+          <text x="237" y="166" font-size="11.5" fill="var(--ink-soft)">0.16× · 14/15 · p 0.0005</text>
+        </g>
+      </g>
+      <line x1="150" y1="196" x2="660" y2="196" stroke="var(--rule-strong)" stroke-width="1"/>
+    </svg>
+    <figcaption>On Pendulum-v1 alone, TRM commands 0.37× the MLP's action rate (5/6 seed-pairs) while losing 37 reward units — roughly a 2.7× reduction in actuator activity for 3% of the performance span. That is the shape of trade a controls engineer makes deliberately. Source: <code>experiments/analysis_control_quality.json</code>.</figcaption>
+  </figure>
+
+  <div class="col">
+    <h4>Three reasons this is a candidate signal and not yet a finding</h4>
+    <p>All three are what Stage 0.2 is built to settle, and they are stated here rather than dressed over.</p>
+    <ol>
+      <li><strong>The actions are exploration-noisy.</strong> DDPG adds OU noise inside <code>_select_action</code>, so the statistic mixes policy behaviour with a common noise process. Stage 0.2 measures deterministic rollouts.</li>
+      <li><strong>A dead policy is maximally smooth.</strong> The LSTM scores smoothest on Pendulum while returning −1460 — untrained. Regularity is interpretable only jointly with return, which is why Stage 0.2 reports a Pareto front rather than a ranking.</li>
+      <li><strong>It is not recursion-specific either.</strong> The LSTM and Transformer are smoother than TRM. The honest reading is that <em>the plain MLP is the outlier in command regularity</em>, and the question worth asking is whether that costs it anything in a real actuator — not whether TRM is special. Same confound shape as the report's §7.3, and reported the same way.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Engineering before submission</h2></div>
+    <p>Most of it is small. One item is not.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Item</th><th>Where</th><th>Risk</th><th class="num">Est.</th><th>Needed by</th></tr></thead>
+      <tbody>
+        <tr><td>Evaluation harness — checkpoint loader, deterministic rollouts, metric suite, perturbation grids</td><td class="mono">src/eval.py</td><td>low</td><td class="num">2 d</td><td class="mono">S0</td></tr>
+        <tr class="hero-row"><td>Carry-Z with correct off-policy semantics</td><td class="mono">trm_control.py, ddpg/td3, buffer</td><td><strong>high</strong></td><td class="num">3 d</td><td class="mono">S2</td></tr>
+        <tr><td>Perturbation wrappers — observation noise, plant scaling, actuator dropout</td><td class="mono">src/perturb.py</td><td>low</td><td class="num">0.5 d</td><td class="mono">S0</td></tr>
+        <tr><td>Delay-oracle arm — append the realised <code>d_t</code></td><td class="mono">delays.py</td><td>low</td><td class="num">2 h</td><td class="mono">S0</td></tr>
+        <tr><td>Configs — <code>trm_small</code>, <code>trm_h1</code>, <code>trm_h6</code>, <code>trm_carryz</code>, <code>stochastic_u4</code></td><td class="mono">conf/</td><td>low</td><td class="num">1 h</td><td class="mono">S1–S2</td></tr>
+        <tr><td>Latency benchmark — CPU 1-thread batch 1, GPU, p50/p99</td><td class="mono">experiments/</td><td>low</td><td class="num">0.5 d</td><td class="mono">S0</td></tr>
+        <tr><td>MuJoCo dependency check on Katana + env config</td><td class="mono">setup/, conf/env/</td><td>medium</td><td class="num">0.5 d</td><td class="mono">S3</td></tr>
+        <tr><td>Deep-supervision and no-truncation variants</td><td class="mono">trm_control.py</td><td>medium</td><td class="num">2 d</td><td class="mono">S4</td></tr>
+        <tr><td>Observation-delay and jitter wrappers <span class="pill p-cand">optional</span></td><td class="mono">delays.py</td><td>medium</td><td class="num">1 d</td><td class="mono">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p><strong>Carry-Z is the plan's main technical risk.</strong> Carrying a latent across environment steps is easy at acting time and wrong at update time: off-policy replay samples i.i.d. transitions with no latent attached, so the update would refine from a cold latent while the behaviour policy refined from a warm one. Three options, in descending preference — <strong>stored state</strong> (R2D2-style: write the carry into the buffer and use the stored, slightly stale value during updates; cheapest, well-precedented, introduces drift as weights move); <strong>burn-in</strong> (store short sequences and recompute the carry over the prefix under <code>no_grad</code>; more faithful, roughly k× the update cost, needs a sequence buffer); and <strong>carry at act, reset at update</strong>, which is rejected outright because it makes the acting and learning policies structurally different and would confound exactly the comparison Stage 2 exists to make.</p>
+    <p>Whichever is chosen gets recorded in the report as a design decision on the same footing as Reset-Z was. That is how C-2 happened in the first place.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Exploration inventory</h2></div>
+    <p class="lede">Everything the project could pursue, grouped by what it would settle — including the items we are deliberately not doing, with the reason attached.</p>
+  </div>
+
+  <h3>A · Mechanism — what does recursion actually contribute?</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Question</th><th>What would answer it</th><th>Cost</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="idx">A1</td><td>Is the deficit capacity or recursion?</td><td>2×2 architecture × capacity at matched parameters</td><td class="mono">48 jobs</td><td><span class="pill p-stage">stage 1</span></td></tr>
+        <tr><td class="idx">A2</td><td>Does depth help at fixed capacity?</td><td><code>H_cycles</code> ∈ {1,3,6}; 1 removes recursion with parameters unchanged</td><td class="mono">24 jobs</td><td><span class="pill p-stage">stage 1</span></td></tr>
+        <tr><td class="idx">A3</td><td>Does carrying the latent matter?</td><td>Carry-Z vs Reset-Z, both delay regimes</td><td class="mono">in S2</td><td><span class="pill p-stage">stage 2</span></td></tr>
+        <tr><td class="idx">A4</td><td>Does gradient truncation hurt?</td><td>backprop through all outer cycles — 14 of 21 applications are untrained today</td><td class="mono">12 jobs</td><td><span class="pill p-stage">stage 4</span></td></tr>
+        <tr><td class="idx">A5</td><td>Does per-cycle supervision recover it?</td><td>critic loss on every outer cycle's readout</td><td class="mono">12 jobs</td><td><span class="pill p-stage">stage 4</span></td></tr>
+        <tr><td class="idx">A6</td><td>Principled alternative to truncation?</td><td>DEQ fixed-point readout with implicit differentiation</td><td class="mono">12 jobs</td><td><span class="pill p-stage">stage 4</span></td></tr>
+        <tr><td class="idx">A7</td><td>Can adaptive computation kill the cost premium?</td><td>ACT/PonderNet halting — if most decisions need one cycle, the 5–14× multiple collapses</td><td class="mono">~24 jobs</td><td><span class="pill p-cand">candidate</span></td></tr>
+        <tr><td class="idx">A8</td><td>Does per-instance conditioning transfer (P3)?</td><td>under domain randomisation each episode <em>is</em> an instance; a per-episode embedding is system identification by another name</td><td class="mono">~36 jobs</td><td><span class="pill p-cand">candidate</span></td></tr>
+        <tr><td class="idx">A9</td><td>Does the recursive <em>structure</em> matter?</td><td>already run: hier6/singlez gave sign-inconsistent, noise-dominated deltas</td><td class="mono">—</td><td><span class="pill p-done">done</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>B · Conditioning — what is the agent told about the delay?</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Condition</th><th>Sufficient statistic?</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="idx">B1</td><td>fixed d=1 + augmentation</td><td>yes — proven and verified in <code>augmentation.md</code></td><td><span class="pill p-done">done</span></td></tr>
+        <tr><td class="idx">B2</td><td>fixed d=1, no augmentation</td><td>no</td><td><span class="pill p-done">done · BipedalWalker only</span></td></tr>
+        <tr class="hero-row"><td class="idx">B3</td><td>stochastic d ~ U{0…4} + augmentation</td><td>no — documented approximation</td><td><span class="pill p-stage">stages 0, 2</span></td></tr>
+        <tr><td class="idx">B4</td><td>stochastic d ~ U{0…4}, no augmentation</td><td>no — withheld entirely</td><td><span class="pill p-stage">stage 2</span></td></tr>
+        <tr><td class="idx">B5</td><td>stochastic + delay oracle</td><td>yes by construction — an information upper bound</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr><td class="idx">B6</td><td>time-varying (non-stationary) delay</td><td>no; Derman et al. prove stationary augmented policies sub-optimal here</td><td><span class="pill p-stage">stage 2 · optional</span></td></tr>
+        <tr><td class="idx">B7</td><td><strong>observation delay</strong></td><td>not implemented — <code>DelayedEnv</code> delays actions only, though <code>project-config.yaml</code> names it as an axis</td><td><span class="pill p-code">needs code</span></td></tr>
+        <tr><td class="idx">B8</td><td><strong>jitter</strong></td><td>not implemented; no config group exists</td><td><span class="pill p-code">needs code</span></td></tr>
+        <tr><td class="idx">B9</td><td>longer delays, d ∈ {2, 4, 8}</td><td>augmentation's cost is exponential in the delay — the regime where it should break down</td><td><span class="pill p-cand">candidate · ~36 jobs</span></td></tr>
+        <tr><td class="idx">B10</td><td>test-time delay mismatch (train d=1, test d ∈ 0…5)</td><td>zero-cost from the banked checkpoints</td><td><span class="pill p-stage">stage 0</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>C · Control practicality — is any of this a usable controller?</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Question</th><th>Measure</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="idx">C1</td><td>How hard does each trunk work the actuator?</td><td>∫u²/T, |Δu|, jerk, saturation %, reversals/s, HF power fraction</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr><td class="idx">C2</td><td>How far can the plant drift before it fails?</td><td>mass/length sweep, sensor-noise sweep, actuator dropout</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr><td class="idx">C3</td><td>Can it close a real control loop?</td><td>batch-1 latency on one CPU thread, p50/p99, against 100 Hz / 500 Hz / 1 kHz periods</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr><td class="idx">C4</td><td>What is the actual trade?</td><td>return-vs-effort-vs-latency Pareto front, not a ranking</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr class="hero-row"><td class="idx">C5</td><td>What is the <em>delay margin</em>, as control theory defines it?</td><td>linearise the policy by finite-differencing its Jacobian at the operating point, close the loop with the linearised plant, compute gain and phase margin and the critical delay</td><td><span class="pill p-cand">candidate · highest value</span></td></tr>
+        <tr><td class="idx">C6</td><td>What do you get per hour of compute, not per episode?</td><td>reward at matched wall-clock, on every comparison</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">C7</td><td>What does it cost in energy?</td><td>mechanical work ∫|u·ω| from the same rollouts</td><td><span class="pill p-stage">stage 0</span></td></tr>
+        <tr><td class="idx">C8</td><td>Does it generalise off-distribution?</td><td>train under domain randomisation, evaluate on held-out parameters</td><td><span class="pill p-cand">candidate</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>D · Task selection &nbsp;·&nbsp; E · Learner</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Why</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="idx">D1</td><td>Pendulum-v1</td><td>the only validated rung; every trunk demonstrably learns</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">D2</td><td>InvertedDoublePendulum-v5</td><td>open-loop unstable with a short time constant: delay consumes stability margin rather than merely obscuring state</td><td><span class="pill p-stage">stage 3</span></td></tr>
+        <tr><td class="idx">D3</td><td>budget pilot before any new rung</td><td>Phase 2's floor effect came from skipping exactly this</td><td><span class="pill p-stage">stage 3</span></td></tr>
+        <tr><td class="idx">D4</td><td>Reacher-v5, HalfCheetah-v5</td><td>natural tracking-error metrics; higher dimensionality</td><td><span class="pill p-cand">candidate</span></td></tr>
+        <tr><td class="idx">D5</td><td>MountainCar, BipedalWalker</td><td>floor effects at the budget run; kept in the report as documented failure modes</td><td><span class="pill p-decl">retired</span></td></tr>
+        <tr><td class="idx">E1</td><td>TD3 cross-check</td><td>is the finding DDPG-specific? <code>src/algos/td3.py</code> exists and has never been used</td><td><span class="pill p-stage">stage 3</span></td></tr>
+        <tr><td class="idx">E2</td><td>SAC</td><td>does a maximum-entropy learner change the picture? <code>src/algos/sac.py</code> exists and has never been used</td><td><span class="pill p-cand">candidate</span></td></tr>
+        <tr><td class="idx">E3</td><td>parameter-space noise for MountainCar</td><td>would fix the documented DDPG+OU exploration failure</td><td><span class="pill p-decl">declined · env retired</span></td></tr>
+        <tr><td class="idx">E4</td><td>a <em>tuned</em> recurrent baseline</td><td>Ni et al. show a tuned recurrent model-free agent matches specialised POMDP methods on 18 of 21 environments — if anything should beat an MLP under stochastic delay, it is that</td><td><span class="pill p-stage">stage 2</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>F · Methodology &nbsp;·&nbsp; G · Out of scope</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Item</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="idx">F1</td><td>6 seeds minimum per cell; IQM + stratified bootstrap CI for evaluation reporting</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">F2</td><td>one pre-registered primary statistic per stage, fixed before submission</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">F3</td><td>kill criteria written before compute is spent</td><td><span class="pill p-done">this document</span></td></tr>
+        <tr><td class="idx">F4</td><td>every cost claim reported three ways: matched episodes, matched wall-clock, matched inference latency</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">F5</td><td>commit-after-each-unit discipline for code, per the epic's dispatch rules</td><td><span class="pill p-stage">all stages</span></td></tr>
+        <tr><td class="idx">G1</td><td>embedded deployment, quantisation, flash/SRAM/energy budgets — Stage 0's latency benchmark is the bridge if that scope reopens</td><td><span class="pill p-decl">out of scope</span></td></tr>
+        <tr><td class="idx">G2</td><td>hardware-in-the-loop, real robot</td><td><span class="pill p-decl">out of scope</span></td></tr>
+        <tr><td class="idx">G3</td><td>TRM as a model-based MPC corrector (Jain et al.; Wijayatunga &amp; Armellin)</td><td><span class="pill p-decl">different project</span></td></tr>
+        <tr><td class="idx">G4</td><td>a third arbitrary complexity rung</td><td><span class="pill p-decl">declined · no falsifiable question attached</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<div class="action">
+  <div class="wrap col">
+    <h2>Immediate next action</h2>
+    <p>Approve or amend <strong>Stage 0</strong> — the 18-job headroom probe plus the zero-training checkpoint battery. About 30 CPU-hours in total, no GPU allocation, no new training matrix. It is the cheapest possible test of whether the rest of the phase has a question to answer, and the battery delivers the entire control-practicality axis regardless of how the gate resolves.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <footer>
+    Sources in-repo: <code>papers/report.md</code> · <code>augmentation.md</code> · <code>delays.py</code> · <code>experiments/analysis_mechanism.json</code> · <code>experiments/analysis_control_quality.json</code> · <code>experiments/analyze_control_quality.py</code><br>
+    Literature referenced: Katsikopoulos &amp; Engelbrecht 2003 · Derman et al. 2021 · Dang &amp; Rawlinson 2025 (HRM-Agent) · ARC Prize 2025 · Roye-Azar et al. 2026 · Ota et al. 2021 · Klein et al. 2024 · Ni et al. 2022 · Agarwal et al. 2021 · Kapturowski et al. 2019 (R2D2) · Bai et al. 2019 · Banino et al. 2021 · Lee et al. 2015 · Matheron et al. 2019 · Plappert et al. 2018
+  </footer>
+</div>
+
+<div class="tip" id="tip" role="status"></div>
+<script>
+(function(){
+  var tip = document.getElementById('tip');
+  document.querySelectorAll('.mark').forEach(function(el){
+    el.style.cursor = 'default';
+    function show(e){
+      tip.textContent = el.getAttribute('data-tip');
+      tip.style.opacity = '1';
+      var x = (e.clientX || 0) + 14, y = (e.clientY || 0) + 16;
+      if (x + 260 > window.innerWidth) x = window.innerWidth - 264;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    }
+    function hide(){ tip.style.opacity = '0'; }
+    el.addEventListener('mousemove', show);
+    el.addEventListener('mouseleave', hide);
+    el.addEventListener('focus', function(){
+      var r = el.getBoundingClientRect();
+      show({clientX: r.left + r.width/2, clientY: r.top});
+    });
+    el.addEventListener('blur', hide);
+    el.setAttribute('tabindex','0');
+  });
+})();
+</script>
