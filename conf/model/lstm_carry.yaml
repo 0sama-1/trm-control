@@ -1,0 +1,8 @@
+_target_: models.lstm_control.LSTMCarryTrunk
+name: lstm_carry
+# Phase 3 Stage 2 (plan §4.3): recurrent memory baseline with its hidden
+# state carried across environment steps (stored-state replay), per
+# Ni et al. (2022). Pair with prev_action_obs=true.
+hidden_size: 128
+embed_dim: 128
+output_init: uniform_small # fanin | orthogonal | uniform_small — used by the actor/critic output head

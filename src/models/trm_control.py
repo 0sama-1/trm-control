@@ -366,3 +366,46 @@ class TRMSingleZTrunk(nn.Module):
         z = self.reasoning(z)
 
         return z
+
+
+class TRMCarryTrunk(TRMTrunk):
+    """Carry-Z variant of ``TRMTrunk`` (Phase 3, plan §7 item E-2).
+
+    Identical parameters and recursion to ``TRMTrunk``; the only change is
+    where the recursion starts. ``TRMTrunk`` re-initialises z_H / z_L from the
+    fixed ``H_init`` / ``L_init`` buffers on every call ("Reset Z" in
+    HRM-Agent, Dang & Rawlinson 2025). This trunk starts each decision from
+    the latents the previous decision ended with ("Carry Z"), resetting to
+    the buffers only at episode start -- so the trunk can accumulate
+    information across environment steps.
+
+    The carry is one flat tensor ``cat(z_H, z_L)`` of width ``carry_dim``,
+    always detached: off-policy updates feed it back from the replay buffer
+    as a stored input (R2D2-style stored state), never backpropagate through
+    it. ``forward(x, carry) -> (features, next_carry)``.
+    """
+
+    stateful = True
+
+    @property
+    def carry_dim(self) -> int:
+        return 2 * self._out_dim
+
+    def initial_carry(self, batch: int, device) -> torch.Tensor:
+        return torch.cat([self.H_init, self.L_init]).to(device).expand(batch, -1).contiguous()
+
+    def forward(self, x: torch.Tensor, carry: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        input_emb = self.embed_scale * self.input_proj(x)
+        z_H, z_L = carry.detach().split(self._out_dim, dim=-1)
+
+        with torch.no_grad():
+            for _ in range(self.H_cycles - 1):
+                for _ in range(self.L_cycles):
+                    z_L = self.reasoning(z_L, injection=z_H + input_emb)
+                z_H = self.reasoning(z_H, injection=z_L)
+
+        for _ in range(self.L_cycles):
+            z_L = self.reasoning(z_L, injection=z_H + input_emb)
+        z_H = self.reasoning(z_H, injection=z_L)
+
+        return z_H, torch.cat([z_H, z_L], dim=-1).detach()

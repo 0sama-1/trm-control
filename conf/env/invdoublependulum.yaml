@@ -1,0 +1,6 @@
+# Phase 3 Stage 3 (plan §4.4, S3.2): open-loop-unstable plant, so delay
+# consumes stability margin. MuJoCo (Apache-2.0, pip wheel) -- engineering
+# item E-7. Solved threshold per Gymnasium: ~9100.
+id: InvertedDoublePendulum-v5
+max_steps: 1000
+continuous_action: true

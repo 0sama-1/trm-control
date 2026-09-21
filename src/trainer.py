@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import platform
+import socket
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -9,9 +11,9 @@ from uuid import uuid4
 import gymnasium as gym
 import numpy as np
 import torch
-from omegaconf import DictConfig, open_dict
+from omegaconf import DictConfig, OmegaConf, open_dict
 
-from delays import DelayedEnv, build_delay
+from delays import DelayedEnv, PrevActionObs, build_delay
 from logger import WandbLogger
 from recorder import VideoRecorder
 from utils import get_device, set_seed
@@ -70,6 +72,10 @@ class RLTrainer(ABC):
         # so they don't perturb the training env's DelayedEnv buffer/RecordVideo episode
         # count. Same delay + augmentation config, no video.
         self.eval_env = self._make_env(record=False)
+        # Warmup actions and DelayedEnv's start-of-episode fill both come from
+        # action_space.sample(); seed it so a run is reproducible end to end.
+        self.env.action_space.seed(cfg.seed)
+        self.eval_env.action_space.seed(cfg.seed + 1)
         self.logger = WandbLogger(cfg, self.arch.name)
 
         self.episode_count: int = 0
@@ -88,7 +94,14 @@ class RLTrainer(ABC):
 
     def _make_env(self, record: bool = True) -> gym.Env:
         env = gym.make(self.env_cfg.id, render_mode="rgb_array")
-        env = DelayedEnv(env, build_delay(self.cfg.delay), augment_obs=self.cfg.augment_obs)
+        env = DelayedEnv(
+            env,
+            build_delay(self.cfg.delay),
+            augment_obs=self.cfg.augment_obs,
+            expose_realised=bool(self.cfg.delay.get("expose_realised", False)),
+        )
+        if self.cfg.get("prev_action_obs", False):
+            env = PrevActionObs(env)
         if record:
             env = VideoRecorder(self.cfg.video_folder, self.cfg.record_every, self.arch.name).wrap(env)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -162,9 +175,14 @@ class RLTrainer(ABC):
         # is a no-op (max_delay=0) and was never varied there, to keep
         # Phase 1's existing filenames stable.
         aug_tag = "" if self.cfg.delay.name == "none" else f"_aug{int(bool(self.cfg.augment_obs))}"
+        # run_tag separates Phase 3 arms that share every other identity field
+        # (e.g. the delay-oracle arm vs. plain stochastic delay); empty by
+        # default so every earlier filename is unchanged.
+        run_tag = str(self.cfg.get("run_tag", "") or "")
+        tag = f"_{run_tag}" if run_tag else ""
         name = (
             f"{self.env_cfg.id}_{self.arch.name}_{self.cfg.model.name}"
-            f"_{self.cfg.delay.name}{aug_tag}_seed{self.cfg.seed}.json"
+            f"_{self.cfg.delay.name}{aug_tag}{tag}_seed{self.cfg.seed}.json"
         )
         summary = {
             "env_id": self.env_cfg.id,
@@ -180,6 +198,13 @@ class RLTrainer(ABC):
             "wall_clock_seconds": time.time() - self._start_time,
             "param_count": _count_params(getattr(self, "agent", self)),
             "model_id": self.cfg.model_id,
+            "run_tag": run_tag,
+            "device": self.device,
+            "device_name": torch.cuda.get_device_name(0) if self.device == "cuda" else platform.processor(),
+            "hostname": socket.gethostname(),
+            # Full resolved config, so a checkpoint can be rebuilt exactly
+            # from its results file (Phase 3 evaluation harness, src/eval.py).
+            "config": OmegaConf.to_container(self.cfg, resolve=True),
             "wandb_enabled": bool(self.cfg.wandb.enabled),
             "wandb_run_path": self.logger.run_path,
             "episode_history": self._episode_history,
@@ -291,6 +316,7 @@ class OffPolicyTrainer(RLTrainer):
         return its total reward. Uses the same delay + augmentation config as
         training, just no exploration noise on the action."""
         obs, _ = self.eval_env.reset(seed=self.cfg.seed + 1_000_000 + self.episode_count)
+        self._on_eval_start()
         ep_return = 0.0
         for _ in range(self.env_cfg.max_steps):
             action = self._select_eval_action(obs)
@@ -299,6 +325,9 @@ class OffPolicyTrainer(RLTrainer):
             if terminated or truncated:
                 break
         return ep_return
+
+    def _on_eval_start(self) -> None:
+        """Called before each deterministic eval episode (e.g. reset a carried latent)."""
 
     @abstractmethod
     def _on_episode_start(self) -> None:

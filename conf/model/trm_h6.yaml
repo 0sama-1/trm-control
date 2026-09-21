@@ -1,0 +1,12 @@
+_target_: models.trm_control.TRMTrunk
+name: trm_h6
+# Phase 3 Stage 1 (plan §4.2): recursion depth ablation at identical
+# parameters. H_cycles=6 doubles the outer recursion (42 cell applications
+# per forward pass instead of 21); everything else equals conf/model/trm.yaml.
+hidden_size: 128
+expansion: 4
+L_layers: 2
+H_cycles: 6      # outer recursion depth (T) — only the last cycle is backpropped
+L_cycles: 6      # inner latent-refinement steps per outer cycle (n)
+rms_norm_eps: 1e-5
+output_init: uniform_small # fanin | orthogonal | uniform_small — used by the actor/critic output head

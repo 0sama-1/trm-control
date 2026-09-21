@@ -1,0 +1,11 @@
+# Phase 3 stochastic-delay condition (plan §4.1 / §4.3, conditions A2/A3/C3/C4):
+# d ~ U{0, 1, 2, 3, 4}, resampled independently every step. Uses the exact
+# discrete uniform (delays.py, "uniform_int"); the continuous "uniform" in
+# stochastic.yaml rounds a U(min, max) draw and so under-weights 0 and max.
+# name stays "stochastic" so results filenames group with that family.
+name: stochastic
+distribution: uniform_int
+min: 0
+max: 4
+seed: ${seed}
+expose_realised: false   # true = delay-oracle arm: append last step's realised delay to the obs

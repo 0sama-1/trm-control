@@ -1,0 +1,25 @@
+_target_: models.dnn.DNNTrunk
+name: dnn_large
+# Capacity-matched control for the recursive trunks (experiment E1 in
+# papers/report.md). Width chosen so that actor + critic trainable parameters
+# match the TRM trunks as closely as a two-layer MLP allows.
+#
+# For a two-hidden-layer MLP of width w, with augmented observation dim o and
+# action dim a, the actor+critic total (excluding target networks, matching
+# _count_params in src/trainer.py) is:
+#
+#     2w^2 + 2w(o + a) + 5w + a + 1
+#
+# Verified against two measured runs: w=256 gives 134,914 on Pendulum-v1
+# (o=4, a=1) and 148,741 on BipedalWalker-v3 (o=28, a=4), both exact.
+#
+# On Pendulum-v1 (o=4, a=1):
+#     w=624  ->  788,114 params   vs TRM's 787,842  (+0.035%)
+#     w=256  ->  134,914 params   (the standard dnn baseline)
+#
+# Everything else is held identical to conf/model/dnn.yaml, so this config
+# differs from the baseline in width alone.
+hidden_sizes: [624, 624]
+activation: relu
+hidden_init: fanin
+output_init: uniform_small

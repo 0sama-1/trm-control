@@ -1,0 +1,14 @@
+_target_: models.trm_control.TRMTrunk
+name: trm_small
+# Phase 3 Stage 1 (plan §4.2): the recursive trunk shrunk to the DNN
+# baseline's capacity, so architecture and capacity can be crossed.
+# Identical to conf/model/trm.yaml except hidden_size (128 -> 44).
+# Actor + critic parameters: 135,654 on Pendulum-v1 with fixed-delay
+# augmentation (obs 4, act 1) vs dnn's 134,914 (+0.55%).
+hidden_size: 44
+expansion: 4
+L_layers: 2
+H_cycles: 3      # outer recursion depth (T) — only the last cycle is backpropped
+L_cycles: 6      # inner latent-refinement steps per outer cycle (n)
+rms_norm_eps: 1e-5
+output_init: uniform_small # fanin | orthogonal | uniform_small — used by the actor/critic output head

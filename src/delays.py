@@ -60,6 +60,11 @@ class StochasticDelay(Delay):
         self._rng = np.random.RandomState(seed)
 
     def sample(self, total_steps: int) -> int:
+        if self._dist == "uniform_int":
+            # Exact discrete uniform over {min, ..., max}. The continuous
+            # "uniform" branch below rounds a U(min, max) draw, which gives the
+            # two endpoints half the mass of the interior values.
+            return int(self._rng.randint(int(self._min), int(self._max) + 1))
         if self._dist == "uniform":
             raw = self._rng.uniform(self._min, self._max)
         elif self._dist == "normal":
@@ -69,7 +74,7 @@ class StochasticDelay(Delay):
         elif self._dist == "exponential":
             raw = self._rng.exponential(scale=self._min)
         else:
-            raise ValueError(f"Unknown distribution: {self._dist!r}. Choose from: uniform, normal, exponential")
+            raise ValueError(f"Unknown distribution: {self._dist!r}. Choose from: uniform_int, uniform, normal, exponential")
         return int(round(min(max(raw, self._min), self._max)))
 
     @property
@@ -112,40 +117,63 @@ class DelayedEnv(gym.Wrapper):
     `augmentation.md` for why that matters and what this fixes. A no-op when
     `max_delay == 0` (nothing to expose) or `augment_obs=False` (the default,
     preserving the original observation for existing configs/checkpoints).
+
+    `aug_slots` overrides how many pending-action slots are exposed (default:
+    `max_delay`). Only the Phase 3 evaluation battery sets it, to run a policy
+    trained at one delay against a different test-time delay while keeping the
+    observation layout it was trained on (see `experiments/w0_eval.py`). The
+    slots always hold the `aug_slots` most recently committed actions, which is
+    identical to the default behaviour when `aug_slots == max_delay`.
+
+    `expose_realised=True` appends the delay realised on the previous step,
+    normalised to [0, 1] by `max_delay` (0 at reset), after any augmentation:
+    the Phase 3 "delay oracle" arm (plan §4.1, S0.1 arm A3).
     """
 
-    def __init__(self, env: gym.Env, delay: Delay, augment_obs: bool = False):
+    def __init__(
+        self,
+        env: gym.Env,
+        delay: Delay,
+        augment_obs: bool = False,
+        expose_realised: bool = False,
+        aug_slots: int | None = None,
+    ):
         super().__init__(env)
         self._delay = delay
         self._max_delay = delay.max_delay
-        self._buf: deque = deque(maxlen=self._max_delay + 1)
+        self._slots = self._max_delay if aug_slots is None else int(aug_slots)
+        self._buf: deque = deque(maxlen=max(self._max_delay, self._slots) + 1)
         self._global_step = 0
+        self._last_d = 0
 
         self._action_dim = (
             int(np.prod(env.action_space.shape)) if isinstance(env.action_space, gym.spaces.Box) else 1
         )
-        self._augment = augment_obs and self._max_delay > 0
-        if self._augment:
+        self._augment = augment_obs and self._slots > 0
+        self._expose = expose_realised
+        if self._augment or self._expose:
             self.observation_space = self._build_augmented_space(env)
 
     def _build_augmented_space(self, env: gym.Env) -> gym.spaces.Box:
         obs_space = env.observation_space
-        if isinstance(env.action_space, gym.spaces.Box):
-            act_low  = np.tile(env.action_space.low.astype(np.float32),  self._max_delay)
-            act_high = np.tile(env.action_space.high.astype(np.float32), self._max_delay)
-        else:
-            # Discrete: represent each queued action as a single scalar index.
-            act_low  = np.zeros(self._max_delay, dtype=np.float32)
-            act_high = np.full(self._max_delay, env.action_space.n - 1, dtype=np.float32)
-        return gym.spaces.Box(
-            low=np.concatenate([obs_space.low.astype(np.float32),  act_low]),
-            high=np.concatenate([obs_space.high.astype(np.float32), act_high]),
-            dtype=np.float32,
-        )
+        lows  = [obs_space.low.astype(np.float32)]
+        highs = [obs_space.high.astype(np.float32)]
+        if self._augment:
+            if isinstance(env.action_space, gym.spaces.Box):
+                lows.append(np.tile(env.action_space.low.astype(np.float32),  self._slots))
+                highs.append(np.tile(env.action_space.high.astype(np.float32), self._slots))
+            else:
+                # Discrete: represent each queued action as a single scalar index.
+                lows.append(np.zeros(self._slots, dtype=np.float32))
+                highs.append(np.full(self._slots, env.action_space.n - 1, dtype=np.float32))
+        if self._expose:
+            lows.append(np.zeros(1, dtype=np.float32))
+            highs.append(np.ones(1, dtype=np.float32))
+        return gym.spaces.Box(low=np.concatenate(lows), high=np.concatenate(highs), dtype=np.float32)
 
     def _pending_actions(self) -> np.ndarray:
         """Actions already committed but not yet applied, oldest-pending first,
-        zero-padded to `max_delay` slots.
+        zero-padded to `aug_slots` slots.
 
         Exact for constant delay (`FixedDelay`/`NoDelay`): `step()`'s `elif`
         branch always applies the buffer's oldest entry once it's full, so
@@ -156,22 +184,28 @@ class DelayedEnv(gym.Wrapper):
         `max_delay` most recently committed actions), not a proven sufficient
         statistic. See `augmentation.md` §"Known limitation".
         """
-        pending = list(self._buf)
-        if len(pending) > self._max_delay:
-            pending = pending[1:]
+        if self._slots == 0:
+            return np.zeros(0, dtype=np.float32)
+        pending = list(self._buf)[-self._slots:]
         vecs = [np.asarray(a, dtype=np.float32).reshape(-1) for a in pending]
-        pad = self._max_delay - len(vecs)
+        pad = self._slots - len(vecs)
         if pad > 0:
             vecs = vecs + [np.zeros(self._action_dim, dtype=np.float32) for _ in range(pad)]
         return np.concatenate(vecs) if vecs else np.zeros(0, dtype=np.float32)
 
     def _augment_obs(self, obs: np.ndarray) -> np.ndarray:
-        if not self._augment:
+        if not (self._augment or self._expose):
             return obs
-        return np.concatenate([np.asarray(obs, dtype=np.float32), self._pending_actions()]).astype(np.float32)
+        parts = [np.asarray(obs, dtype=np.float32)]
+        if self._augment:
+            parts.append(self._pending_actions())
+        if self._expose:
+            parts.append(np.array([self._last_d / max(self._max_delay, 1)], dtype=np.float32))
+        return np.concatenate(parts).astype(np.float32)
 
     def reset(self, **kwargs):
         self._buf.clear()
+        self._last_d = 0
         obs, info = self.env.reset(**kwargs)
         return self._augment_obs(obs), info
 
@@ -187,6 +221,7 @@ class DelayedEnv(gym.Wrapper):
             applied = self.env.action_space.sample()
 
         self._global_step += 1
+        self._last_d = d
         next_obs, reward, terminated, truncated, info = self.env.step(applied)
         # Expose the actually-applied (post-delay) action and the sampled
         # delay -- invisible before this, and directly relevant to this
@@ -196,6 +231,41 @@ class DelayedEnv(gym.Wrapper):
         info["delay_applied_action"] = np.asarray(applied, dtype=np.float32).tolist()
         info["delay_sampled_steps"] = d
         return self._augment_obs(next_obs), reward, terminated, truncated, info
+
+
+class PrevActionObs(gym.Wrapper):
+    """Appends the agent's previous action (the one it committed last step,
+    before any delay; zeros after reset) to the observation.
+
+    Phase 3 Stage 2 input design (plan §10, A-6): every Stage 2 trunk gets
+    this input, so memory-carrying and memoryless trunks see identical
+    observations and differ only in architecture. Sits outside
+    ``DelayedEnv``: it reports what the agent sent, not what the plant got.
+    """
+
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        box = env.action_space
+        self._zero = np.zeros(int(np.prod(box.shape)), dtype=np.float32)
+        self._prev = self._zero
+        self.observation_space = gym.spaces.Box(
+            low=np.concatenate([env.observation_space.low.astype(np.float32), box.low.astype(np.float32).reshape(-1)]),
+            high=np.concatenate([env.observation_space.high.astype(np.float32), box.high.astype(np.float32).reshape(-1)]),
+            dtype=np.float32,
+        )
+
+    def _obs(self, obs):
+        return np.concatenate([np.asarray(obs, dtype=np.float32), self._prev]).astype(np.float32)
+
+    def reset(self, **kwargs):
+        self._prev = self._zero
+        obs, info = self.env.reset(**kwargs)
+        return self._obs(obs), info
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        self._prev = np.asarray(action, dtype=np.float32).reshape(-1)
+        return self._obs(obs), reward, terminated, truncated, info
 
 
 def build_delay(delay_cfg: DictConfig) -> Delay:

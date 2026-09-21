@@ -13,6 +13,8 @@ augment_obs: false    # append the pending (committed, not-yet-applied) action q
 video_folder: videos
 model_folder: models
 results_folder: results   # per-run final reward/wall-clock/param-count JSON — see trainer.py::_write_results_summary
+prev_action_obs: false     # append the previous committed action to the observation (Phase 3 Stage 2 input design, plan §10 A-6)
+run_tag: ""                # optional suffix on the results filename, for arms that share every other identity field (Phase 3)
 track_step_history: true  # per-env-step record (action, applied_action, delay, reward) in results_summary.json — see trainer.py::OffPolicyTrainer._training_loop
 
 wandb:

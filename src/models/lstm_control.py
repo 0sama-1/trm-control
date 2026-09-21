@@ -99,3 +99,45 @@ class LSTMTrunk(nn.Module):
         # transformer trunk's [CLS]/mean pool.
         _, (h_n, _) = self.lstm(tokens)
         return h_n[-1]
+
+
+class LSTMCarryTrunk(nn.Module):
+    """LSTM whose hidden state is genuinely carried across environment steps
+    (Phase 3 Stage 2's memory baseline, plan §4.3) -- unlike ``LSTMTrunk``
+    above, which runs over the slots of a single observation and is
+    stateless between calls.
+
+    Follows Ni et al. (2022)'s recurrent model-free recipe as far as a
+    single-transition replay allows: separate recurrent trunks for actor and
+    critic (each Actor/Critic instantiates its own), an embedding layer before
+    the recurrence, and the previous action as an input (supplied by the
+    ``prev_action_obs`` observation wrapper). The carry is ``cat(h, c)``,
+    detached and fed back from replay as a stored state (R2D2-style), the
+    same mechanism ``TRMCarryTrunk`` uses, so the two memory trunks are
+    trained identically. ``forward(x, carry) -> (h, next_carry)``.
+    """
+
+    stateful = True
+
+    def __init__(self, in_dim: int, hidden_size: int = 128, embed_dim: int = 128, **_):
+        super().__init__()
+        self._hidden = hidden_size
+        self.embed = nn.Sequential(nn.Linear(in_dim, embed_dim), nn.ReLU())
+        self.cell = nn.LSTMCell(embed_dim, hidden_size)
+        self._out_dim = hidden_size
+
+    @property
+    def out_dim(self) -> int:
+        return self._out_dim
+
+    @property
+    def carry_dim(self) -> int:
+        return 2 * self._hidden
+
+    def initial_carry(self, batch: int, device) -> torch.Tensor:
+        return torch.zeros(batch, 2 * self._hidden, device=device)
+
+    def forward(self, x: torch.Tensor, carry: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        h, c = carry.detach().split(self._hidden, dim=-1)
+        h, c = self.cell(self.embed(x), (h.contiguous(), c.contiguous()))
+        return h, torch.cat([h, c], dim=-1).detach()
