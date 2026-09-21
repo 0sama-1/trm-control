@@ -1,0 +1,189 @@
+{
+ "arms": {
+  "A1_fixed1_aug": {
+   "finals": {
+    "1": -177.5,
+    "2": -175.7,
+    "3": -213.7,
+    "4": -175.8,
+    "5": -171.6,
+    "6": -222.3
+   },
+   "median": -176.6
+  },
+  "A2_stoch_aug": {
+   "finals": {
+    "1": -225.1,
+    "2": -248.4,
+    "3": -225.1,
+    "4": -234.8,
+    "5": -264.6,
+    "6": -233.1
+   },
+   "median": -234.0
+  },
+  "A3_stoch_oracle": {
+   "finals": {
+    "1": -599.4,
+    "2": -312.3,
+    "3": -240.1,
+    "4": -279.6,
+    "5": -299.1,
+    "6": -239.0
+   },
+   "median": -289.3
+  },
+  "A4_stoch_noaug": {
+   "finals": {
+    "1": -325.8,
+    "2": -277.8,
+    "3": -272.8,
+    "4": -455.3,
+    "5": -287.4,
+    "6": -326.9
+   },
+   "median": -306.6
+  }
+ },
+ "oracle_headroom_A3_minus_A2": {
+  "pairs": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6"
+  ],
+  "diffs": [
+   -374.38,
+   -63.86,
+   -15.05,
+   -44.8,
+   -34.5,
+   -5.9
+  ],
+  "median_diff": -39.65,
+  "mean_diff": -89.75,
+  "pooled_sd": 96.92,
+  "sign": {
+   "n": 6,
+   "positive": 0,
+   "p_one_sided_greater": 1.0,
+   "p_two_sided": 0.03125
+  }
+ },
+ "memory_headroom_A2_minus_A4": {
+  "pairs": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6"
+  ],
+  "diffs": [
+   100.69,
+   29.36,
+   47.71,
+   220.5,
+   22.8,
+   93.83
+  ],
+  "median_diff": 70.77,
+  "mean_diff": 85.81,
+  "pooled_sd": 49.54,
+  "sign": {
+   "n": 6,
+   "positive": 6,
+   "p_one_sided_greater": 0.015625,
+   "p_two_sided": 0.03125
+  }
+ },
+ "stochastic_cost_A1_minus_A2": {
+  "pairs": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6"
+  ],
+  "diffs": [
+   47.59,
+   72.73,
+   11.36,
+   59.07,
+   93.0,
+   10.84
+  ],
+  "median_diff": 53.33,
+  "mean_diff": 49.1,
+  "pooled_sd": 19.2,
+  "sign": {
+   "n": 6,
+   "positive": 6,
+   "p_one_sided_greater": 0.015625,
+   "p_two_sided": 0.03125
+  }
+ },
+ "secondary_eval_last5": {
+  "oracle": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -36.25,
+    -56.92,
+    2.06,
+    -5.38,
+    -27.03,
+    -1.49
+   ],
+   "median_diff": -16.2,
+   "mean_diff": -20.83,
+   "pooled_sd": 45.97,
+   "sign": {
+    "n": 6,
+    "positive": 1,
+    "p_one_sided_greater": 0.984375,
+    "p_two_sided": 0.21875
+   }
+  },
+  "memory": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    5.01,
+    -45.51,
+    29.83,
+    237.99,
+    154.97,
+    28.94
+   ],
+   "median_diff": 29.38,
+   "mean_diff": 68.54,
+   "pooled_sd": 71.51,
+   "sign": {
+    "n": 6,
+    "positive": 5,
+    "p_one_sided_greater": 0.109375,
+    "p_two_sided": 0.21875
+   }
+  }
+ },
+ "oracle_passes": false,
+ "memory_passes": true,
+ "complete": true,
+ "G0": "pass"
+}

@@ -1,0 +1,478 @@
+<title>Phase 3 Run Board</title>
+<meta name="description" content="Live progress of Phase 3 of trm-delay-robust-scaling on UNSW Katana.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root {
+  --ground: #eef1ee;
+  --surface: #fbfcfb;
+  --sunk: #e4e9e5;
+  --ink: #17211d;
+  --muted: #5b6862;
+  --rule: #d3dbd6;
+  --accent: #2b5f8f;
+  --accent-soft: #dce7f1;
+  --done: #2f7a4a;
+  --done-soft: #dcefe2;
+  --run: #b06a12;
+  --run-soft: #f6e7cf;
+  --queue: #86918b;
+  --queue-soft: #e6eae7;
+  --fail: #b23a24;
+  --fail-soft: #f6dcd5;
+  --skip: #a7b0ab;
+  --grid: rgba(43, 95, 143, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f1513;
+    --surface: #151d1a;
+    --sunk: #1b2521;
+    --ink: #e3eae6;
+    --muted: #8f9c96;
+    --rule: #27322d;
+    --accent: #86aee0;
+    --accent-soft: #1c2b3b;
+    --done: #56b57c;
+    --done-soft: #16301f;
+    --run: #e2a44d;
+    --run-soft: #37290f;
+    --queue: #74817b;
+    --queue-soft: #1f2825;
+    --fail: #e36c55;
+    --fail-soft: #3a1b14;
+    --skip: #4d5853;
+    --grid: rgba(134, 174, 224, 0.05);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f1513;
+  --surface: #151d1a;
+  --sunk: #1b2521;
+  --ink: #e3eae6;
+  --muted: #8f9c96;
+  --rule: #27322d;
+  --accent: #86aee0;
+  --accent-soft: #1c2b3b;
+  --done: #56b57c;
+  --done-soft: #16301f;
+  --run: #e2a44d;
+  --run-soft: #37290f;
+  --queue: #74817b;
+  --queue-soft: #1f2825;
+  --fail: #e36c55;
+  --fail-soft: #3a1b14;
+  --skip: #4d5853;
+  --grid: rgba(134, 174, 224, 0.05);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--ground);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font: 15px/1.5 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+h1, h2, h3 { font-family: "Archivo", "Arial Narrow", system-ui, sans-serif; font-stretch: 85%; margin: 0; text-wrap: balance; }
+h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+h3 { font-size: 18px; font-weight: 650; }
+a { color: var(--accent); }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 32px;
+       padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+.eyebrow { font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.thesis { max-width: 64ch; color: var(--muted); margin-top: 6px; }
+.poll { text-align: right; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.poll b { color: var(--ink); font-weight: 600; }
+.live { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--queue); display: inline-block; }
+.dot.on { background: var(--done); box-shadow: 0 0 0 3px var(--done-soft); }
+.dot.stale { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft); }
+
+/* totals */
+.totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin-top: 22px;
+          background: var(--surface); border: 1px solid var(--rule); }
+.tot { padding: 12px 16px; border-right: 1px solid var(--rule); }
+.tot:last-child { border-right: 0; }
+.tot .k { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tot .v { font-family: "Archivo", sans-serif; font-stretch: 80%; font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.sw { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
+.sw.done { background: var(--done); } .sw.running { background: var(--run); } .sw.queued { background: var(--queue); }
+.sw.failed { background: var(--fail); } .sw.planned { border: 1.5px dashed var(--queue); }
+.bar { display: flex; height: 8px; background: var(--sunk); grid-column: 1 / -1; }
+.bar > div { height: 100%; transition: width .4s ease; }
+.bar .done { background: var(--done); } .bar .running { background: var(--run); }
+.bar .queued { background: var(--queue); } .bar .failed { background: var(--fail); }
+.headline { margin-top: 14px; padding: 10px 14px; background: var(--accent-soft); border-left: 3px solid var(--accent); font-size: 14.5px; }
+.headline:empty { display: none; }
+
+/* sections */
+section { margin-top: 34px; }
+section > h2 { margin-bottom: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+section > h2 .aside { font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-family: "Source Sans 3", sans-serif; font-size: 13px; }
+
+/* stage chain */
+.chain { display: grid; gap: 0; }
+.stage { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 18px; padding: 16px 18px;
+         background: var(--surface); border: 1px solid var(--rule); }
+.stage.dim { background: transparent; border-style: dashed; }
+.stage .num { font-family: "Archivo", sans-serif; font-stretch: 75%; font-size: 40px; font-weight: 700; line-height: 1; color: var(--muted); }
+.stage.active .num { color: var(--accent); }
+.stage .body { min-width: 0; }
+.stage .sub { color: var(--muted); font-size: 14px; }
+.stage .entry { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.stage .entry b { font-weight: 600; color: var(--ink); }
+.stage .note { font-size: 13.5px; margin-top: 6px; }
+.stage .note:empty { display: none; }
+.parts { display: grid; gap: 10px; margin-top: 12px; }
+.part .pl { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.part .pl .c { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.cells { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.cell { width: 12px; height: 12px; border-radius: 2px; background: var(--queue); position: relative; }
+.cell.done { background: var(--done); } .cell.running { background: var(--run); animation: breathe 2.4s ease-in-out infinite; }
+.cell.queued, .cell.held { background: var(--queue); } .cell.failed { background: var(--fail); }
+.cell.planned { background: transparent; border: 1.5px dashed var(--skip); }
+.cell.unknown { background: var(--skip); }
+@keyframes breathe { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .cell.running { animation: none; } .bar > div { transition: none; } }
+
+.pill { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+        white-space: nowrap; align-self: start; background: var(--queue-soft); color: var(--muted); }
+.pill.complete, .pill.pass { background: var(--done-soft); color: var(--done); }
+.pill.running { background: var(--run-soft); color: var(--run); }
+.pill.queued { background: var(--queue-soft); color: var(--ink); }
+.pill.attention, .pill.fail { background: var(--fail-soft); color: var(--fail); }
+.pill.skipped, .pill.void { background: transparent; color: var(--muted); border: 1px dashed var(--skip); }
+
+/* gates */
+.gate { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 0 18px; padding: 8px 18px; position: relative; }
+.gate::before { content: ""; position: absolute; left: 45px; top: 0; bottom: 0; border-left: 2px solid var(--rule); }
+.gate .tag { position: relative; z-index: 1; font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+             background: var(--ground); border: 1.5px solid var(--rule); color: var(--muted); width: 44px; text-align: center;
+             padding: 3px 0; border-radius: 3px; align-self: start; }
+.gate.pass .tag { border-color: var(--done); color: var(--done); }
+.gate.fail .tag { border-color: var(--fail); color: var(--fail); }
+.gate details { font-size: 13.5px; }
+.gate summary { cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.gate summary::-webkit-details-marker { display: none; }
+.gate summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gate .gname { font-weight: 600; }
+.gate .gstat { color: var(--muted); }
+.gate .rule { color: var(--muted); margin-top: 4px; max-width: 80ch; }
+.gate .detail { margin-top: 4px; max-width: 80ch; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+     padding: 9px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.meter { width: 120px; height: 6px; background: var(--sunk); position: relative; display: inline-block; vertical-align: middle; }
+.meter > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--run); }
+.meter.time > i { background: var(--accent); }
+.empty { padding: 16px; color: var(--muted); font-size: 14px; background: var(--surface); border: 1px dashed var(--rule); }
+.strip { display: block; }
+.strip text { fill: var(--muted); font: 10px "IBM Plex Mono", monospace; }
+.strip line { stroke: var(--rule); }
+.strip circle.fin { fill: var(--accent); }
+.strip circle.live { fill: none; stroke: var(--run); stroke-width: 1.5; }
+.strip line.med { stroke: var(--ink); stroke-width: 2; }
+.caveat { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+/* log */
+.log { display: grid; background: var(--surface); border: 1px solid var(--rule); max-height: 420px; overflow-y: auto; }
+.ev { display: grid; grid-template-columns: 128px 64px minmax(0, 1fr); gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+.ev:last-child { border-bottom: 0; }
+.ev .ts { color: var(--muted); font-size: 12px; }
+.ev .kd { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.ev.fail .kd { color: var(--fail); } .ev.done .kd { color: var(--done); } .ev.gate .kd { color: var(--accent); }
+.ev.start .kd { color: var(--run); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.amend { background: var(--surface); border: 1px solid var(--rule); padding: 4px 16px; font-size: 14px; }
+.amend li { margin: 8px 0; max-width: 90ch; }
+.amend b { font-weight: 600; }
+
+@media (max-width: 760px) {
+  .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tot { border-bottom: 1px solid var(--rule); }
+  .tot:nth-child(2n) { border-right: 0; }
+  .stage { grid-template-columns: 38px minmax(0, 1fr); }
+  .stage .num { font-size: 30px; }
+  .stage .pill { grid-column: 2; justify-self: start; }
+  .gate { grid-template-columns: 38px minmax(0, 1fr); }
+  .gate::before { left: 36px; }
+  .gate .tag { width: 38px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  .ev { grid-template-columns: 1fr; gap: 0; }
+  .poll { text-align: left; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">trm-delay-robust-scaling &middot; Phase 3 &middot; Katana PBS</div>
+      <h1>Phase 3 Run Board</h1>
+      <div class="thesis">H3: weight-tied recursion earns its cost only where the conditioning leaves residual state uncertainty <em>and</em> the trunk carries a latent across decision steps. Six gated stages, each with a pre-registered decision rule.</div>
+    </div>
+    <div class="poll">
+      <span class="live"><span class="dot" id="live-dot"></span><span id="live-text">connecting&hellip;</span></span>
+      <span>Katana polled <b id="polled">&mdash;</b></span>
+      <span>next poll <b id="next-poll">&mdash;</b></span>
+    </div>
+  </header>
+
+  <div class="totals" id="totals"></div>
+  <div class="headline" id="headline"></div>
+
+  <section>
+    <h2>Stage chain <span class="aside">each square is one PBS job &middot; dashed = planned, not yet submitted</span></h2>
+    <div class="chain" id="chain"></div>
+  </section>
+
+  <section>
+    <h2>Running now <span class="aside" id="run-aside"></span></h2>
+    <div id="running"></div>
+  </section>
+
+  <section>
+    <h2>Returns as runs land <span class="aside">final avg-100 training return per seed &middot; Pendulum-v1</span></h2>
+    <div id="arms"></div>
+    <div class="caveat">Preliminary tally only: medians of whatever seeds have finished, before any gate statistic is computed. Gate decisions appear in the stage chain once each stage completes.</div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>Just finished</h2>
+      <div id="recent"></div>
+    </section>
+    <section>
+      <h2>Activity</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Amendments recorded before submission</h2>
+    <div class="amend"><ul id="amend"></ul></div>
+  </section>
+</div>
+
+<script>
+const FALLBACK = {"state": {"polled_at": "2026-09-21T21:38:50", "next_poll_at": null, "totals": {"queued": 0, "running": 0, "done": 181, "failed": 0, "held": 0, "submitted": 181}, "stages": [{"n": 0, "title": "Is there a question?", "sub": "Headroom probe + zero-training evaluation of the 102 banked checkpoints", "entry": "none (committed)", "status": "complete", "parts": [{"stage": 0, "label": "S0.1 headroom probe", "planned": 24, "counts": {"queued": 0, "running": 0, "done": 24, "failed": 0, "held": 0, "submitted": 24, "planned": 24}, "status": "complete", "key": "s0h"}, {"stage": 0, "label": "S0.2 checkpoint battery (102 checkpoints, 12 shards)", "planned": 12, "counts": {"queued": 0, "running": 0, "done": 12, "failed": 0, "held": 0, "submitted": 12, "planned": 12}, "status": "complete", "key": "s0b"}, {"stage": 0, "label": "S0.2 latency benchmark", "planned": 1, "counts": {"queued": 0, "running": 0, "done": 1, "failed": 0, "held": 0, "submitted": 1, "planned": 1}, "status": "complete", "key": "s0l"}], "note": "Complete: 24 headroom runs, 102/102 checkpoints re-evaluated (0 parameter mismatches), latency on a Xeon Gold 6342 and an A100. Deterministic Pendulum rollouts: every learning trunk reaches IQM about -120; all degrade similarly under delay mismatch (fine at d<=2, collapse at d>=3); TRM degrades faster under sensor noise."}, {"n": 1, "title": "Capacity or recursion?", "sub": "2x2 architecture x capacity, plus H_cycles in {1, 3, 6} at fixed parameters", "entry": "none (not gated)", "status": "complete", "parts": [{"stage": 1, "label": "Capacity x depth factorial", "planned": 72, "counts": {"queued": 0, "running": 0, "done": 72, "failed": 0, "held": 0, "submitted": 72, "planned": 72}, "status": "complete", "key": "s1"}], "note": "Complete (72/72). At matched capacity TRM loses at both sizes (-50 small, -27 large); capacity moves neither family; H_cycles in {1, 3, 6} changes nothing while trm_h1 trains 2.6x faster than trm."}, {"n": 2, "title": "Uncertainty x memory", "sub": "Carry-Z vs Reset-Z vs MLP vs carried LSTM across three delay conditions", "entry": "G0 passed and G1 decided", "status": "complete", "parts": [{"stage": 2, "label": "Uncertainty x memory", "planned": 72, "counts": {"queued": 0, "running": 0, "done": 72, "failed": 0, "held": 0, "submitted": 72, "planned": 72}, "status": "complete", "key": "s2"}, {"stage": 2, "label": "Optional C5: time-varying delay", "planned": 24, "counts": {"queued": 0, "running": 0, "done": 0, "failed": 0, "held": 0, "submitted": 0, "planned": 24}, "status": "not submitted", "key": "s2o"}], "note": "Complete (72/72). Medians (C1 / C3 / C4): MLP -178 / -294 / -235; Reset-Z TRM -227 / -271 / -334; Carry-Z -215 / -300 / -333; carried LSTM -252 / -786 / -371. The previous-action input closes most of the MLP's C4 gap on its own."}, {"n": 3, "title": "Does it generalise?", "sub": "TD3 cross-check + an open-loop-unstable plant", "entry": "G2 shows an interaction", "status": "skipped", "parts": [{"stage": 3, "label": "TD3 cross-check", "planned": 24, "counts": {"queued": 0, "running": 0, "done": 0, "failed": 0, "held": 0, "submitted": 0, "planned": 24}, "status": "not submitted", "key": "s3t"}, {"stage": 3, "label": "InvertedDoublePendulum budget pilot", "planned": 9, "counts": {"queued": 0, "running": 0, "done": 0, "failed": 0, "held": 0, "submitted": 0, "planned": 9}, "status": "not submitted", "key": "s3p"}, {"stage": 3, "label": "InvertedDoublePendulum matrix", "planned": 48, "counts": {"queued": 0, "running": 0, "done": 0, "failed": 0, "held": 0, "submitted": 0, "planned": 48}, "status": "not submitted", "key": "s3i"}], "note": "Not run: G2 failed (plan \u00a74.3). The TD3 port and the InvertedDoublePendulum config are built but unused."}, {"n": 4, "title": "Restore the training discipline", "sub": "No truncation, per-cycle supervision, fixed-point readout", "entry": "G3 passed", "status": "skipped", "parts": [{"stage": 4, "label": "Training-discipline variants", "planned": 36, "counts": {"queued": 0, "running": 0, "done": 0, "failed": 0, "held": 0, "submitted": 0, "planned": 36}, "status": "not submitted", "key": "s4"}], "note": "Not run: G3 failed (Carry-Z never beats Reset-Z)."}, {"n": 5, "title": "Synthesis", "sub": "Report revision -- no compute", "entry": "always, after the last stage that runs", "status": "waiting", "parts": [], "note": "Next step, with the author: report revision on the Stage 0-2 evidence (plan \u00a74.6). No compute."}], "gates": [{"id": "G0", "name": "Headroom", "after": 0, "status": "pass", "detail": "Passes on the amended rule only. The originally pre-registered contrast fails: exposing the realised delay (A3 - A2) lowered return in 6/6 seeds (median -39.6 vs pooled SD 96.9), as amendment A-1 predicted. Memory headroom (A2 - A4, queue shown vs hidden) is +70.8 median vs pooled SD 49.5, 6/6 seeds positive (one-sided p=0.016). Stochastic delay itself costs 53.3 (A1 - A2, 6/6). So Stage 2's decisive condition is C4 (queue withheld), not C3.", "rule": "Per seed s (n=6), final avg-100 training return of the MLP arms. Oracle headroom D_o = A3 - A2 (stochastic + realised-delay oracle vs stochastic + queue); memory headroom D_m = A2 - A4 (queue vs no queue). A contrast passes if its median paired difference exceeds the pooled across-seed SD of its two arms and it is positive in >=5/6 seeds (one-sided sign test reported). G0 passes if D_o or D_m passes (amendment A-2)."}, {"id": "G1", "name": "Attribution", "after": 1, "status": "pass", "detail": "Decided: the deficit is architecture-family, not capacity. TRM loses at matched capacity at both sizes: trm_small - dnn median -50.2 (0/12 pairs positive, p<0.001) and trm - dnn_large -27.1 (2/12, p=0.039). Capacity changes neither family: dnn_large - dnn -3.8 (5/12) and trm - trm_small +20.7 (7/12). Depth is inert: removing the outer recursion (trm_h1) -3.3 (5/12) and doubling it (trm_h6) -10.9 (4/12), so the cost is in the weight-tied cell, not in the recursion depth. H_cap is weakened; Stage 2's MLP is dnn (capacity does not matter for the MLP). Median wall-clock: dnn 3.0 min, trm_h1 12.4, trm 32.2, trm_h6 35.2.", "rule": "Pairs = (seed, condition), n=12 per contrast, conditions {no delay, fixed d=1 + aug}. Contrasts: trm_small - dnn (small capacity), trm - dnn_large (large capacity), dnn_large - dnn and trm - trm_small (capacity within family), trm_h1 - trm and trm_h6 - trm (depth). A contrast is 'different' when >=10/12 pairs share a sign (two-sided sign test p<=0.039). Capacity matters for the MLP iff dnn_large - dnn is different; then Stage 2's MLP is dnn_large (matched to trm's 788k), otherwise dnn. No kill branch."}, {"id": "G2", "name": "Interaction", "after": 2, "status": "fail", "detail": "H3 rejected. The interaction does not appear at either condition. [Carry-Z - MLP] relative to C1: at C3 median +20.4 (3/6 seeds positive, p=0.66); at C4 median -40.0 (1/6, p=0.98), the wrong sign: Carry-Z falls further behind the MLP when the queue is withheld. Caveat from A-6: the previous-action input alone lets the memoryless MLP recover G0's memory headroom (C4 median -235 vs -307 without it, -234 with the full queue). But Carry-Z at C4 (-333) also fails to beat an MLP with no history at all (Stage 0 A4, 1/6 seeds), so the failure does not depend on A-6. Carried LSTM is worse than the MLP at every condition (C1 -66, 0/6). Per plan \u00a74.3, Stages 3-4 do not run.", "rule": "Per seed, Delta_c = [Carry-Z - MLP](c) - [Carry-Z - MLP](C1) for c in {C3, C4} (amendment A-3: co-primary). G2 passes if Delta_C3 or Delta_C4 is positive in >=5/6 seeds with Carry-Z - MLP <= 0 or smaller at C1 (sign flip / interaction). Secondary: Carry-Z vs Reset-Z per condition."}, {"id": "G3", "name": "Continuity", "after": 3, "status": "fail", "detail": "Carry-Z never beats Reset-Z in >=5/6 seeds: C1 +4.8 (4/6), C3 -22.0 (3/6), C4 +16.7 (3/6). Carrying the latent across steps changes nothing measurable, so precondition P1 loses its constructive test and Stage 4 does not run.", "rule": "Carry-Z beats Reset-Z (trm) in >=5/6 seeds at some condition of Stage 2 (re-checked on Stage 3 data)."}, {"id": "G4", "name": "Practicality", "after": 0, "status": "pass", "detail": "Passes on the literal rule, weakly. TRM is non-dominated vs the MLP only on median command rate (|du| 0.64 vs 0.73) at a tied return (IQM -124 vs -120). That margin is inside seed noise: per-seed |du| spans 0.13-0.79 for TRM and 0.10-0.78 for the MLP (n=3). TRM admits 100 Hz but not 500 Hz (CPU p99 4.1 ms, 65x the MLP's 0.064 ms). The LSTM also satisfies the rule, but degenerately: it never learned (IQM -1146), and a dead policy is maximally smooth (plan \u00a75 caveat 2). TRM is also less robust to sensor noise (sigma=0.05: -338 vs -145).", "rule": "Pendulum-v1, banked checkpoints trained at fixed d=1 + aug: a non-MLP trunk passes if it is non-dominated on (median nominal IQM return up, median command rate |du| down) against the MLP AND its actor admits 100 Hz control at p99 latency on one CPU thread."}], "running": [], "recent": [{"name": "trm_carryz_C4_s5", "stage": "s2", "state": "done", "final": -358.62430162999414, "wall_min": 50.6, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C4_s6", "stage": "s2", "state": "done", "final": -340.6468563169427, "wall_min": 37.0, "device": "NVIDIA A100-PCIE-40GB", "error": null}, {"name": "trm_carryz_C4_s3", "stage": "s2", "state": "done", "final": -365.85793307348354, "wall_min": 36.4, "device": "NVIDIA A100-PCIE-40GB", "error": null}, {"name": "trm_carryz_C4_s4", "stage": "s2", "state": "done", "final": -286.79252891988205, "wall_min": 35.9, "device": "NVIDIA A100-PCIE-40GB", "error": null}, {"name": "trm_carryz_C3_s1", "stage": "s2", "state": "done", "final": -407.5835383741139, "wall_min": 45.2, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C3_s2", "stage": "s2", "state": "done", "final": -273.4715259413352, "wall_min": 44.9, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C3_s3", "stage": "s2", "state": "done", "final": -311.4309293565255, "wall_min": 44.6, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C4_s1", "stage": "s2", "state": "done", "final": -325.52567918270597, "wall_min": 36.3, "device": "NVIDIA A100-PCIE-40GB", "error": null}, {"name": "trm_carryz_C1_s1", "stage": "s2", "state": "done", "final": -226.3333158709771, "wall_min": 44.8, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C3_s4", "stage": "s2", "state": "done", "final": -365.83996798806794, "wall_min": 36.1, "device": "NVIDIA A100-PCIE-40GB", "error": null}, {"name": "lstm_carry_C4_s5", "stage": "s2", "state": "done", "final": -292.2774108249629, "wall_min": 4.9, "device": "Tesla V100-SXM2-32GB", "error": null}, {"name": "trm_carryz_C3_s6", "stage": "s2", "state": "done", "final": -221.3442286386587, "wall_min": 29.1, "device": "NVIDIA L40S", "error": null}], "arms": [{"stage": "s0h", "model": "dnn", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -176.7, "spread": 20.4, "finals": {"1": -177.5, "2": -175.7, "3": -213.7, "4": -175.8, "5": -171.6, "6": -222.3}, "live": {}, "wall_min": 3.0}, {"stage": "s0h", "model": "dnn", "cond": "stoch4-aug", "done": 6, "total": 6, "median": -233.9, "spread": 14.0, "finals": {"1": -225.1, "2": -248.4, "3": -225.1, "4": -234.8, "5": -264.6, "6": -233.1}, "live": {}, "wall_min": 3.0}, {"stage": "s0h", "model": "dnn", "cond": "stoch4-noaug", "done": 6, "total": 6, "median": -306.6, "spread": 62.4, "finals": {"1": -325.8, "2": -277.8, "3": -272.8, "4": -455.3, "5": -287.4, "6": -326.9}, "live": {}, "wall_min": 2.9}, {"stage": "s0h", "model": "dnn", "cond": "stoch4-oracle", "done": 6, "total": 6, "median": -289.4, "spread": 124.3, "finals": {"1": -599.4, "2": -312.3, "3": -240.1, "4": -279.6, "5": -299.1, "6": -239.0}, "live": {}, "wall_min": 2.9}, {"stage": "s1", "model": "dnn_large", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -180.9, "spread": 9.9, "finals": {"1": -183.3, "2": -171.6, "3": -200.8, "4": -175.5, "5": -190.8, "6": -178.5}, "live": {}, "wall_min": 2.4}, {"stage": "s1", "model": "dnn_large", "cond": "none", "done": 6, "total": 6, "median": -174.4, "spread": 8.6, "finals": {"1": -183.8, "2": -176.2, "3": -167.3, "4": -169.8, "5": -192.3, "6": -172.6}, "live": {}, "wall_min": 3.1}, {"stage": "s1", "model": "dnn", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -176.8, "spread": 13.7, "finals": {"1": -172.5, "2": -181.2, "3": -183.1, "4": -210.6, "5": -171.6, "6": -171.3}, "live": {}, "wall_min": 1.9}, {"stage": "s1", "model": "dnn", "cond": "none", "done": 6, "total": 6, "median": -174.2, "spread": 7.1, "finals": {"1": -168.9, "2": -177.1, "3": -187.9, "4": -176.4, "5": -165.8, "6": -172.1}, "live": {}, "wall_min": 3.0}, {"stage": "s1", "model": "trm_h1", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -213.4, "spread": 28.2, "finals": {"1": -259.9, "2": -241.5, "3": -197.4, "4": -183.8, "5": -229.3, "6": -190.8}, "live": {}, "wall_min": 12.5}, {"stage": "s1", "model": "trm_h1", "cond": "none", "done": 6, "total": 6, "median": -197.4, "spread": 17.2, "finals": {"1": -234.4, "2": -194.5, "3": -200.4, "4": -180.2, "5": -210.9, "6": -191.7}, "live": {}, "wall_min": 12.1}, {"stage": "s1", "model": "trm_h6", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -232.1, "spread": 23.3, "finals": {"1": -232.2, "2": -241.7, "3": -252.5, "4": -181.8, "5": -209.4, "6": -231.9}, "live": {}, "wall_min": 35.7}, {"stage": "s1", "model": "trm_h6", "cond": "none", "done": 6, "total": 6, "median": -205.9, "spread": 20.0, "finals": {"1": -231.8, "2": -209.2, "3": -202.6, "4": -173.9, "5": -227.5, "6": -191.5}, "live": {}, "wall_min": 35.1}, {"stage": "s1", "model": "trm_small", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -232.3, "spread": 93.9, "finals": {"1": -276.7, "2": -236.1, "3": -228.6, "4": -217.8, "5": -471.4, "6": -188.1}, "live": {}, "wall_min": 36.0}, {"stage": "s1", "model": "trm_small", "cond": "none", "done": 6, "total": 6, "median": -230.7, "spread": 30.5, "finals": {"1": -272.6, "2": -201.4, "3": -257.3, "4": -209.8, "5": -251.6, "6": -193.7}, "live": {}, "wall_min": 22.6}, {"stage": "s1", "model": "trm", "cond": "fixed1-aug", "done": 6, "total": 6, "median": -207.6, "spread": 11.2, "finals": {"1": -208.7, "2": -227.3, "3": -196.1, "4": -219.6, "5": -206.4, "6": -197.5}, "live": {}, "wall_min": 39.0}, {"stage": "s1", "model": "trm", "cond": "none", "done": 6, "total": 6, "median": -208.7, "spread": 21.8, "finals": {"1": -210.2, "2": -211.1, "3": -195.2, "4": -255.3, "5": -186.0, "6": -207.2}, "live": {}, "wall_min": 21.8}, {"stage": "s2", "model": "dnn", "cond": "C1", "done": 6, "total": 6, "median": -178.3, "spread": 11.6, "finals": {"1": -173.8, "2": -180.5, "3": -200.4, "4": -199.8, "5": -176.1, "6": -173.3}, "live": {}, "wall_min": 3.2}, {"stage": "s2", "model": "dnn", "cond": "C3", "done": 6, "total": 6, "median": -293.6, "spread": 193.8, "finals": {"1": -397.7, "2": -805.0, "3": -284.8, "4": -302.5, "5": -251.9, "6": -266.1}, "live": {}, "wall_min": 3.0}, {"stage": "s2", "model": "dnn", "cond": "C4", "done": 6, "total": 6, "median": -235.3, "spread": 47.7, "finals": {"1": -231.4, "2": -233.6, "3": -252.9, "4": -230.2, "5": -363.4, "6": -237.1}, "live": {}, "wall_min": 3.0}, {"stage": "s2", "model": "lstm_carry", "cond": "C1", "done": 6, "total": 6, "median": -252.1, "spread": 67.3, "finals": {"1": -327.2, "2": -240.3, "3": -257.9, "4": -420.3, "5": -231.3, "6": -246.3}, "live": {}, "wall_min": 4.1}, {"stage": "s2", "model": "lstm_carry", "cond": "C3", "done": 6, "total": 6, "median": -786.3, "spread": 262.6, "finals": {"1": -939.7, "2": -741.4, "3": -320.7, "4": -1084.8, "5": -473.1, "6": -831.2}, "live": {}, "wall_min": 3.5}, {"stage": "s2", "model": "lstm_carry", "cond": "C4", "done": 6, "total": 6, "median": -370.9, "spread": 64.7, "finals": {"1": -490.5, "2": -332.5, "3": -425.9, "4": -389.7, "5": -292.3, "6": -352.1}, "live": {}, "wall_min": 3.6}, {"stage": "s2", "model": "trm_carryz", "cond": "C1", "done": 6, "total": 6, "median": -214.4, "spread": 14.0, "finals": {"1": -226.3, "2": -231.7, "3": -193.7, "4": -218.0, "5": -210.9, "6": -197.5}, "live": {}, "wall_min": 27.1}, {"stage": "s2", "model": "trm_carryz", "cond": "C3", "done": 6, "total": 6, "median": -300.0, "spread": 60.9, "finals": {"1": -407.6, "2": -273.5, "3": -311.4, "4": -365.8, "5": -288.7, "6": -221.3}, "live": {}, "wall_min": 40.3}, {"stage": "s2", "model": "trm_carryz", "cond": "C4", "done": 6, "total": 6, "median": -333.1, "spread": 28.5, "finals": {"1": -325.5, "2": -302.5, "3": -365.9, "4": -286.8, "5": -358.6, "6": -340.6}, "live": {}, "wall_min": 36.3}, {"stage": "s2", "model": "trm", "cond": "C1", "done": 6, "total": 6, "median": -226.8, "spread": 10.9, "finals": {"1": -228.7, "2": -228.7, "3": -224.9, "4": -235.7, "5": -210.9, "6": -204.7}, "live": {}, "wall_min": 39.6}, {"stage": "s2", "model": "trm", "cond": "C3", "done": 6, "total": 6, "median": -270.5, "spread": 22.7, "finals": {"1": -238.6, "2": -275.8, "3": -265.2, "4": -286.8, "5": -311.0, "6": -258.2}, "live": {}, "wall_min": 38.6}, {"stage": "s2", "model": "trm", "cond": "C4", "done": 6, "total": 6, "median": -333.9, "spread": 36.2, "finals": {"1": -375.4, "2": -294.7, "3": -298.7, "4": -328.0, "5": -339.7, "6": -392.1}, "live": {}, "wall_min": 40.5}], "headline": "Phase 3 compute is complete, and H3 is rejected with all three confounds removed. TRM loses to a parameter-matched MLP at both capacities (G1). Carrying its latent across steps changes nothing (G3). Where memory has something to recover, neither Carry-Z nor a carried LSTM recovers it (G2). Stages 3-4 do not run, per the pre-registered gates. Next: Stage 5 synthesis with the author.", "amendments": [{"id": "A-1", "title": "Theory check on the headroom probe", "text": "With i.i.d. per-step delay, a fully observed plant and the 4-slot pending queue, the augmented observation is already Markov, so the oracle arm's realised past delay carries no usable information. G0 as written would fail by construction."}, {"id": "A-2", "title": "Arm A4 and an amended G0", "text": "Added: MLP at stochastic delay with no augmentation (+6 jobs). G0 passes on either oracle headroom (A3 - A2) or memory headroom (A2 - A4), same criterion as before."}, {"id": "A-3", "title": "Stage 2 co-primary", "text": "The C4 (no-augmentation) replication of the interaction contrast becomes co-primary with C3."}, {"id": "A-4", "title": "Exact discrete-uniform delay", "text": "d ~ U{0..4} is drawn exactly; the old 'uniform' option under-weights the endpoints."}, {"id": "A-5", "title": "GPU placement", "text": "Every job runs on a GPU node. The battery runs as 12 shard jobs and latency as one job; each result records its device."}, {"id": "A-6", "title": "Stage 2 inputs", "text": "Every Stage 2 trunk, the MLP included, sees the previous executed action, so the trunks differ only in architecture and memory."}], "final": true}, "jobs": {"polled_at": "2026-09-21T21:38:50", "jobs": [{"n": "dnn_fixed1-aug_s1", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 1, "id": "9356295", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -177.47539252648804, "w": "00:03:24"}, {"n": "dnn_fixed1-aug_s2", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 2, "id": "9356296", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -175.68703593272429, "w": "00:03:09"}, {"n": "dnn_fixed1-aug_s3", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 3, "id": "9356297", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -213.6975604736719, "w": "00:03:13"}, {"n": "dnn_fixed1-aug_s4", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 4, "id": "9356298", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -175.7589260710921, "w": "00:03:10"}, {"n": "dnn_fixed1-aug_s5", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 5, "id": "9356299", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -171.5728185115763, "w": "00:03:09"}, {"n": "dnn_fixed1-aug_s6", "s": "s0h", "st": "done", "g": "dnn|fixed1-aug", "seed": 6, "id": "9356300", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -222.2653527908452, "w": "00:03:05"}, {"n": "dnn_stoch4-aug_s1", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 1, "id": "9356301", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -225.06251151127847, "w": "00:03:12"}, {"n": "dnn_stoch4-aug_s2", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 2, "id": "9356302", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -248.41883568571484, "w": "00:03:11"}, {"n": "dnn_stoch4-aug_s3", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 3, "id": "9356303", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -225.05324219139172, "w": "00:03:06"}, {"n": "dnn_stoch4-aug_s4", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 4, "id": "9356304", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -234.83286434587998, "w": "00:03:03"}, {"n": "dnn_stoch4-aug_s5", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 5, "id": "9356305", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -264.5711735638072, "w": "00:02:59"}, {"n": "dnn_stoch4-aug_s6", "s": "s0h", "st": "done", "g": "dnn|stoch4-aug", "seed": 6, "id": "9356306", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -233.10876379054665, "w": "00:03:13"}, {"n": "dnn_stoch4-oracle_s1", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 1, "id": "9356307", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -599.4423422253902, "w": "00:03:02"}, {"n": "dnn_stoch4-oracle_s2", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 2, "id": "9356309", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -312.27602626799444, "w": "00:03:10"}, {"n": "dnn_stoch4-oracle_s3", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 3, "id": "9356310", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -240.10765170473834, "w": "00:03:10"}, {"n": "dnn_stoch4-oracle_s4", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 4, "id": "9356311", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -279.6327357585127, "w": "00:02:59"}, {"n": "dnn_stoch4-oracle_s5", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 5, "id": "9356312", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -299.066349041255, "w": "00:03:00"}, {"n": "dnn_stoch4-oracle_s6", "s": "s0h", "st": "done", "g": "dnn|stoch4-oracle", "seed": 6, "id": "9356313", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -239.01369251994103, "w": "00:02:56"}, {"n": "dnn_stoch4-noaug_s1", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 1, "id": "9356314", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -325.75365617893203, "w": "00:03:07"}, {"n": "dnn_stoch4-noaug_s2", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 2, "id": "9356315", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -277.7747263611481, "w": "00:03:05"}, {"n": "dnn_stoch4-noaug_s3", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 3, "id": "9356316", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -272.76558169094557, "w": "00:03:03"}, {"n": "dnn_stoch4-noaug_s4", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 4, "id": "9356317", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -455.33041295300774, "w": "00:03:00"}, {"n": "dnn_stoch4-noaug_s5", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 5, "id": "9356318", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -287.3677842124258, "w": "00:02:57"}, {"n": "dnn_stoch4-noaug_s6", "s": "s0h", "st": "done", "g": "dnn|stoch4-noaug", "seed": 6, "id": "9356319", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -326.93917878901374, "w": "00:03:13"}, {"n": "latency", "s": "s0l", "st": "done", "g": "latency", "seed": null, "id": "9356320", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:21:20"}, {"n": "battery_00", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356321", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:02:40"}, {"n": "battery_01", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356322", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:04:16"}, {"n": "battery_02", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356324", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:06:27"}, {"n": "battery_03", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356325", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:06:15"}, {"n": "battery_04", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356326", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:06:22"}, {"n": "battery_05", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356327", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:06:55"}, {"n": "battery_06", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356328", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:05:08"}, {"n": "battery_07", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356329", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:03:51"}, {"n": "battery_08", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356330", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:03:07"}, {"n": "battery_09", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356331", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:03:08"}, {"n": "battery_10", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356332", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:03:23"}, {"n": "battery_11", "s": "s0b", "st": "done", "g": "battery", "seed": null, "id": "9356334", "q": "mechgpu12", "ep": null, "tot": null, "fin": null, "w": "00:03:49"}, {"n": "dnn_none_s1", "s": "s1", "st": "done", "g": "dnn|none", "seed": 1, "id": "9356335", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -168.9208391837076, "w": "00:03:15"}, {"n": "dnn_none_s2", "s": "s1", "st": "done", "g": "dnn|none", "seed": 2, "id": "9356337", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -177.09614314730922, "w": "00:03:29"}, {"n": "dnn_none_s3", "s": "s1", "st": "done", "g": "dnn|none", "seed": 3, "id": "9356625", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -187.909862116749, "w": "00:03:21"}, {"n": "dnn_none_s4", "s": "s1", "st": "done", "g": "dnn|none", "seed": 4, "id": "9356339", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -176.44386125359048, "w": "00:03:06"}, {"n": "dnn_none_s5", "s": "s1", "st": "done", "g": "dnn|none", "seed": 5, "id": "9356342", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -165.79884402071778, "w": "00:03:08"}, {"n": "dnn_none_s6", "s": "s1", "st": "done", "g": "dnn|none", "seed": 6, "id": "9356343", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -172.06557720217734, "w": "00:03:04"}, {"n": "dnn_fixed1-aug_s1", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 1, "id": "9356344", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -172.52249283611167, "w": "00:02:02"}, {"n": "dnn_fixed1-aug_s2", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 2, "id": "9356345", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -181.17522005347618, "w": "00:02:00"}, {"n": "dnn_fixed1-aug_s3", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 3, "id": "9356347", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -183.108164387375, "w": "00:01:57"}, {"n": "dnn_fixed1-aug_s4", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 4, "id": "9356348", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -210.61224133427254, "w": "00:01:59"}, {"n": "dnn_fixed1-aug_s5", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 5, "id": "9356626", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -171.5728185115763, "w": "00:03:19"}, {"n": "dnn_fixed1-aug_s6", "s": "s1", "st": "done", "g": "dnn|fixed1-aug", "seed": 6, "id": "9356351", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -171.32052607442824, "w": "00:03:25"}, {"n": "trm_small_none_s1", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 1, "id": "9356352", "q": "mechgpu12", "ep": 200, "tot": 200, "fin": -272.59032232092085, "w": "00:31:30"}, {"n": "trm_small_none_s2", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 2, "id": "9356353", "q": "mechgpu12", "ep": 200, "tot": 200, "fin": -201.39333491475995, "w": "00:32:04"}, {"n": "trm_small_none_s3", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 3, "id": "9357551", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -257.3047573286874, "w": "00:22:45"}, {"n": "trm_small_none_s4", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 4, "id": "9357552", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -209.78706564355377, "w": "00:22:27"}, {"n": "trm_small_none_s5", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 5, "id": "9357553", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -251.6164732692957, "w": "00:22:48"}, {"n": "trm_small_none_s6", "s": "s1", "st": "done", "g": "trm_small|none", "seed": 6, "id": "9357554", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -193.70998028319954, "w": "00:22:53"}, {"n": "trm_small_fixed1-aug_s1", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 1, "id": "9357555", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -276.66984964175197, "w": "00:31:46"}, {"n": "trm_small_fixed1-aug_s2", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 2, "id": "9357556", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -236.14597540715644, "w": "00:32:06"}, {"n": "trm_small_fixed1-aug_s3", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 3, "id": "9357557", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -228.64348915276537, "w": "00:32:25"}, {"n": "trm_small_fixed1-aug_s4", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 4, "id": "9357558", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -217.8137190654926, "w": "00:40:38"}, {"n": "trm_small_fixed1-aug_s5", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 5, "id": "9357559", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -471.37124879936704, "w": "00:46:34"}, {"n": "trm_small_fixed1-aug_s6", "s": "s1", "st": "done", "g": "trm_small|fixed1-aug", "seed": 6, "id": "9357560", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -188.06864774053983, "w": "00:40:10"}, {"n": "dnn_large_none_s1", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 1, "id": "9356367", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -183.76641237646342, "w": "00:02:08"}, {"n": "dnn_large_none_s2", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 2, "id": "9356627", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -176.1937983117741, "w": "00:03:23"}, {"n": "dnn_large_none_s3", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 3, "id": "9356369", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -167.32311091090793, "w": "00:03:18"}, {"n": "dnn_large_none_s4", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 4, "id": "9356370", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -169.77062870172605, "w": "00:03:17"}, {"n": "dnn_large_none_s5", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 5, "id": "9356628", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -192.28553069545728, "w": "00:03:15"}, {"n": "dnn_large_none_s6", "s": "s1", "st": "done", "g": "dnn_large|none", "seed": 6, "id": "9356372", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -172.58362444586302, "w": "00:03:09"}, {"n": "dnn_large_fixed1-aug_s1", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 1, "id": "9356373", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -183.2941754891434, "w": "00:03:12"}, {"n": "dnn_large_fixed1-aug_s2", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 2, "id": "9356374", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -171.59921911981144, "w": "00:03:04"}, {"n": "dnn_large_fixed1-aug_s3", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 3, "id": "9356375", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -200.78607963095155, "w": "00:02:06"}, {"n": "dnn_large_fixed1-aug_s4", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 4, "id": "9356376", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -175.528238361797, "w": "00:02:04"}, {"n": "dnn_large_fixed1-aug_s5", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 5, "id": "9356629", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -190.78405145928824, "w": "00:03:19"}, {"n": "dnn_large_fixed1-aug_s6", "s": "s1", "st": "done", "g": "dnn_large|fixed1-aug", "seed": 6, "id": "9356378", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -178.4503015403768, "w": "00:01:59"}, {"n": "trm_none_s1", "s": "s1", "st": "done", "g": "trm|none", "seed": 1, "id": "9357561", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -210.18404961903306, "w": "00:38:50"}, {"n": "trm_none_s2", "s": "s1", "st": "done", "g": "trm|none", "seed": 2, "id": "9357562", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -211.09473141981962, "w": "00:22:09"}, {"n": "trm_none_s3", "s": "s1", "st": "done", "g": "trm|none", "seed": 3, "id": "9357563", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -195.18455998434388, "w": "00:21:39"}, {"n": "trm_none_s4", "s": "s1", "st": "done", "g": "trm|none", "seed": 4, "id": "9357564", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -255.28164853836412, "w": "00:21:52"}, {"n": "trm_none_s5", "s": "s1", "st": "done", "g": "trm|none", "seed": 5, "id": "9357565", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -186.04583627603907, "w": "00:21:57"}, {"n": "trm_none_s6", "s": "s1", "st": "done", "g": "trm|none", "seed": 6, "id": "9357566", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -207.1702621666435, "w": "00:31:44"}, {"n": "trm_fixed1-aug_s1", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 1, "id": "9357567", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -208.7256019381549, "w": "00:32:30"}, {"n": "trm_fixed1-aug_s2", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 2, "id": "9357568", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -227.25887253310276, "w": "00:32:18"}, {"n": "trm_fixed1-aug_s3", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 3, "id": "9357569", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -196.0842817799034, "w": "00:39:03"}, {"n": "trm_fixed1-aug_s4", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 4, "id": "9357570", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -219.6140832528486, "w": "00:39:20"}, {"n": "trm_fixed1-aug_s5", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 5, "id": "9357571", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -206.38815948972513, "w": "00:39:31"}, {"n": "trm_fixed1-aug_s6", "s": "s1", "st": "done", "g": "trm|fixed1-aug", "seed": 6, "id": "9357572", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -197.52880088508707, "w": "00:44:17"}, {"n": "trm_h1_none_s1", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 1, "id": "9357573", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -234.40059251768642, "w": "00:12:22"}, {"n": "trm_h1_none_s2", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 2, "id": "9357574", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -194.48150377130804, "w": "00:25:12"}, {"n": "trm_h1_none_s3", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 3, "id": "9357575", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -200.4301526473224, "w": "00:12:30"}, {"n": "trm_h1_none_s4", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 4, "id": "9357576", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -180.22745783039906, "w": "00:12:11"}, {"n": "trm_h1_none_s5", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 5, "id": "9357577", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -210.9019253924772, "w": "00:12:07"}, {"n": "trm_h1_none_s6", "s": "s1", "st": "done", "g": "trm_h1|none", "seed": 6, "id": "9357578", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -191.74189834592732, "w": "00:12:09"}, {"n": "trm_h1_fixed1-aug_s1", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 1, "id": "9357579", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -259.9278721842014, "w": "00:18:04"}, {"n": "trm_h1_fixed1-aug_s2", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 2, "id": "9357580", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -241.5463063740492, "w": "00:12:26"}, {"n": "trm_h1_fixed1-aug_s3", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 3, "id": "9357581", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -197.41108382054847, "w": "00:12:48"}, {"n": "trm_h1_fixed1-aug_s4", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 4, "id": "9357582", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -183.79168590667493, "w": "00:12:39"}, {"n": "trm_h1_fixed1-aug_s5", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 5, "id": "9357583", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -229.2894918442433, "w": "00:18:24"}, {"n": "trm_h1_fixed1-aug_s6", "s": "s1", "st": "done", "g": "trm_h1|fixed1-aug", "seed": 6, "id": "9357584", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -190.78525362796023, "w": "00:12:39"}, {"n": "trm_h6_none_s1", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 1, "id": "9357585", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -231.81714031520343, "w": "00:35:20"}, {"n": "trm_h6_none_s2", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 2, "id": "9357586", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -209.211131955741, "w": "00:35:16"}, {"n": "trm_h6_none_s3", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 3, "id": "9357587", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -202.59103837794376, "w": "00:35:02"}, {"n": "trm_h6_none_s4", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 4, "id": "9357588", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -173.9352229854597, "w": "00:51:56"}, {"n": "trm_h6_none_s5", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 5, "id": "9357589", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -227.53457225619943, "w": "00:35:15"}, {"n": "trm_h6_none_s6", "s": "s1", "st": "done", "g": "trm_h6|none", "seed": 6, "id": "9357590", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -191.4900283001185, "w": "00:35:15"}, {"n": "trm_h6_fixed1-aug_s1", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 1, "id": "9357591", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -232.24175093470456, "w": "01:12:44"}, {"n": "trm_h6_fixed1-aug_s2", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 2, "id": "9357592", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -241.69141840148234, "w": "00:34:40"}, {"n": "trm_h6_fixed1-aug_s3", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 3, "id": "9357593", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -252.47905241971483, "w": "00:34:34"}, {"n": "trm_h6_fixed1-aug_s4", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 4, "id": "9357594", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -181.76058504127755, "w": "00:35:55"}, {"n": "trm_h6_fixed1-aug_s5", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 5, "id": "9357595", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -209.36437925674986, "w": "00:36:31"}, {"n": "trm_h6_fixed1-aug_s6", "s": "s1", "st": "done", "g": "trm_h6|fixed1-aug", "seed": 6, "id": "9357596", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -231.91913342256038, "w": "00:35:51"}, {"n": "dnn_C1_s1", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 1, "id": "9358217", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -173.80991214087527, "w": "00:03:24"}, {"n": "dnn_C1_s2", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 2, "id": "9358218", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -180.5430917321358, "w": "00:03:44"}, {"n": "dnn_C1_s3", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 3, "id": "9358219", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -200.4086802400506, "w": "00:03:27"}, {"n": "dnn_C1_s4", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 4, "id": "9358220", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -199.78411512546666, "w": "00:03:20"}, {"n": "dnn_C1_s5", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 5, "id": "9358221", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -176.07034716452637, "w": "00:03:17"}, {"n": "dnn_C1_s6", "s": "s2", "st": "done", "g": "dnn|C1", "seed": 6, "id": "9358222", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -173.29148119247225, "w": "00:03:38"}, {"n": "dnn_C3_s1", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 1, "id": "9358223", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -397.7486044670626, "w": "00:03:17"}, {"n": "dnn_C3_s2", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 2, "id": "9358224", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -805.0246001390701, "w": "00:03:16"}, {"n": "dnn_C3_s3", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 3, "id": "9358225", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -284.8173014787011, "w": "00:03:21"}, {"n": "dnn_C3_s4", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 4, "id": "9358226", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -302.5399561981934, "w": "00:03:02"}, {"n": "dnn_C3_s5", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 5, "id": "9358227", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -251.8741225026475, "w": "00:03:13"}, {"n": "dnn_C3_s6", "s": "s2", "st": "done", "g": "dnn|C3", "seed": 6, "id": "9358228", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -266.11167001531174, "w": "00:03:01"}, {"n": "dnn_C4_s1", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 1, "id": "9358229", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -231.37577156566212, "w": "00:03:31"}, {"n": "dnn_C4_s2", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 2, "id": "9358230", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -233.60128451975848, "w": "00:03:05"}, {"n": "dnn_C4_s3", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 3, "id": "9358231", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -252.8564408187272, "w": "00:03:06"}, {"n": "dnn_C4_s4", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 4, "id": "9358232", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -230.22694930392836, "w": "00:03:19"}, {"n": "dnn_C4_s5", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 5, "id": "9358233", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -363.3870113442109, "w": "00:02:59"}, {"n": "dnn_C4_s6", "s": "s2", "st": "done", "g": "dnn|C4", "seed": 6, "id": "9358234", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -237.1414762244948, "w": "00:03:03"}, {"n": "trm_C1_s1", "s": "s2", "st": "done", "g": "trm|C1", "seed": 1, "id": "9358235", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -228.66809313751864, "w": "00:37:49"}, {"n": "trm_C1_s2", "s": "s2", "st": "done", "g": "trm|C1", "seed": 2, "id": "9358236", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -228.74716108221025, "w": "00:45:04"}, {"n": "trm_C1_s3", "s": "s2", "st": "done", "g": "trm|C1", "seed": 3, "id": "9358237", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -224.87412834168427, "w": "00:40:01"}, {"n": "trm_C1_s4", "s": "s2", "st": "done", "g": "trm|C1", "seed": 4, "id": "9358238", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -235.71833135750992, "w": "00:39:34"}, {"n": "trm_C1_s5", "s": "s2", "st": "done", "g": "trm|C1", "seed": 5, "id": "9358239", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -210.8731402499729, "w": "00:43:21"}, {"n": "trm_C1_s6", "s": "s2", "st": "done", "g": "trm|C1", "seed": 6, "id": "9358240", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -204.6938629232942, "w": "00:36:41"}, {"n": "trm_C3_s1", "s": "s2", "st": "done", "g": "trm|C3", "seed": 1, "id": "9358241", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -238.5749063358302, "w": "00:38:31"}, {"n": "trm_C3_s2", "s": "s2", "st": "done", "g": "trm|C3", "seed": 2, "id": "9358242", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -275.77576331197037, "w": "00:41:39"}, {"n": "trm_C3_s3", "s": "s2", "st": "done", "g": "trm|C3", "seed": 3, "id": "9358243", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -265.22339970555043, "w": "00:36:52"}, {"n": "trm_C3_s4", "s": "s2", "st": "done", "g": "trm|C3", "seed": 4, "id": "9358244", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -286.8475881257085, "w": "00:37:44"}, {"n": "trm_C3_s5", "s": "s2", "st": "done", "g": "trm|C3", "seed": 5, "id": "9358245", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -310.96065344778486, "w": "00:39:47"}, {"n": "trm_C3_s6", "s": "s2", "st": "done", "g": "trm|C3", "seed": 6, "id": "9358246", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -258.2249712692917, "w": "00:38:59"}, {"n": "trm_C4_s1", "s": "s2", "st": "done", "g": "trm|C4", "seed": 1, "id": "9358247", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -375.42838933356745, "w": "00:38:50"}, {"n": "trm_C4_s2", "s": "s2", "st": "done", "g": "trm|C4", "seed": 2, "id": "9358248", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -294.71811964583986, "w": "00:46:13"}, {"n": "trm_C4_s3", "s": "s2", "st": "done", "g": "trm|C4", "seed": 3, "id": "9358249", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -298.6723774012044, "w": "00:43:37"}, {"n": "trm_C4_s4", "s": "s2", "st": "done", "g": "trm|C4", "seed": 4, "id": "9358250", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -327.9515864828341, "w": "00:42:28"}, {"n": "trm_C4_s5", "s": "s2", "st": "done", "g": "trm|C4", "seed": 5, "id": "9358251", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -339.7488773275707, "w": "00:31:44"}, {"n": "trm_C4_s6", "s": "s2", "st": "done", "g": "trm|C4", "seed": 6, "id": "9358252", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -392.1255426731337, "w": "00:37:32"}, {"n": "trm_carryz_C1_s1", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 1, "id": "9358253", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -226.3333158709771, "w": "00:45:00"}, {"n": "trm_carryz_C1_s2", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 2, "id": "9358254", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -231.73863113225198, "w": "00:31:37"}, {"n": "trm_carryz_C1_s3", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 3, "id": "9358255", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -193.73317367120268, "w": "00:25:20"}, {"n": "trm_carryz_C1_s4", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 4, "id": "9358256", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -218.02272615820272, "w": "00:25:16"}, {"n": "trm_carryz_C1_s5", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 5, "id": "9358257", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -210.8989045640584, "w": "00:25:06"}, {"n": "trm_carryz_C1_s6", "s": "s2", "st": "done", "g": "trm_carryz|C1", "seed": 6, "id": "9358258", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -197.51129784072276, "w": "00:29:12"}, {"n": "trm_carryz_C3_s1", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 1, "id": "9358259", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -407.5835383741139, "w": "00:45:23"}, {"n": "trm_carryz_C3_s2", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 2, "id": "9358260", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -273.4715259413352, "w": "00:44:59"}, {"n": "trm_carryz_C3_s3", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 3, "id": "9358261", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -311.4309293565255, "w": "00:44:43"}, {"n": "trm_carryz_C3_s4", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 4, "id": "9358262", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -365.83996798806794, "w": "00:36:18"}, {"n": "trm_carryz_C3_s5", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 5, "id": "9358263", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -288.6848730136666, "w": "00:25:57"}, {"n": "trm_carryz_C3_s6", "s": "s2", "st": "done", "g": "trm_carryz|C3", "seed": 6, "id": "9358264", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -221.3442286386587, "w": "00:29:20"}, {"n": "trm_carryz_C4_s1", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 1, "id": "9358265", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -325.52567918270597, "w": "00:36:37"}, {"n": "trm_carryz_C4_s2", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 2, "id": "9358266", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -302.51964810700525, "w": "00:25:20"}, {"n": "trm_carryz_C4_s3", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 3, "id": "9358267", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -365.85793307348354, "w": "00:36:32"}, {"n": "trm_carryz_C4_s4", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 4, "id": "9358268", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -286.79252891988205, "w": "00:36:07"}, {"n": "trm_carryz_C4_s5", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 5, "id": "9358269", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -358.62430162999414, "w": "00:50:46"}, {"n": "trm_carryz_C4_s6", "s": "s2", "st": "done", "g": "trm_carryz|C4", "seed": 6, "id": "9358270", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -340.6468563169427, "w": "00:37:13"}, {"n": "lstm_carry_C1_s1", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 1, "id": "9358271", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -327.17063155621304, "w": "00:04:12"}, {"n": "lstm_carry_C1_s2", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 2, "id": "9358272", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -240.27349063339614, "w": "00:04:13"}, {"n": "lstm_carry_C1_s3", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 3, "id": "9358273", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -257.932214210143, "w": "00:05:03"}, {"n": "lstm_carry_C1_s4", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 4, "id": "9358274", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -420.2686546846482, "w": "00:04:09"}, {"n": "lstm_carry_C1_s5", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 5, "id": "9358275", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -231.3318899542789, "w": "00:05:30"}, {"n": "lstm_carry_C1_s6", "s": "s2", "st": "done", "g": "lstm_carry|C1", "seed": 6, "id": "9358276", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -246.3293343750363, "w": "00:04:15"}, {"n": "lstm_carry_C3_s1", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 1, "id": "9358277", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -939.6757170582819, "w": "00:05:08"}, {"n": "lstm_carry_C3_s2", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 2, "id": "9358278", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -741.4485441569703, "w": "00:04:29"}, {"n": "lstm_carry_C3_s3", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 3, "id": "9358279", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -320.69151952524544, "w": "00:05:05"}, {"n": "lstm_carry_C3_s4", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 4, "id": "9358280", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -1084.7886072996707, "w": "00:02:57"}, {"n": "lstm_carry_C3_s5", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 5, "id": "9358281", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -473.1343739766796, "w": "00:02:57"}, {"n": "lstm_carry_C3_s6", "s": "s2", "st": "done", "g": "lstm_carry|C3", "seed": 6, "id": "9358282", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -831.1768803004209, "w": "00:02:58"}, {"n": "lstm_carry_C4_s1", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 1, "id": "9358283", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -490.52299691112887, "w": "00:04:21"}, {"n": "lstm_carry_C4_s2", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 2, "id": "9358284", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -332.4830090157341, "w": "00:04:17"}, {"n": "lstm_carry_C4_s3", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 3, "id": "9358285", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -425.8714291780447, "w": "00:03:15"}, {"n": "lstm_carry_C4_s4", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 4, "id": "9358286", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -389.686644572023, "w": "00:03:07"}, {"n": "lstm_carry_C4_s5", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 5, "id": "9358287", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -292.2774108249629, "w": "00:05:00"}, {"n": "lstm_carry_C4_s6", "s": "s2", "st": "done", "g": "lstm_carry|C4", "seed": 6, "id": "9358288", "q": "mechgpu2", "ep": 200, "tot": 200, "fin": -352.11828030136707, "w": "00:02:42"}]}, "log": {"events": [{"ts": "2026-09-21T14:21:15", "kind": "note", "text": "Phase 3 execution started; GPU smoke job submitted"}, {"ts": "2026-09-21T14:37:02", "kind": "submit", "text": "12 job(s) submitted: S0.2 checkpoint battery (102 checkpoints, 12 shards)"}, {"ts": "2026-09-21T14:37:02", "kind": "submit", "text": "24 job(s) submitted: S0.1 headroom probe"}, {"ts": "2026-09-21T14:37:02", "kind": "submit", "text": "1 job(s) submitted: S0.2 latency benchmark"}, {"ts": "2026-09-21T14:37:02", "kind": "submit", "text": "72 job(s) submitted: Capacity x depth factorial"}, {"ts": "2026-09-21T14:37:02", "kind": "note", "text": "GPU smoke test (job 9356163, A100) passed: 8 training arms, battery (exact parameter rebuild) and latency bench"}, {"ts": "2026-09-21T14:37:02", "kind": "note", "text": "Plan amendments A-1 to A-6 recorded in plan.md section 10 before any Stage 0 data"}, {"ts": "2026-09-21T14:37:02", "kind": "submit", "text": "Stage 0 (37 jobs) and Stage 1 (72 jobs) submitted from frozen code snapshots; smoke2 covers the Carry-Z code on GPU"}, {"ts": "2026-09-21T14:43:51", "kind": "done", "text": "5 finished: dnn_fixed1-aug_s1, dnn_fixed1-aug_s2, dnn_fixed1-aug_s3, dnn_fixed1-aug_s4, dnn_fixed1-aug_s5"}, {"ts": "2026-09-21T14:43:51", "kind": "start", "text": "6 started: dnn_fixed1-aug_s6, dnn_stoch4-aug_s1, dnn_stoch4-aug_s2, dnn_stoch4-aug_s3, dnn_stoch4-aug_s4, dnn_stoch4-aug_s5"}, {"ts": "2026-09-21T14:43:51", "kind": "note", "text": "smoke2 passed on an A100: Carry-Z and carried-LSTM train, evaluate and benchmark on GPU"}, {"ts": "2026-09-21T14:43:51", "kind": "note", "text": "Gate rules operationalised in gates.json before any data; evaluator tested on synthetic inputs"}, {"ts": "2026-09-21T14:51:54", "kind": "done", "text": "13 finished: dnn_fixed1-aug_s6, dnn_stoch4-aug_s1, dnn_stoch4-aug_s2, dnn_stoch4-aug_s3, dnn_stoch4-aug_s4, dnn_stoch4-aug_s5 ..."}, {"ts": "2026-09-21T14:51:54", "kind": "start", "text": "1 started: dnn_stoch4-noaug_s1"}, {"ts": "2026-09-21T15:13:04", "kind": "done", "text": "2 finished: battery_00, battery_01"}, {"ts": "2026-09-21T15:13:04", "kind": "start", "text": "1 started: battery_02"}, {"ts": "2026-09-21T15:13:04", "kind": "done", "text": "6 finished: dnn_stoch4-noaug_s1, dnn_stoch4-noaug_s2, dnn_stoch4-noaug_s3, dnn_stoch4-noaug_s4, dnn_stoch4-noaug_s5, dnn_stoch4-noaug_s6"}, {"ts": "2026-09-21T15:13:04", "kind": "start", "text": "1 started: latency"}, {"ts": "2026-09-21T15:13:04", "kind": "done", "text": "19 finished: dnn_none_s1, dnn_none_s2, dnn_none_s4, dnn_none_s5, dnn_none_s6, dnn_fixed1-aug_s1 ..."}, {"ts": "2026-09-21T15:13:04", "kind": "fail", "text": "5 FAILED: dnn_none_s3, dnn_fixed1-aug_s5, dnn_large_none_s2, dnn_large_none_s5, dnn_large_fixed1-aug_s5"}, {"ts": "2026-09-21T15:16:21", "kind": "start", "text": "5 started: dnn_none_s3, dnn_fixed1-aug_s5, dnn_large_none_s2, dnn_large_none_s5, dnn_large_fixed1-aug_s5"}, {"ts": "2026-09-21T15:16:21", "kind": "fail", "text": "5 Stage 1 MLP runs crashed on k207 (RTX PRO 6000 Blackwell, sm_120: no kernels in torch 2.5.1+cu121)"}, {"ts": "2026-09-21T15:16:21", "kind": "fix", "text": "all 57 queued jobs altered to gpu_rp6000=False, PBS template patched, the 5 runs resubmitted (9356625-9356629)"}, {"ts": "2026-09-21T15:16:21", "kind": "gate", "text": "G0 PASS on amended rule: memory headroom A2-A4 +70.8 (6/6 seeds, > pooled SD 49.5); pre-registered oracle contrast A3-A2 fails (-39.6, 0/6)"}, {"ts": "2026-09-21T15:31:56", "kind": "done", "text": "3 finished: battery_02, battery_03, battery_04"}, {"ts": "2026-09-21T15:31:56", "kind": "start", "text": "2 started: battery_05, battery_06"}, {"ts": "2026-09-21T15:31:56", "kind": "done", "text": "1 finished: latency"}, {"ts": "2026-09-21T15:31:56", "kind": "done", "text": "5 finished: dnn_none_s3, dnn_fixed1-aug_s5, dnn_large_none_s2, dnn_large_none_s5, dnn_large_fixed1-aug_s5"}, {"ts": "2026-09-21T15:52:00", "kind": "done", "text": "7 finished: battery_05, battery_06, battery_07, battery_08, battery_09, battery_10 ..."}, {"ts": "2026-09-21T15:52:00", "kind": "start", "text": "2 started: trm_small_none_s1, trm_small_none_s2"}, {"ts": "2026-09-21T15:53:09", "kind": "note", "text": "done: Stage 0 complete: battery 102/102 checkpoints (0 parameter mismatches), latency benchmark, headroom 24/24"}, {"ts": "2026-09-21T15:53:09", "kind": "gate", "text": "G4 pass (weak, literal rule): TRM non-dominated on command rate within seed noise; LSTM passes degenerately (untrained); TRM 4.1 ms p99 per decision on 1 CPU thread"}, {"ts": "2026-09-21T16:15:10", "kind": "fix", "text": "46 queued Stage 1 TRM jobs deleted and resubmitted at 1:59 walltime (same frozen code) so they route to mechgpu2, which reaches all GPU nodes; only 2 were running in mechgpu12. trm_small measured ~31 min on A100"}, {"ts": "2026-09-21T16:32:01", "kind": "done", "text": "2 finished: trm_small_none_s1, trm_small_none_s2"}, {"ts": "2026-09-21T16:32:01", "kind": "start", "text": "11 started: trm_small_none_s3, trm_small_none_s4, trm_small_none_s5, trm_small_none_s6, trm_small_fixed1-aug_s1, trm_small_fixed1-aug_s2 ..."}, {"ts": "2026-09-21T16:52:13", "kind": "done", "text": "4 finished: trm_small_none_s3, trm_small_none_s4, trm_small_none_s5, trm_small_none_s6"}, {"ts": "2026-09-21T17:13:06", "kind": "done", "text": "6 finished: trm_small_fixed1-aug_s1, trm_small_fixed1-aug_s2, trm_small_fixed1-aug_s3, trm_small_fixed1-aug_s4, trm_small_fixed1-aug_s6, trm_none_s1"}, {"ts": "2026-09-21T17:13:06", "kind": "start", "text": "10 started: trm_none_s2, trm_none_s3, trm_none_s4, trm_none_s5, trm_none_s6, trm_fixed1-aug_s1 ..."}, {"ts": "2026-09-21T17:32:12", "kind": "done", "text": "12 finished: trm_small_fixed1-aug_s5, trm_none_s2, trm_none_s3, trm_none_s4, trm_none_s5, trm_none_s6 ..."}, {"ts": "2026-09-21T17:32:12", "kind": "start", "text": "11 started: trm_fixed1-aug_s6, trm_h1_none_s2, trm_h1_fixed1-aug_s1, trm_h1_fixed1-aug_s2, trm_h1_fixed1-aug_s3, trm_h1_fixed1-aug_s4 ..."}, {"ts": "2026-09-21T17:52:06", "kind": "done", "text": "11 finished: trm_fixed1-aug_s2, trm_fixed1-aug_s3, trm_fixed1-aug_s4, trm_fixed1-aug_s5, trm_h1_none_s2, trm_h1_fixed1-aug_s1 ..."}, {"ts": "2026-09-21T17:52:06", "kind": "start", "text": "9 started: trm_h6_none_s4, trm_h6_none_s5, trm_h6_none_s6, trm_h6_fixed1-aug_s1, trm_h6_fixed1-aug_s2, trm_h6_fixed1-aug_s3 ..."}, {"ts": "2026-09-21T18:13:08", "kind": "done", "text": "4 finished: trm_fixed1-aug_s6, trm_h6_none_s1, trm_h6_none_s2, trm_h6_none_s3"}, {"ts": "2026-09-21T18:32:11", "kind": "done", "text": "8 finished: trm_h6_none_s4, trm_h6_none_s5, trm_h6_none_s6, trm_h6_fixed1-aug_s2, trm_h6_fixed1-aug_s3, trm_h6_fixed1-aug_s4 ..."}, {"ts": "2026-09-21T18:58:20", "kind": "done", "text": "1 finished: trm_h6_fixed1-aug_s1"}, {"ts": "2026-09-21T18:58:20", "kind": "submit", "text": "72 job(s) submitted: Uncertainty x memory"}, {"ts": "2026-09-21T18:58:20", "kind": "gate", "text": "G1 decided: architecture-family deficit. trm_small-dnn -50.2 (0/12), trm-dnn_large -27.1 (2/12); capacity inert for both families; depth inert (trm_h1 -3.3, trm_h6 -10.9). Stage 2 MLP = dnn"}, {"ts": "2026-09-21T18:58:20", "kind": "submit", "text": "Stage 2 submitted: 72 jobs (dnn, trm, trm_carryz, lstm_carry x C1/C3/C4 x 6 seeds)"}, {"ts": "2026-09-21T19:13:11", "kind": "done", "text": "18 finished: dnn_C1_s1, dnn_C1_s2, dnn_C1_s3, dnn_C1_s4, dnn_C1_s5, dnn_C1_s6 ..."}, {"ts": "2026-09-21T19:13:11", "kind": "start", "text": "4 started: trm_C1_s1, trm_C1_s2, trm_C1_s3, trm_C1_s4"}, {"ts": "2026-09-21T19:32:15", "kind": "start", "text": "4 started: trm_C1_s5, trm_C1_s6, trm_C3_s1, trm_C3_s2"}, {"ts": "2026-09-21T19:52:15", "kind": "done", "text": "4 finished: trm_C1_s1, trm_C1_s3, trm_C1_s4, trm_C1_s6"}, {"ts": "2026-09-21T19:52:15", "kind": "start", "text": "1 started: trm_C3_s3"}, {"ts": "2026-09-21T20:13:12", "kind": "done", "text": "4 finished: trm_C1_s2, trm_C1_s5, trm_C3_s1, trm_C3_s2"}, {"ts": "2026-09-21T20:13:12", "kind": "start", "text": "7 started: trm_C3_s4, trm_C3_s5, trm_C3_s6, trm_C4_s1, trm_C4_s2, trm_C4_s3 ..."}, {"ts": "2026-09-21T20:32:10", "kind": "done", "text": "2 finished: trm_C3_s3, trm_C3_s4"}, {"ts": "2026-09-21T20:32:10", "kind": "start", "text": "2 started: trm_C4_s5, trm_C4_s6"}, {"ts": "2026-09-21T20:52:07", "kind": "done", "text": "9 finished: trm_C3_s5, trm_C3_s6, trm_C4_s1, trm_C4_s2, trm_C4_s3, trm_C4_s4 ..."}, {"ts": "2026-09-21T20:52:07", "kind": "start", "text": "21 started: trm_carryz_C1_s1, trm_carryz_C1_s2, trm_carryz_C1_s3, trm_carryz_C1_s4, trm_carryz_C1_s5, trm_carryz_C1_s6 ..."}, {"ts": "2026-09-21T21:13:52", "kind": "done", "text": "25 finished: trm_C4_s6, trm_carryz_C1_s2, trm_carryz_C1_s3, trm_carryz_C1_s4, trm_carryz_C1_s5, trm_carryz_C1_s6 ..."}, {"ts": "2026-09-21T21:32:03", "kind": "done", "text": "9 finished: trm_carryz_C1_s1, trm_carryz_C3_s1, trm_carryz_C3_s2, trm_carryz_C3_s3, trm_carryz_C3_s4, trm_carryz_C4_s1 ..."}, {"ts": "2026-09-21T21:38:50", "kind": "done", "text": "1 finished: trm_carryz_C4_s5"}, {"ts": "2026-09-21T21:38:50", "kind": "gate", "text": "G2 FAIL: no interaction at C3 (+20.4, 3/6) or C4 (-40.0, 1/6). H3 rejected; Stages 3-4 do not run"}, {"ts": "2026-09-21T21:38:50", "kind": "gate", "text": "G3 FAIL: Carry-Z vs Reset-Z at C1 +4.8 (4/6), C3 -22.0 (3/6), C4 +16.7 (3/6)"}, {"ts": "2026-09-21T21:38:50", "kind": "note", "text": "Phase 3 compute complete: 181 jobs, 0 unrecovered failures. Polling stopped; Stage 5 synthesis goes to the author"}]}};
+const view = { state: FALLBACK && FALLBACK.state, jobs: FALLBACK && FALLBACK.jobs, log: FALLBACK && FALLBACK.log, live: false };
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtTime = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+};
+const ago = (iso) => {
+  if (!iso) return "";
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (isNaN(s)) return "";
+  if (s < 0) return "in " + (Math.round(-s / 60)) + " min";
+  if (s < 90) return "just now";
+  if (s < 5400) return Math.round(s / 60) + " min ago";
+  return (s / 3600).toFixed(1) + " h ago";
+};
+const dur = (s) => {
+  if (s == null) return "—";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? h + "h " + String(m).padStart(2, "0") + "m" : m + "m";
+};
+const COND = { "none": "no delay", "fixed1-aug": "fixed d=1 + aug", "stoch4-aug": "stoch U{0..4} + aug",
+               "stoch4-oracle": "stoch + delay oracle", "stoch4-noaug": "stoch, no aug" };
+const PART_STAGE = { s0h: 0, s0b: 0, s0l: 0, s1: 1, s2: 2, s2o: 2, s3t: 3, s3p: 3, s3i: 3, s4: 4 };
+
+function renderHeader() {
+  const st = view.state;
+  document.getElementById("polled").textContent = st ? fmtTime(st.polled_at) + " (" + ago(st.polled_at) + ")" : "—";
+  document.getElementById("next-poll").textContent = st && st.next_poll_at ? fmtTime(st.next_poll_at) + " (" + ago(st.next_poll_at) + ")" : "—";
+  const dot = document.getElementById("live-dot"), txt = document.getElementById("live-text");
+  const stale = st && !st.final && (Date.now() - new Date(st.polled_at).getTime()) > 45 * 60 * 1000;
+  dot.className = "dot " + (view.live ? (stale ? "stale" : "on") : "");
+  txt.textContent = st && st.final ? "final · all Phase 3 compute complete"
+    : view.live ? (stale ? "live · last poll is over 45 min old" : "live") : "snapshot (live updates unavailable in this view)";
+  if (st && st.final) document.getElementById("next-poll").textContent = "none (polling stopped)";
+}
+
+function renderTotals() {
+  const st = view.state;
+  const el = document.getElementById("totals");
+  if (!st) { el.innerHTML = ""; return; }
+  const t = st.totals;
+  const planned = (st.stages || []).reduce((a, s) => a + s.parts.reduce((b, p) => b + ((s.status === "skipped" || (p.key === "s2o" && !p.counts.submitted)) ? 0 : p.counts.planned), 0), 0);
+  const denom = Math.max(planned, t.submitted, 1);
+  const cells = [
+    ["done", "Finished", t.done], ["running", "Running", t.running], ["queued", "Queued", t.queued + (t.held || 0)],
+    ["failed", "Failed", t.failed], ["planned", "Not yet submitted", Math.max(planned - t.submitted, 0)],
+  ];
+  el.innerHTML = cells.map(([k, label, v]) =>
+    '<div class="tot"><div class="k"><span class="sw ' + k + '"></span>' + label + '</div><div class="v">' + v + "</div></div>").join("") +
+    '<div class="bar">' + ["done", "running", "queued", "failed"].map((k) => {
+      const v = k === "queued" ? t.queued + (t.held || 0) : t[k];
+      return '<div class="' + k + '" style="width:' + (100 * v / denom) + '%"></div>';
+    }).join("") + "</div>";
+  document.getElementById("headline").textContent = st.headline || "";
+}
+
+function stageStatusLabel(s) {
+  return { "not started": "not started", "complete": "complete", "running": "running", "queued": "queued",
+           "attention": "needs attention", "skipped": "skipped", "waiting": "waiting on gate" }[s] || s;
+}
+
+function renderChain() {
+  const st = view.state, el = document.getElementById("chain");
+  if (!st) { el.innerHTML = '<div class="empty">Waiting for the first poll.</div>'; return; }
+  const jobsByPart = {};
+  (view.jobs && view.jobs.jobs || []).forEach((j) => { (jobsByPart[j.s] = jobsByPart[j.s] || []).push(j); });
+  const gatesAfter = {};
+  (st.gates || []).forEach((g) => { if (g.id !== "G4") (gatesAfter[g.after] = gatesAfter[g.after] || []).push(g); });
+  const g4 = (st.gates || []).find((g) => g.id === "G4");
+  let html = "";
+  st.stages.forEach((s) => {
+    const active = s.status === "running" || s.status === "queued" || s.status === "attention";
+    const dim = s.status === "not started" || s.status === "skipped" || s.status === "waiting";
+    const parts = s.parts.filter((p) => p.counts.submitted || p.key !== "s2o");
+    html += '<div class="stage' + (active ? " active" : "") + (dim ? " dim" : "") + '">' +
+      '<div class="num">' + s.n + "</div>" +
+      '<div class="body"><h3>' + esc(s.title) + '</h3><div class="sub">' + esc(s.sub) + "</div>" +
+      '<div class="entry">Entry: <b>' + esc(s.entry) + "</b></div>" +
+      '<div class="note">' + esc(s.note) + "</div>" +
+      (s.n === 5 ? "" : '<div class="parts">' + parts.map((p) => {
+        const js = (jobsByPart[p.key] || []).slice().sort((a, b) => (a.g + a.seed).localeCompare(b.g + b.seed));
+        const c = p.counts;
+        const cells = js.map((j) => {
+          const tip = j.n + " · job " + j.id + " · " + j.st + (j.ep != null ? " · ep " + j.ep + "/" + j.tot : "") +
+            (j.fin != null ? " · final " + j.fin.toFixed(1) : "") + (j.q ? " · " + j.q : "");
+          return '<span class="cell ' + esc(j.st) + '" title="' + esc(tip) + '"></span>';
+        }).join("") + Array.from({ length: Math.max(c.planned - js.length, 0) }, () => '<span class="cell planned" title="planned"></span>').join("");
+        const counts = c.submitted ? c.done + " done · " + c.running + " running · " + (c.queued + (c.held || 0)) + " queued" + (c.failed ? " · " + c.failed + " failed" : "")
+                                   : c.planned + " planned";
+        return '<div class="part"><div class="pl"><span>' + esc(p.label) + '</span><span class="c">' + counts + "</span></div>" +
+               '<div class="cells">' + cells + "</div></div>";
+      }).join("") + "</div>") +
+      (s.n === 0 && g4 ? gateInline(g4) : "") +
+      "</div>" +
+      '<span class="pill ' + esc(s.status.replace(/\s/g, "-")) + '">' + esc(stageStatusLabel(s.status)) + "</span>" +
+      "</div>";
+    (gatesAfter[s.n] || []).forEach((g) => { html += gateRow(g); });
+  });
+  el.innerHTML = html;
+}
+
+function gateStatusText(g) {
+  return { pending: "pending", pass: "passed", fail: "failed", void: "not evaluated" }[g.status] || g.status;
+}
+function gateRow(g) {
+  return '<div class="gate ' + esc(g.status) + '"><span class="tag">' + esc(g.id) + "</span>" +
+    "<details><summary><span class=\"gname\">" + esc(g.name) + '</span><span class="gstat">' + esc(gateStatusText(g)) +
+    (g.detail ? " · " + esc(g.detail.split(". ")[0]) : "") + "</span></summary>" +
+    '<div class="rule">Rule: ' + esc(g.rule) + "</div>" + (g.detail ? '<div class="detail">' + esc(g.detail) + "</div>" : "") +
+    "</details></div>";
+}
+function gateInline(g) {
+  return '<div class="note" style="margin-top:10px"><span class="mono">' + esc(g.id) + "</span> " + esc(g.name) + ": " +
+    esc(gateStatusText(g)) + (g.detail ? " — " + esc(g.detail) : "") + "</div>";
+}
+
+function renderRunning() {
+  const st = view.state, el = document.getElementById("running");
+  const rows = st ? st.running : [];
+  document.getElementById("run-aside").textContent = rows.length ? rows.length + " job(s) on GPU nodes" : "";
+  if (!rows.length) { el.innerHTML = '<div class="empty">No jobs running at the last poll.</div>'; return; }
+  el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Job</th><th>Stage</th><th>GPU</th><th>Walltime</th><th>Episode</th><th class="num">Avg-100</th></tr></thead><tbody>' +
+    rows.map((r) => {
+      const tpct = r.elapsed_s && r.wall_req_s ? Math.min(100, 100 * r.elapsed_s / r.wall_req_s) : 0;
+      const epct = r.episode && r.total ? 100 * r.episode / r.total : 0;
+      return "<tr><td class=\"mono\">" + esc(r.name) + "</td><td>" + esc("S" + PART_STAGE[r.stage]) + "</td><td>" + esc(r.gpu || r.host || "—") + "</td>" +
+        '<td><span class="meter time"><i style="width:' + tpct + '%"></i></span> <span class="mono">' + dur(r.elapsed_s) + " / " + dur(r.wall_req_s) + "</span></td>" +
+        '<td><span class="meter"><i style="width:' + epct + '%"></i></span> <span class="mono">' + (r.episode != null ? r.episode + "/" + r.total : "—") + "</span></td>" +
+        '<td class="num">' + (r.avg100 != null ? r.avg100.toFixed(1) : "—") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+}
+
+function strip(a, lo, hi) {
+  const W = 180, H = 22, x = (v) => 6 + (W - 12) * (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo || 1);
+  let s = '<svg class="strip" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="per-seed returns">' +
+    '<line x1="6" x2="' + (W - 6) + '" y1="11" y2="11"></line>';
+  Object.values(a.live || {}).forEach(([ep, v]) => { s += '<circle class="live" cx="' + x(v) + '" cy="11" r="3.5"></circle>'; });
+  Object.values(a.finals || {}).forEach((v) => { s += '<circle class="fin" cx="' + x(v) + '" cy="11" r="3.5"></circle>'; });
+  if (a.median != null) s += '<line class="med" x1="' + x(a.median) + '" x2="' + x(a.median) + '" y1="3" y2="19"></line>';
+  return s + "</svg>";
+}
+
+function renderArms() {
+  const st = view.state, el = document.getElementById("arms");
+  const rows = st ? st.arms.filter((a) => a.stage !== "smoke") : [];
+  if (!rows.length) { el.innerHTML = '<div class="empty">No training runs have reported yet.</div>'; return; }
+  const vals = rows.flatMap((a) => [...Object.values(a.finals), ...Object.values(a.live).map((v) => v[1])]);
+  const lo = Math.min(-1500, ...vals), hi = Math.max(-100, ...vals);
+  const byStage = {};
+  rows.forEach((a) => { (byStage[a.stage] = byStage[a.stage] || []).push(a); });
+  const label = { s0h: "Stage 0.1 · headroom probe (MLP)", s1: "Stage 1 · capacity × depth", s2: "Stage 2 · uncertainty × memory" };
+  el.innerHTML = Object.entries(byStage).map(([k, as]) =>
+    '<div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>' + esc(label[k] || k) + '</th><th>Condition</th><th class="num">Seeds</th><th class="num">Median</th><th class="num">SD</th><th>Per seed <span style="text-transform:none;letter-spacing:0">(' + lo.toFixed(0) + " → " + hi.toFixed(0) + ', ○ = still training)</span></th><th class="num">Wall (min)</th></tr></thead><tbody>' +
+    as.map((a) => "<tr><td class=\"mono\">" + esc(a.model) + "</td><td>" + esc(COND[a.cond] || a.cond) + '</td><td class="num">' + a.done + "/" + a.total +
+      '</td><td class="num">' + (a.median != null ? a.median.toFixed(1) : "—") + '</td><td class="num">' + (a.spread != null ? a.spread.toFixed(1) : "—") +
+      "</td><td>" + strip(a, lo, hi) + '</td><td class="num">' + (a.wall_min != null ? a.wall_min.toFixed(0) : "—") + "</td></tr>").join("") +
+    "</tbody></table></div>").join("");
+}
+
+function renderRecent() {
+  const st = view.state, el = document.getElementById("recent");
+  const rows = st ? st.recent.filter((r) => r.stage !== "smoke") : [];
+  if (!rows.length) { el.innerHTML = '<div class="empty">Nothing has finished yet.</div>'; return; }
+  el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Job</th><th>Result</th><th class="num">Final</th><th class="num">Min</th></tr></thead><tbody>' +
+    rows.map((r) => '<tr><td class="mono">' + esc(r.name) + '</td><td><span class="pill ' + (r.state === "done" ? "complete" : "fail") + '">' + esc(r.state) + "</span>" +
+      (r.error ? '<div class="caveat mono" style="white-space:pre-wrap">' + esc(r.error.slice(-160)) + "</div>" : "") + "</td>" +
+      '<td class="num">' + (r.final != null ? r.final.toFixed(1) : "—") + '</td><td class="num">' + (r.wall_min != null ? r.wall_min : "—") + "</td></tr>").join("") +
+    "</tbody></table></div>";
+}
+
+function renderLog() {
+  const el = document.getElementById("log");
+  const ev = (view.log && view.log.events || []).slice().reverse();
+  if (!ev.length) { el.innerHTML = '<div class="ev"><span></span><span></span><span style="color:var(--muted)">No activity yet.</span></div>'; return; }
+  el.innerHTML = ev.map((e) => '<div class="ev ' + esc(e.kind) + '"><span class="ts mono">' + esc(fmtTime(e.ts)) + '</span><span class="kd">' +
+    esc(e.kind) + "</span><span>" + esc(e.text) + "</span></div>").join("");
+}
+
+function renderAmend() {
+  const st = view.state, el = document.getElementById("amend");
+  const a = st && st.amendments || [];
+  el.innerHTML = a.length ? a.map((x) => "<li><b>" + esc(x.id) + " — " + esc(x.title) + ".</b> " + esc(x.text) + "</li>").join("") : "<li>None.</li>";
+}
+
+function render() {
+  renderHeader(); renderTotals(); renderChain(); renderRunning(); renderArms(); renderRecent(); renderLog(); renderAmend();
+}
+
+render();
+setInterval(renderHeader, 30000);
+
+(async () => {
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) { renderHeader(); return; }
+  const onErr = () => { view.live = false; renderHeader(); };
+  const sub = (id, key) => db.doc("p3/" + id).onSnapshot((snap) => {
+    if (snap.exists) { view[key] = snap.data(); view.live = true; render(); }
+  }, onErr);
+  sub("state", "state"); sub("jobs", "jobs"); sub("log", "log");
+})();
+</script>

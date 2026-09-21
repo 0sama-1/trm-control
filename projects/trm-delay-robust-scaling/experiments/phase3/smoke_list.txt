@@ -1,0 +1,2 @@
+/srv/scratch/z5308482/trm-control/results_v3/Pendulum-v1_ddpg_trm_fixed_seed1.json
+/srv/scratch/z5308482/trm-control/results_phase2/BipedalWalker-v3_ddpg_dnn_fixed_aug1_seed1.json

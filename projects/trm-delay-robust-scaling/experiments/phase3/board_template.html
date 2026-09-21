@@ -1,0 +1,478 @@
+<title>Phase 3 Run Board</title>
+<meta name="description" content="Live progress of Phase 3 of trm-delay-robust-scaling on UNSW Katana.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root {
+  --ground: #eef1ee;
+  --surface: #fbfcfb;
+  --sunk: #e4e9e5;
+  --ink: #17211d;
+  --muted: #5b6862;
+  --rule: #d3dbd6;
+  --accent: #2b5f8f;
+  --accent-soft: #dce7f1;
+  --done: #2f7a4a;
+  --done-soft: #dcefe2;
+  --run: #b06a12;
+  --run-soft: #f6e7cf;
+  --queue: #86918b;
+  --queue-soft: #e6eae7;
+  --fail: #b23a24;
+  --fail-soft: #f6dcd5;
+  --skip: #a7b0ab;
+  --grid: rgba(43, 95, 143, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f1513;
+    --surface: #151d1a;
+    --sunk: #1b2521;
+    --ink: #e3eae6;
+    --muted: #8f9c96;
+    --rule: #27322d;
+    --accent: #86aee0;
+    --accent-soft: #1c2b3b;
+    --done: #56b57c;
+    --done-soft: #16301f;
+    --run: #e2a44d;
+    --run-soft: #37290f;
+    --queue: #74817b;
+    --queue-soft: #1f2825;
+    --fail: #e36c55;
+    --fail-soft: #3a1b14;
+    --skip: #4d5853;
+    --grid: rgba(134, 174, 224, 0.05);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f1513;
+  --surface: #151d1a;
+  --sunk: #1b2521;
+  --ink: #e3eae6;
+  --muted: #8f9c96;
+  --rule: #27322d;
+  --accent: #86aee0;
+  --accent-soft: #1c2b3b;
+  --done: #56b57c;
+  --done-soft: #16301f;
+  --run: #e2a44d;
+  --run-soft: #37290f;
+  --queue: #74817b;
+  --queue-soft: #1f2825;
+  --fail: #e36c55;
+  --fail-soft: #3a1b14;
+  --skip: #4d5853;
+  --grid: rgba(134, 174, 224, 0.05);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background-color: var(--ground);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font: 15px/1.5 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+h1, h2, h3 { font-family: "Archivo", "Arial Narrow", system-ui, sans-serif; font-stretch: 85%; margin: 0; text-wrap: balance; }
+h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+h3 { font-size: 18px; font-weight: 650; }
+a { color: var(--accent); }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 32px;
+       padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+.eyebrow { font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.thesis { max-width: 64ch; color: var(--muted); margin-top: 6px; }
+.poll { text-align: right; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+.poll b { color: var(--ink); font-weight: 600; }
+.live { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--queue); display: inline-block; }
+.dot.on { background: var(--done); box-shadow: 0 0 0 3px var(--done-soft); }
+.dot.stale { background: var(--run); box-shadow: 0 0 0 3px var(--run-soft); }
+
+/* totals */
+.totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin-top: 22px;
+          background: var(--surface); border: 1px solid var(--rule); }
+.tot { padding: 12px 16px; border-right: 1px solid var(--rule); }
+.tot:last-child { border-right: 0; }
+.tot .k { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tot .v { font-family: "Archivo", sans-serif; font-stretch: 80%; font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.sw { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
+.sw.done { background: var(--done); } .sw.running { background: var(--run); } .sw.queued { background: var(--queue); }
+.sw.failed { background: var(--fail); } .sw.planned { border: 1.5px dashed var(--queue); }
+.bar { display: flex; height: 8px; background: var(--sunk); grid-column: 1 / -1; }
+.bar > div { height: 100%; transition: width .4s ease; }
+.bar .done { background: var(--done); } .bar .running { background: var(--run); }
+.bar .queued { background: var(--queue); } .bar .failed { background: var(--fail); }
+.headline { margin-top: 14px; padding: 10px 14px; background: var(--accent-soft); border-left: 3px solid var(--accent); font-size: 14.5px; }
+.headline:empty { display: none; }
+
+/* sections */
+section { margin-top: 34px; }
+section > h2 { margin-bottom: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+section > h2 .aside { font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-family: "Source Sans 3", sans-serif; font-size: 13px; }
+
+/* stage chain */
+.chain { display: grid; gap: 0; }
+.stage { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 18px; padding: 16px 18px;
+         background: var(--surface); border: 1px solid var(--rule); }
+.stage.dim { background: transparent; border-style: dashed; }
+.stage .num { font-family: "Archivo", sans-serif; font-stretch: 75%; font-size: 40px; font-weight: 700; line-height: 1; color: var(--muted); }
+.stage.active .num { color: var(--accent); }
+.stage .body { min-width: 0; }
+.stage .sub { color: var(--muted); font-size: 14px; }
+.stage .entry { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.stage .entry b { font-weight: 600; color: var(--ink); }
+.stage .note { font-size: 13.5px; margin-top: 6px; }
+.stage .note:empty { display: none; }
+.parts { display: grid; gap: 10px; margin-top: 12px; }
+.part .pl { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.part .pl .c { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.cells { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.cell { width: 12px; height: 12px; border-radius: 2px; background: var(--queue); position: relative; }
+.cell.done { background: var(--done); } .cell.running { background: var(--run); animation: breathe 2.4s ease-in-out infinite; }
+.cell.queued, .cell.held { background: var(--queue); } .cell.failed { background: var(--fail); }
+.cell.planned { background: transparent; border: 1.5px dashed var(--skip); }
+.cell.unknown { background: var(--skip); }
+@keyframes breathe { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .cell.running { animation: none; } .bar > div { transition: none; } }
+
+.pill { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+        white-space: nowrap; align-self: start; background: var(--queue-soft); color: var(--muted); }
+.pill.complete, .pill.pass { background: var(--done-soft); color: var(--done); }
+.pill.running { background: var(--run-soft); color: var(--run); }
+.pill.queued { background: var(--queue-soft); color: var(--ink); }
+.pill.attention, .pill.fail { background: var(--fail-soft); color: var(--fail); }
+.pill.skipped, .pill.void { background: transparent; color: var(--muted); border: 1px dashed var(--skip); }
+
+/* gates */
+.gate { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 0 18px; padding: 8px 18px; position: relative; }
+.gate::before { content: ""; position: absolute; left: 45px; top: 0; bottom: 0; border-left: 2px solid var(--rule); }
+.gate .tag { position: relative; z-index: 1; font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+             background: var(--ground); border: 1.5px solid var(--rule); color: var(--muted); width: 44px; text-align: center;
+             padding: 3px 0; border-radius: 3px; align-self: start; }
+.gate.pass .tag { border-color: var(--done); color: var(--done); }
+.gate.fail .tag { border-color: var(--fail); color: var(--fail); }
+.gate details { font-size: 13.5px; }
+.gate summary { cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.gate summary::-webkit-details-marker { display: none; }
+.gate summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gate .gname { font-weight: 600; }
+.gate .gstat { color: var(--muted); }
+.gate .rule { color: var(--muted); margin-top: 4px; max-width: 80ch; }
+.gate .detail { margin-top: 4px; max-width: 80ch; }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+     padding: 9px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.meter { width: 120px; height: 6px; background: var(--sunk); position: relative; display: inline-block; vertical-align: middle; }
+.meter > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--run); }
+.meter.time > i { background: var(--accent); }
+.empty { padding: 16px; color: var(--muted); font-size: 14px; background: var(--surface); border: 1px dashed var(--rule); }
+.strip { display: block; }
+.strip text { fill: var(--muted); font: 10px "IBM Plex Mono", monospace; }
+.strip line { stroke: var(--rule); }
+.strip circle.fin { fill: var(--accent); }
+.strip circle.live { fill: none; stroke: var(--run); stroke-width: 1.5; }
+.strip line.med { stroke: var(--ink); stroke-width: 2; }
+.caveat { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+/* log */
+.log { display: grid; background: var(--surface); border: 1px solid var(--rule); max-height: 420px; overflow-y: auto; }
+.ev { display: grid; grid-template-columns: 128px 64px minmax(0, 1fr); gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+.ev:last-child { border-bottom: 0; }
+.ev .ts { color: var(--muted); font-size: 12px; }
+.ev .kd { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.ev.fail .kd { color: var(--fail); } .ev.done .kd { color: var(--done); } .ev.gate .kd { color: var(--accent); }
+.ev.start .kd { color: var(--run); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.amend { background: var(--surface); border: 1px solid var(--rule); padding: 4px 16px; font-size: 14px; }
+.amend li { margin: 8px 0; max-width: 90ch; }
+.amend b { font-weight: 600; }
+
+@media (max-width: 760px) {
+  .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tot { border-bottom: 1px solid var(--rule); }
+  .tot:nth-child(2n) { border-right: 0; }
+  .stage { grid-template-columns: 38px minmax(0, 1fr); }
+  .stage .num { font-size: 30px; }
+  .stage .pill { grid-column: 2; justify-self: start; }
+  .gate { grid-template-columns: 38px minmax(0, 1fr); }
+  .gate::before { left: 36px; }
+  .gate .tag { width: 38px; }
+  .two { grid-template-columns: minmax(0, 1fr); }
+  .ev { grid-template-columns: 1fr; gap: 0; }
+  .poll { text-align: left; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">trm-delay-robust-scaling &middot; Phase 3 &middot; Katana PBS</div>
+      <h1>Phase 3 Run Board</h1>
+      <div class="thesis">H3: weight-tied recursion earns its cost only where the conditioning leaves residual state uncertainty <em>and</em> the trunk carries a latent across decision steps. Six gated stages, each with a pre-registered decision rule.</div>
+    </div>
+    <div class="poll">
+      <span class="live"><span class="dot" id="live-dot"></span><span id="live-text">connecting&hellip;</span></span>
+      <span>Katana polled <b id="polled">&mdash;</b></span>
+      <span>next poll <b id="next-poll">&mdash;</b></span>
+    </div>
+  </header>
+
+  <div class="totals" id="totals"></div>
+  <div class="headline" id="headline"></div>
+
+  <section>
+    <h2>Stage chain <span class="aside">each square is one PBS job &middot; dashed = planned, not yet submitted</span></h2>
+    <div class="chain" id="chain"></div>
+  </section>
+
+  <section>
+    <h2>Running now <span class="aside" id="run-aside"></span></h2>
+    <div id="running"></div>
+  </section>
+
+  <section>
+    <h2>Returns as runs land <span class="aside">final avg-100 training return per seed &middot; Pendulum-v1</span></h2>
+    <div id="arms"></div>
+    <div class="caveat">Preliminary tally only: medians of whatever seeds have finished, before any gate statistic is computed. Gate decisions appear in the stage chain once each stage completes.</div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>Just finished</h2>
+      <div id="recent"></div>
+    </section>
+    <section>
+      <h2>Activity</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Amendments recorded before submission</h2>
+    <div class="amend"><ul id="amend"></ul></div>
+  </section>
+</div>
+
+<script>
+const FALLBACK = /*__FALLBACK__*/null;
+const view = { state: FALLBACK && FALLBACK.state, jobs: FALLBACK && FALLBACK.jobs, log: FALLBACK && FALLBACK.log, live: false };
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtTime = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+};
+const ago = (iso) => {
+  if (!iso) return "";
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (isNaN(s)) return "";
+  if (s < 0) return "in " + (Math.round(-s / 60)) + " min";
+  if (s < 90) return "just now";
+  if (s < 5400) return Math.round(s / 60) + " min ago";
+  return (s / 3600).toFixed(1) + " h ago";
+};
+const dur = (s) => {
+  if (s == null) return "—";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? h + "h " + String(m).padStart(2, "0") + "m" : m + "m";
+};
+const COND = { "none": "no delay", "fixed1-aug": "fixed d=1 + aug", "stoch4-aug": "stoch U{0..4} + aug",
+               "stoch4-oracle": "stoch + delay oracle", "stoch4-noaug": "stoch, no aug" };
+const PART_STAGE = { s0h: 0, s0b: 0, s0l: 0, s1: 1, s2: 2, s2o: 2, s3t: 3, s3p: 3, s3i: 3, s4: 4 };
+
+function renderHeader() {
+  const st = view.state;
+  document.getElementById("polled").textContent = st ? fmtTime(st.polled_at) + " (" + ago(st.polled_at) + ")" : "—";
+  document.getElementById("next-poll").textContent = st && st.next_poll_at ? fmtTime(st.next_poll_at) + " (" + ago(st.next_poll_at) + ")" : "—";
+  const dot = document.getElementById("live-dot"), txt = document.getElementById("live-text");
+  const stale = st && !st.final && (Date.now() - new Date(st.polled_at).getTime()) > 45 * 60 * 1000;
+  dot.className = "dot " + (view.live ? (stale ? "stale" : "on") : "");
+  txt.textContent = st && st.final ? "final · all Phase 3 compute complete"
+    : view.live ? (stale ? "live · last poll is over 45 min old" : "live") : "snapshot (live updates unavailable in this view)";
+  if (st && st.final) document.getElementById("next-poll").textContent = "none (polling stopped)";
+}
+
+function renderTotals() {
+  const st = view.state;
+  const el = document.getElementById("totals");
+  if (!st) { el.innerHTML = ""; return; }
+  const t = st.totals;
+  const planned = (st.stages || []).reduce((a, s) => a + s.parts.reduce((b, p) => b + ((s.status === "skipped" || (p.key === "s2o" && !p.counts.submitted)) ? 0 : p.counts.planned), 0), 0);
+  const denom = Math.max(planned, t.submitted, 1);
+  const cells = [
+    ["done", "Finished", t.done], ["running", "Running", t.running], ["queued", "Queued", t.queued + (t.held || 0)],
+    ["failed", "Failed", t.failed], ["planned", "Not yet submitted", Math.max(planned - t.submitted, 0)],
+  ];
+  el.innerHTML = cells.map(([k, label, v]) =>
+    '<div class="tot"><div class="k"><span class="sw ' + k + '"></span>' + label + '</div><div class="v">' + v + "</div></div>").join("") +
+    '<div class="bar">' + ["done", "running", "queued", "failed"].map((k) => {
+      const v = k === "queued" ? t.queued + (t.held || 0) : t[k];
+      return '<div class="' + k + '" style="width:' + (100 * v / denom) + '%"></div>';
+    }).join("") + "</div>";
+  document.getElementById("headline").textContent = st.headline || "";
+}
+
+function stageStatusLabel(s) {
+  return { "not started": "not started", "complete": "complete", "running": "running", "queued": "queued",
+           "attention": "needs attention", "skipped": "skipped", "waiting": "waiting on gate" }[s] || s;
+}
+
+function renderChain() {
+  const st = view.state, el = document.getElementById("chain");
+  if (!st) { el.innerHTML = '<div class="empty">Waiting for the first poll.</div>'; return; }
+  const jobsByPart = {};
+  (view.jobs && view.jobs.jobs || []).forEach((j) => { (jobsByPart[j.s] = jobsByPart[j.s] || []).push(j); });
+  const gatesAfter = {};
+  (st.gates || []).forEach((g) => { if (g.id !== "G4") (gatesAfter[g.after] = gatesAfter[g.after] || []).push(g); });
+  const g4 = (st.gates || []).find((g) => g.id === "G4");
+  let html = "";
+  st.stages.forEach((s) => {
+    const active = s.status === "running" || s.status === "queued" || s.status === "attention";
+    const dim = s.status === "not started" || s.status === "skipped" || s.status === "waiting";
+    const parts = s.parts.filter((p) => p.counts.submitted || p.key !== "s2o");
+    html += '<div class="stage' + (active ? " active" : "") + (dim ? " dim" : "") + '">' +
+      '<div class="num">' + s.n + "</div>" +
+      '<div class="body"><h3>' + esc(s.title) + '</h3><div class="sub">' + esc(s.sub) + "</div>" +
+      '<div class="entry">Entry: <b>' + esc(s.entry) + "</b></div>" +
+      '<div class="note">' + esc(s.note) + "</div>" +
+      (s.n === 5 ? "" : '<div class="parts">' + parts.map((p) => {
+        const js = (jobsByPart[p.key] || []).slice().sort((a, b) => (a.g + a.seed).localeCompare(b.g + b.seed));
+        const c = p.counts;
+        const cells = js.map((j) => {
+          const tip = j.n + " · job " + j.id + " · " + j.st + (j.ep != null ? " · ep " + j.ep + "/" + j.tot : "") +
+            (j.fin != null ? " · final " + j.fin.toFixed(1) : "") + (j.q ? " · " + j.q : "");
+          return '<span class="cell ' + esc(j.st) + '" title="' + esc(tip) + '"></span>';
+        }).join("") + Array.from({ length: Math.max(c.planned - js.length, 0) }, () => '<span class="cell planned" title="planned"></span>').join("");
+        const counts = c.submitted ? c.done + " done · " + c.running + " running · " + (c.queued + (c.held || 0)) + " queued" + (c.failed ? " · " + c.failed + " failed" : "")
+                                   : c.planned + " planned";
+        return '<div class="part"><div class="pl"><span>' + esc(p.label) + '</span><span class="c">' + counts + "</span></div>" +
+               '<div class="cells">' + cells + "</div></div>";
+      }).join("") + "</div>") +
+      (s.n === 0 && g4 ? gateInline(g4) : "") +
+      "</div>" +
+      '<span class="pill ' + esc(s.status.replace(/\s/g, "-")) + '">' + esc(stageStatusLabel(s.status)) + "</span>" +
+      "</div>";
+    (gatesAfter[s.n] || []).forEach((g) => { html += gateRow(g); });
+  });
+  el.innerHTML = html;
+}
+
+function gateStatusText(g) {
+  return { pending: "pending", pass: "passed", fail: "failed", void: "not evaluated" }[g.status] || g.status;
+}
+function gateRow(g) {
+  return '<div class="gate ' + esc(g.status) + '"><span class="tag">' + esc(g.id) + "</span>" +
+    "<details><summary><span class=\"gname\">" + esc(g.name) + '</span><span class="gstat">' + esc(gateStatusText(g)) +
+    (g.detail ? " · " + esc(g.detail.split(". ")[0]) : "") + "</span></summary>" +
+    '<div class="rule">Rule: ' + esc(g.rule) + "</div>" + (g.detail ? '<div class="detail">' + esc(g.detail) + "</div>" : "") +
+    "</details></div>";
+}
+function gateInline(g) {
+  return '<div class="note" style="margin-top:10px"><span class="mono">' + esc(g.id) + "</span> " + esc(g.name) + ": " +
+    esc(gateStatusText(g)) + (g.detail ? " — " + esc(g.detail) : "") + "</div>";
+}
+
+function renderRunning() {
+  const st = view.state, el = document.getElementById("running");
+  const rows = st ? st.running : [];
+  document.getElementById("run-aside").textContent = rows.length ? rows.length + " job(s) on GPU nodes" : "";
+  if (!rows.length) { el.innerHTML = '<div class="empty">No jobs running at the last poll.</div>'; return; }
+  el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Job</th><th>Stage</th><th>GPU</th><th>Walltime</th><th>Episode</th><th class="num">Avg-100</th></tr></thead><tbody>' +
+    rows.map((r) => {
+      const tpct = r.elapsed_s && r.wall_req_s ? Math.min(100, 100 * r.elapsed_s / r.wall_req_s) : 0;
+      const epct = r.episode && r.total ? 100 * r.episode / r.total : 0;
+      return "<tr><td class=\"mono\">" + esc(r.name) + "</td><td>" + esc("S" + PART_STAGE[r.stage]) + "</td><td>" + esc(r.gpu || r.host || "—") + "</td>" +
+        '<td><span class="meter time"><i style="width:' + tpct + '%"></i></span> <span class="mono">' + dur(r.elapsed_s) + " / " + dur(r.wall_req_s) + "</span></td>" +
+        '<td><span class="meter"><i style="width:' + epct + '%"></i></span> <span class="mono">' + (r.episode != null ? r.episode + "/" + r.total : "—") + "</span></td>" +
+        '<td class="num">' + (r.avg100 != null ? r.avg100.toFixed(1) : "—") + "</td></tr>";
+    }).join("") + "</tbody></table></div>";
+}
+
+function strip(a, lo, hi) {
+  const W = 180, H = 22, x = (v) => 6 + (W - 12) * (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo || 1);
+  let s = '<svg class="strip" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="per-seed returns">' +
+    '<line x1="6" x2="' + (W - 6) + '" y1="11" y2="11"></line>';
+  Object.values(a.live || {}).forEach(([ep, v]) => { s += '<circle class="live" cx="' + x(v) + '" cy="11" r="3.5"></circle>'; });
+  Object.values(a.finals || {}).forEach((v) => { s += '<circle class="fin" cx="' + x(v) + '" cy="11" r="3.5"></circle>'; });
+  if (a.median != null) s += '<line class="med" x1="' + x(a.median) + '" x2="' + x(a.median) + '" y1="3" y2="19"></line>';
+  return s + "</svg>";
+}
+
+function renderArms() {
+  const st = view.state, el = document.getElementById("arms");
+  const rows = st ? st.arms.filter((a) => a.stage !== "smoke") : [];
+  if (!rows.length) { el.innerHTML = '<div class="empty">No training runs have reported yet.</div>'; return; }
+  const vals = rows.flatMap((a) => [...Object.values(a.finals), ...Object.values(a.live).map((v) => v[1])]);
+  const lo = Math.min(-1500, ...vals), hi = Math.max(-100, ...vals);
+  const byStage = {};
+  rows.forEach((a) => { (byStage[a.stage] = byStage[a.stage] || []).push(a); });
+  const label = { s0h: "Stage 0.1 · headroom probe (MLP)", s1: "Stage 1 · capacity × depth", s2: "Stage 2 · uncertainty × memory" };
+  el.innerHTML = Object.entries(byStage).map(([k, as]) =>
+    '<div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>' + esc(label[k] || k) + '</th><th>Condition</th><th class="num">Seeds</th><th class="num">Median</th><th class="num">SD</th><th>Per seed <span style="text-transform:none;letter-spacing:0">(' + lo.toFixed(0) + " → " + hi.toFixed(0) + ', ○ = still training)</span></th><th class="num">Wall (min)</th></tr></thead><tbody>' +
+    as.map((a) => "<tr><td class=\"mono\">" + esc(a.model) + "</td><td>" + esc(COND[a.cond] || a.cond) + '</td><td class="num">' + a.done + "/" + a.total +
+      '</td><td class="num">' + (a.median != null ? a.median.toFixed(1) : "—") + '</td><td class="num">' + (a.spread != null ? a.spread.toFixed(1) : "—") +
+      "</td><td>" + strip(a, lo, hi) + '</td><td class="num">' + (a.wall_min != null ? a.wall_min.toFixed(0) : "—") + "</td></tr>").join("") +
+    "</tbody></table></div>").join("");
+}
+
+function renderRecent() {
+  const st = view.state, el = document.getElementById("recent");
+  const rows = st ? st.recent.filter((r) => r.stage !== "smoke") : [];
+  if (!rows.length) { el.innerHTML = '<div class="empty">Nothing has finished yet.</div>'; return; }
+  el.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Job</th><th>Result</th><th class="num">Final</th><th class="num">Min</th></tr></thead><tbody>' +
+    rows.map((r) => '<tr><td class="mono">' + esc(r.name) + '</td><td><span class="pill ' + (r.state === "done" ? "complete" : "fail") + '">' + esc(r.state) + "</span>" +
+      (r.error ? '<div class="caveat mono" style="white-space:pre-wrap">' + esc(r.error.slice(-160)) + "</div>" : "") + "</td>" +
+      '<td class="num">' + (r.final != null ? r.final.toFixed(1) : "—") + '</td><td class="num">' + (r.wall_min != null ? r.wall_min : "—") + "</td></tr>").join("") +
+    "</tbody></table></div>";
+}
+
+function renderLog() {
+  const el = document.getElementById("log");
+  const ev = (view.log && view.log.events || []).slice().reverse();
+  if (!ev.length) { el.innerHTML = '<div class="ev"><span></span><span></span><span style="color:var(--muted)">No activity yet.</span></div>'; return; }
+  el.innerHTML = ev.map((e) => '<div class="ev ' + esc(e.kind) + '"><span class="ts mono">' + esc(fmtTime(e.ts)) + '</span><span class="kd">' +
+    esc(e.kind) + "</span><span>" + esc(e.text) + "</span></div>").join("");
+}
+
+function renderAmend() {
+  const st = view.state, el = document.getElementById("amend");
+  const a = st && st.amendments || [];
+  el.innerHTML = a.length ? a.map((x) => "<li><b>" + esc(x.id) + " — " + esc(x.title) + ".</b> " + esc(x.text) + "</li>").join("") : "<li>None.</li>";
+}
+
+function render() {
+  renderHeader(); renderTotals(); renderChain(); renderRunning(); renderArms(); renderRecent(); renderLog(); renderAmend();
+}
+
+render();
+setInterval(renderHeader, 30000);
+
+(async () => {
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) { renderHeader(); return; }
+  const onErr = () => { view.live = false; renderHeader(); };
+  const sub = (id, key) => db.doc("p3/" + id).onSnapshot((snap) => {
+    if (snap.exists) { view[key] = snap.data(); view.live = true; render(); }
+  }, onErr);
+  sub("state", "state"); sub("jobs", "jobs"); sub("log", "log");
+})();
+</script>
