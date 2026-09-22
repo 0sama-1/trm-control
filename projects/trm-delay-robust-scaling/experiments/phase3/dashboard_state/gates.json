@@ -1,0 +1,52 @@
+{
+ "gates": [
+  {
+   "id": "G0",
+   "name": "Headroom",
+   "after": 0,
+   "status": "pass",
+   "detail": "Passes on the amended rule only. The originally pre-registered contrast fails: exposing the realised delay (A3 - A2) lowered return in 6/6 seeds (median -39.6 vs pooled SD 96.9), as amendment A-1 predicted. Memory headroom (A2 - A4, queue shown vs hidden) is +70.8 median vs pooled SD 49.5, 6/6 seeds positive (one-sided p=0.016). Stochastic delay itself costs 53.3 (A1 - A2, 6/6). So Stage 2's decisive condition is C4 (queue withheld), not C3.",
+   "rule": "Per seed s (n=6), final avg-100 training return of the MLP arms. Oracle headroom D_o = A3 - A2 (stochastic + realised-delay oracle vs stochastic + queue); memory headroom D_m = A2 - A4 (queue vs no queue). A contrast passes if its median paired difference exceeds the pooled across-seed SD of its two arms and it is positive in >=5/6 seeds (one-sided sign test reported). G0 passes if D_o or D_m passes (amendment A-2)."
+  },
+  {
+   "id": "G1",
+   "name": "Attribution",
+   "after": 1,
+   "status": "pass",
+   "detail": "Decided: the deficit is architecture-family, not capacity. TRM loses at matched capacity at both sizes: trm_small - dnn median -50.2 (0/12 pairs positive, p<0.001) and trm - dnn_large -27.1 (2/12, p=0.039). Capacity changes neither family: dnn_large - dnn -3.8 (5/12) and trm - trm_small +20.7 (7/12). Depth is inert: removing the outer recursion (trm_h1) -3.3 (5/12) and doubling it (trm_h6) -10.9 (4/12), so the cost is in the weight-tied cell, not in the recursion depth. H_cap is weakened; Stage 2's MLP is dnn (capacity does not matter for the MLP). Median wall-clock: dnn 3.0 min, trm_h1 12.4, trm 32.2, trm_h6 35.2.",
+   "rule": "Pairs = (seed, condition), n=12 per contrast, conditions {no delay, fixed d=1 + aug}. Contrasts: trm_small - dnn (small capacity), trm - dnn_large (large capacity), dnn_large - dnn and trm - trm_small (capacity within family), trm_h1 - trm and trm_h6 - trm (depth). A contrast is 'different' when >=10/12 pairs share a sign (two-sided sign test p<=0.039). Capacity matters for the MLP iff dnn_large - dnn is different; then Stage 2's MLP is dnn_large (matched to trm's 788k), otherwise dnn. No kill branch."
+  },
+  {
+   "id": "G2",
+   "name": "Interaction",
+   "after": 2,
+   "status": "fail",
+   "detail": "H3 rejected. The interaction does not appear at either condition. [Carry-Z - MLP] relative to C1: at C3 median +20.4 (3/6 seeds positive, p=0.66); at C4 median -40.0 (1/6, p=0.98), the wrong sign: Carry-Z falls further behind the MLP when the queue is withheld. Caveat from A-6: the previous-action input alone lets the memoryless MLP recover G0's memory headroom (C4 median -235 vs -307 without it, -234 with the full queue). But Carry-Z at C4 (-333) also fails to beat an MLP with no history at all (Stage 0 A4, 1/6 seeds), so the failure does not depend on A-6. Carried LSTM is worse than the MLP at every condition (C1 -66, 0/6). Per plan \u00a74.3, Stages 3-4 do not run.",
+   "rule": "Per seed, Delta_c = [Carry-Z - MLP](c) - [Carry-Z - MLP](C1) for c in {C3, C4} (amendment A-3: co-primary). G2 passes if Delta_C3 or Delta_C4 is positive in >=5/6 seeds with Carry-Z - MLP <= 0 or smaller at C1 (sign flip / interaction). Secondary: Carry-Z vs Reset-Z per condition."
+  },
+  {
+   "id": "G3",
+   "name": "Continuity",
+   "after": 3,
+   "status": "fail",
+   "detail": "Carry-Z never beats Reset-Z in >=5/6 seeds: C1 +4.8 (4/6), C3 -22.0 (3/6), C4 +16.7 (3/6). Carrying the latent across steps changes nothing measurable, so precondition P1 loses its constructive test and Stage 4 does not run.",
+   "rule": "Carry-Z beats Reset-Z (trm) in >=5/6 seeds at some condition of Stage 2 (re-checked on Stage 3 data)."
+  },
+  {
+   "id": "G4",
+   "name": "Practicality",
+   "after": 0,
+   "status": "pass",
+   "detail": "Passes on the literal rule, weakly. TRM is non-dominated vs the MLP only on median command rate (|du| 0.64 vs 0.73) at a tied return (IQM -124 vs -120). That margin is inside seed noise: per-seed |du| spans 0.13-0.79 for TRM and 0.10-0.78 for the MLP (n=3). TRM admits 100 Hz but not 500 Hz (CPU p99 4.1 ms, 65x the MLP's 0.064 ms). The LSTM also satisfies the rule, but degenerately: it never learned (IQM -1146), and a dead policy is maximally smooth (plan \u00a75 caveat 2). TRM is also less robust to sensor noise (sigma=0.05: -338 vs -145).",
+   "rule": "Pendulum-v1, banked checkpoints trained at fixed d=1 + aug: a non-MLP trunk passes if it is non-dominated on (median nominal IQM return up, median command rate |du| down) against the MLP AND its actor admits 100 Hz control at p99 latency on one CPU thread."
+  },
+  {
+   "id": "G2s",
+   "name": "Latent-delay test (supplementary)",
+   "after": 2,
+   "status": "fail",
+   "detail": "H3 rejection stands. Latent per-episode delay (C6): oracle headroom +25.2 (4/6, below the pooled SD of 128); Carry-Z - MLP +6.3 (3/6); Carry-Z - Reset-Z -4.9 (2/6); carried LSTM -433 (0/6). The C6-C1 interaction (5/6) is shared by Reset-Z (+53, 4/6) and comes from MLP collapses in 2 seeds, not from memory. The battery (20 unseen-seed episodes each) gives Carry-Z - Reset-Z +0.4 (4/6).",
+   "rule": "Added 2026-09-22 after G2 failed, on the Sep-17 plan review's recommendation (summary.md \u00a77.4 item 1); rule fixed before any data. Condition C6: d ~ U{0..4} drawn once per episode, 4-slot queue shown, previous action shown. Per seed (n=6): headroom = MLP+oracle - MLP; memory = Carry-Z - MLP and Carry-Z - Reset-Z; recurrence = carried LSTM - MLP. Headroom passes if median > pooled SD and >=5/6 positive (the G0 criterion). H3 survives in narrowed form only if headroom passes AND Carry-Z beats both the MLP and Reset-Z in >=5/6 seeds; otherwise the G2 rejection stands."
+  }
+ ]
+}

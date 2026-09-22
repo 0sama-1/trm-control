@@ -1,0 +1,6 @@
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed1.json
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed2.json
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed3.json
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed4.json
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed5.json
+/srv/scratch/z5308482/trm-control/results_p3s1/Pendulum-v1_ddpg_dnn_fixed_aug1_seed6.json
