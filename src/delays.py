@@ -13,6 +13,14 @@ class Delay(ABC):
         """Return the number of environment steps to delay the action."""
         ...
 
+    def on_reset(self) -> None:
+        """Called by DelayedEnv at every episode reset (no-op for most delays)."""
+
+    def peek(self) -> int:
+        """The delay an oracle may reveal before the first step of an episode
+        (0 unless the delay is known in advance, as for EpisodeDelay)."""
+        return 0
+
     @property
     @abstractmethod
     def max_delay(self) -> int:
@@ -80,6 +88,33 @@ class StochasticDelay(Delay):
     @property
     def max_delay(self) -> int:
         return int(self._max)
+
+
+class EpisodeDelay(Delay):
+    """Latent per-episode delay (Phase 3 supplementary test): d ~ U{min..max}
+    is drawn once at each reset and held for the whole episode. A memoryless
+    policy cannot know d; a policy that carries state across steps can
+    identify it from a few transitions (system identification) -- the
+    condition in which inference has something to recover that no single
+    observation reveals."""
+
+    def __init__(self, min_val: int, max_val: int, seed: int):
+        self._min, self._max = int(min_val), int(max_val)
+        self._rng = np.random.RandomState(seed)
+        self._d = self._min
+
+    def on_reset(self) -> None:
+        self._d = int(self._rng.randint(self._min, self._max + 1))
+
+    def peek(self) -> int:
+        return self._d
+
+    def sample(self, total_steps: int) -> int:
+        return self._d
+
+    @property
+    def max_delay(self) -> int:
+        return self._max
 
 
 class TimeVaryingDelay(Delay):
@@ -205,7 +240,8 @@ class DelayedEnv(gym.Wrapper):
 
     def reset(self, **kwargs):
         self._buf.clear()
-        self._last_d = 0
+        self._delay.on_reset()
+        self._last_d = self._delay.peek()
         obs, info = self.env.reset(**kwargs)
         return self._augment_obs(obs), info
 
@@ -281,7 +317,9 @@ def build_delay(delay_cfg: DictConfig) -> Delay:
             max_val=float(delay_cfg.max),
             seed=int(delay_cfg.seed),
         )
+    elif name == "episode":
+        return EpisodeDelay(min_val=int(delay_cfg.min), max_val=int(delay_cfg.max), seed=int(delay_cfg.seed))
     elif name == "time_varying":
         return TimeVaryingDelay([{"start": e.start, "delay": e.delay} for e in delay_cfg.schedule])
     else:
-        raise ValueError(f"Unknown delay: {name!r}. Choose from: none, fixed, stochastic, time_varying")
+        raise ValueError(f"Unknown delay: {name!r}. Choose from: none, fixed, stochastic, episode, time_varying")

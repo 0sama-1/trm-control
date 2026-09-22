@@ -1,0 +1,9 @@
+# Phase 3 supplementary test (Phase 3 report, "latent per-episode delay"):
+# d ~ U{0..4} drawn once per episode and held constant within it. The 4-slot
+# pending queue is exposed as usual (augment_obs=true), but which slot reaches
+# the plant is hidden -- inferable from history, not from any one observation.
+name: episode
+min: 0
+max: 4
+seed: ${seed}
+expose_realised: false   # true = oracle arm: the episode's delay is visible from the first step
