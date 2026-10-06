@@ -7,7 +7,7 @@ Extends analyze_phase1.py's approach for the expanded design:
   - Same pooled sign test / Page's trend test machinery, adapted to a
     single-environment, 3-condition ladder instead of a 2-environment one.
 
-Reads every results_phase2/*.json (one per run: env_id, arch, model, delay,
+Reads every phase2/results/*.json (one per run: env_id, arch, model, delay,
 delay_value, augment_obs, seed, final_avg100_return, wall_clock_seconds,
 param_count -- plus episode_history/step_history, not used here), and reports:
 
@@ -110,7 +110,7 @@ def augmentation_ablation(rows: list[dict], model: str) -> dict:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--results-dir", default="results_phase2", type=Path)
+    ap.add_argument("--results-dir", default="phase2/results", type=Path)
     ap.add_argument("--out", default="analysis_phase2_final.json", type=Path)
     args = ap.parse_args()
 

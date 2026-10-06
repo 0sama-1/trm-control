@@ -27,7 +27,7 @@ def _count_params(obj) -> int:
     trainer) since the caller passes `getattr(self, "agent", self)` --
     no per-algo special-casing needed. See _write_results_summary — first-
     class metric per
-    projects/trm-delay-robust-scaling/ideas/proposal-final.json."""
+    projects/trm-delay-robust-scaling/phase0-literature/ideation/proposal-final.json."""
     total = 0
     for name, val in vars(obj).items():
         if name.startswith("target"):
@@ -158,7 +158,7 @@ class RLTrainer(ABC):
         full per-episode history (return, avg100, eval_return when logged,
         mean_action_delta, algo-specific losses) to
         results/<env>_<arch>_<model>_<delay>_seed<seed>.json -- first-class
-        metrics per projects/trm-delay-robust-scaling/ideas/proposal-final.json,
+        metrics per projects/trm-delay-robust-scaling/phase0-literature/ideation/proposal-final.json,
         not an afterthought (research.boundaries). One file per run, named so
         concurrent PBS jobs never collide. The history array is what makes a
         run's learning curve (not just its final number) inspectable after

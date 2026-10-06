@@ -1,7 +1,7 @@
 """Compact per-run cache of every Phase 3 training run (and the banked Phase 1 runs
 that Stage 1 re-runs), so the analysis never re-parses the ~30 MB per-step histories.
 
-  python extract_runs.py   -> results_phase3/runs_cache.json
+  python extract_runs.py   -> phase3/results/runs_cache.json
 """
 
 from __future__ import annotations
@@ -10,13 +10,13 @@ import json
 from pathlib import Path
 
 PROJ = Path(__file__).resolve().parents[2]
-RES = PROJ / "results_phase3"
+RES = PROJ / "phase3" / "results"
 SOURCES = {
     "s0h": RES / "results_p3s0",
     "s1": RES / "results_p3s1",
     "s2": RES / "results_p3s2",
     "s2x": RES / "results_p3s2x",
-    "p1": PROJ / "results_v3",
+    "p1": PROJ / "phase1" / "results",
 }
 
 

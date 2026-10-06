@@ -1,6 +1,6 @@
 """Phase 3 gate evaluation (rules fixed in dashboard_state/gates.json before any data).
 
-  python gates_eval.py fetch              rsync Phase 3 results from Katana into results_phase3/
+  python gates_eval.py fetch              rsync Phase 3 results from Katana into phase3/results/
   python gates_eval.py g0                 headroom gate from Stage 0.1   -> experiments/analysis_p3_g0.json
   python gates_eval.py g1                 attribution gate from Stage 1  -> experiments/analysis_s1.json
   python gates_eval.py w0                 battery + latency + G4         -> experiments/analysis_w0.json
@@ -21,7 +21,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PROJ = HERE.parents[1]
-RES = PROJ / "results_phase3"
+RES = PROJ / "phase3" / "results"
 EXP = PROJ / "experiments"
 GATES = HERE / "dashboard_state" / "gates.json"
 KATANA = "katana:/srv/scratch/z5308482/trm-control"

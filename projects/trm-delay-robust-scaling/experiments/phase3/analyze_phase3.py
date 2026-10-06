@@ -2,7 +2,7 @@
 
   python analyze_phase3.py   -> experiments/analysis_phase3_full.json
 
-Inputs: results_phase3/runs_cache.json (extract_runs.py), the battery folders,
+Inputs: phase3/results/runs_cache.json (extract_runs.py), the battery folders,
 and experiments/analysis_w0.json (latency). All contrasts are paired by seed
 (and by condition where stated) and use the sign test the gates use.
 """
@@ -17,7 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 
 PROJ = Path(__file__).resolve().parents[2]
-RES = PROJ / "results_phase3"
+RES = PROJ / "phase3" / "results"
 EXP = PROJ / "experiments"
 SEEDS = [1, 2, 3, 4, 5, 6]
 

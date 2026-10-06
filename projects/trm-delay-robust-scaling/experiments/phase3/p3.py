@@ -7,7 +7,7 @@
 Every stage runs from a frozen code snapshot (P3_CODE/<stage>), so editing the
 live tree for a later stage never changes the code a queued job will import.
 Results, checkpoints and logs go to fixed absolute paths under P3_ROOT.
-Stage manifests follow projects/trm-delay-robust-scaling/papers/phase3/plan.md §4
+Stage manifests follow projects/trm-delay-robust-scaling/phase3/plan/plan.md §4
 plus the §10 amendment (headroom arm A4).
 """
 

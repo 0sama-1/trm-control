@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Phase 2 report figures from analysis_phase2_final.json. Stdlib + matplotlib only.
 
-Figures produced (papers/phase2/figures/):
+Figures produced (phase2/report/figures/):
   fig1_reward_by_arch_cond.pdf/png   -- grouped bar chart, reward per architecture x condition
   fig2_wallclock_by_arch_cond.pdf/png -- grouped bar chart, wall-clock (log scale)
   fig3_trm_overhead.pdf/png          -- TRM-family wall-clock overhead vs DNN, fixed-aug condition
@@ -17,7 +17,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
-FIG_DIR = PROJECT / "papers" / "phase2" / "figures"
+FIG_DIR = PROJECT / "phase2" / "report" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 analysis = json.load(open(HERE / "analysis_phase2_final.json"))

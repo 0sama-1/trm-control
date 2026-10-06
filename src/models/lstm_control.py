@@ -1,6 +1,6 @@
 """LSTM trunk, added as a mechanistic control for the TRM-vs-recursion
 comparison (see project docs under
-``projects/trm-delay-robust-scaling/ideas/proposal-final.json``).
+``projects/trm-delay-robust-scaling/phase0-literature/ideation/proposal-final.json``).
 
 Follows the same contract as ``models.dnn.DNNTrunk`` /
 ``models.trm_control.*Trunk`` / ``models.transformer_control.TransformerTrunk``:

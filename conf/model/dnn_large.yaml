@@ -1,7 +1,7 @@
 _target_: models.dnn.DNNTrunk
 name: dnn_large
 # Capacity-matched control for the recursive trunks (experiment E1 in
-# papers/report.md). Width chosen so that actor + critic trainable parameters
+# projects/trm-delay-robust-scaling/phase2/report-phases1-2/report.md). Width chosen so that actor + critic trainable parameters
 # match the TRM trunks as closely as a two-layer MLP allows.
 #
 # For a two-hidden-layer MLP of width w, with augmented observation dim o and

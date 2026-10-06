@@ -1,7 +1,7 @@
 # Recursion Under Delay: Final Report, Phases 0–3
 
 *trm-delay-robust-scaling · final detailed report · 2026-09-22*
-*Covers every phase of the project, from the pilot that motivated it to the last Phase 3 job. Figures are in `figures/`; analysis files in `../experiments/`.*
+*Covers every phase of the project, from the pilot that motivated it to the last Phase 3 job. Figures are in `figures/`; analysis files in `../../experiments/`.*
 
 <!-- toc -->
 

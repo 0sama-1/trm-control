@@ -1,6 +1,6 @@
 _target_: models.trm_control.TRMTrunk
 name: trm_fullgrad_ds
-# Phase 4 Stage A (papers/phase4/plan.md): conf/model/trm.yaml with TRM's
+# Phase 4 Stage A (projects/trm-delay-robust-scaling/phase4/plan/plan.md): conf/model/trm.yaml with TRM's
 # training discipline restored. full_grad backprops through all
 # H_cycles x (L_cycles + 1) = 21 cell applications (trm.yaml: last cycle only, 7).
 # deep_sup regresses every outer cycle's critic readout on the TD target.

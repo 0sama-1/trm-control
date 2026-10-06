@@ -1,8 +1,8 @@
-"""Figures for the Phase 3 write-ups -> "Phase 3/figures/".
+"""Figures for the Phase 3 write-ups -> phase3/report/figures/.
 
   python3 make_figures_phase3.py
 
-Reads results_phase3/runs_cache.json and experiments/analysis_phase3_full.json.
+Reads phase3/results/runs_cache.json and experiments/analysis_phase3_full.json.
 Panels that need data not yet present (battery2, latent-delay) are skipped.
 """
 
@@ -19,9 +19,9 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 PROJ = Path(__file__).resolve().parents[2]
-OUT = PROJ / "Phase 3" / "figures"
+OUT = PROJ / "phase3" / "report" / "figures"
 OUT.mkdir(parents=True, exist_ok=True)
-RUNS = json.loads((PROJ / "results_phase3" / "runs_cache.json").read_text())
+RUNS = json.loads((PROJ / "phase3" / "results" / "runs_cache.json").read_text())
 A = json.loads((PROJ / "experiments" / "analysis_phase3_full.json").read_text())
 
 COL = {"dnn": "#2f3e46", "dnn_large": "#7d93a8", "trm_small": "#f4a261", "trm": "#e76f51", "trm_h1": "#e9c46a",

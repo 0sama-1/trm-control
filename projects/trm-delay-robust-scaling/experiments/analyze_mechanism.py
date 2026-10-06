@@ -101,7 +101,7 @@ def main():
     ap.add_argument("--curves-out", default=HERE / "mechanism_curves.json", type=Path)
     args = ap.parse_args()
 
-    rows = load(PROJECT / "results_v3") + load(PROJECT / "results_phase2")
+    rows = load(PROJECT / "phase1" / "results") + load(PROJECT / "phase2" / "results")
     print(f"Loaded {len(rows)} runs")
 
     # group: (env, condition, model) -> list of runs

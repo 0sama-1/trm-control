@@ -4,8 +4,8 @@
 Generating the page *from* the markdown guarantees the two never drift, and
 makes re-syncing after an edit a single command:
 
-    python3 papers/build_artifact.py     # -> papers/report_artifact.html
-    python3 papers/build_artifact.py summary.md summary_artifact.html "Recursion Under Delay: Summary" Summary
+    python3 phase2/report-phases1-2/build_artifact.py     # -> phase2/report-phases1-2/report_artifact.html
+    python3 phase2/report-phases1-2/build_artifact.py summary.md summary_artifact.html "Recursion Under Delay: Summary" Summary
 
 Handles the markdown subset the report actually uses: headings, paragraphs,
 pipe tables, images (base64-embedded from figures/), bulleted and numbered

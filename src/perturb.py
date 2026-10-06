@@ -1,5 +1,5 @@
 """Test-time perturbation wrappers for the Phase 3 evaluation battery
-(``projects/trm-delay-robust-scaling/papers/phase3/plan.md`` §4.1, S0.2).
+(``projects/trm-delay-robust-scaling/phase3/plan/plan.md`` §4.1, S0.2).
 
 All three sit *below* ``delays.DelayedEnv`` -- directly on the plant -- so they
 perturb what the plant does and what its sensors report, never the

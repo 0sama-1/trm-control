@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Figures for papers/summary.{md,tex,pdf}.
+"""Figures for phase2/report-phases1-2/summary.{md,tex,pdf}.
 
   fig11_command_rate_vs_return -- median |delta a| per step vs median final return,
                                   per (trunk, condition) cell, from
                                   analysis_control_quality.json (no new compute)
-  fig12_phase3_stage_map       -- the gated Phase 3 stage plan (papers/phase3/plan.md §4)
+  fig12_phase3_stage_map       -- the gated Phase 3 stage plan (phase3/plan/plan.md §4)
 """
 import json
 from pathlib import Path
@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
 HERE = Path(__file__).resolve().parent
-FIG_DIR = HERE.parent / "papers" / "figures"
+FIG_DIR = HERE.parent / "phase2" / "report-phases1-2" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Same trunk colours/labels as make_figures_mechanism.py so figures 8-12 read as one set.

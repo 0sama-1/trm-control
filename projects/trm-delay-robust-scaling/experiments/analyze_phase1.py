@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 1 analysis: pooled sign test + Page's trend test on the
 TRM-advantage delta, per the pre-registered decision rule in
-ideas/proposal-final.json (Method section, post-fix).
+phase0-literature/ideation/proposal-final.json (Method section, post-fix).
 
 Reads every results/*.json written by src/trainer.py::_write_results_summary
 (one per run: env_id, arch, model, delay, delay_value, seed,

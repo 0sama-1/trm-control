@@ -17,7 +17,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
-FIG_DIR = PROJECT / "papers" / "figures"
+FIG_DIR = PROJECT / "phase2" / "report-phases1-2" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 summary = json.load(open(HERE / "analysis_mechanism.json"))

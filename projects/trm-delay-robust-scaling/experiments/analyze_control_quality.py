@@ -42,7 +42,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
-RESULT_DIRS = [PROJECT / "results_v3", PROJECT / "results_phase2"]
+RESULT_DIRS = [PROJECT / "phase1" / "results", PROJECT / "phase2" / "results"]
 OUT = HERE / "analysis_control_quality.json"
 
 # Last N episodes of each run define the "trained policy" window.

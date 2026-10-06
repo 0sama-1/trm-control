@@ -10,7 +10,7 @@
 # TRM/Transformer x MountainCarContinuous; avoid a second retry round here).
 #
 # Run this ON KATANA (from /srv/scratch/z5308482/trm-control).
-# See projects/trm-delay-robust-scaling/ideas/proposal-final.json for the
+# See projects/trm-delay-robust-scaling/phase0-literature/ideation/proposal-final.json for the
 # full experiment design this implements.
 
 set -e
