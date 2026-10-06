@@ -114,6 +114,14 @@ class Critic(nn.Module):
             return self.head(h), carry
         return self.head(self.trunk(x))
 
+    @property
+    def deep_sup(self) -> bool:
+        return bool(getattr(self.trunk, "deep_sup", False))
+
+    def forward_cycles(self, obs: torch.Tensor, act: torch.Tensor) -> list[torch.Tensor]:
+        """Q readout after every outer recursion cycle (deep supervision, Phase 4 Stage A)."""
+        return [self.head(h) for h in self.trunk.forward_cycles(torch.cat([obs, act], dim=-1))]
+
 
 class DDPGAgent:
     def __init__(self, obs_dim: int, act_dim: int, action_limit: float, arch_cfg: DictConfig, model_cfg: DictConfig, device: str):
@@ -133,6 +141,13 @@ class DDPGAgent:
         self.stateful = self.actor.stateful
         self.actor_carry = self.critic_carry = None
         self.reset_carry()
+
+        # Phase 4 Stage A: optional per-network gradient-norm clipping. A value
+        # of inf clips nothing but still records the pre-clip norms.
+        self.actor_clip = arch_cfg.get("actor_grad_clip")
+        self.critic_clip = arch_cfg.get("critic_grad_clip")
+        self.grad_norms: dict[str, list[float]] = {"actor": [], "critic": []}
+        assert not (self.critic.deep_sup and self.stateful), "deep_sup is stateless-only"
 
     # -- carried state (stateful trunks) --------------------------------------
 
@@ -189,16 +204,33 @@ class DDPGAgent:
             target_q = self.target_critic(ns, next_a)
             y = r + cfg.gamma * (1.0 - d) * target_q
 
-        critic_loss = nn.functional.mse_loss(self.critic(s, a), y)
-        self.critic_opt.zero_grad(); critic_loss.backward(); self.critic_opt.step()
+        if self.critic.deep_sup:
+            # Every outer cycle's readout regresses on the same TD target; the
+            # logged loss stays the final cycle's, comparable with other arms.
+            qs = self.critic.forward_cycles(s, a)
+            losses = [nn.functional.mse_loss(q_k, y) for q_k in qs]
+            critic_loss = losses[-1]
+            self.critic_opt.zero_grad(); torch.stack(losses).mean().backward()
+            self._clip(self.critic, self.critic_clip, "critic"); self.critic_opt.step()
+        else:
+            critic_loss = nn.functional.mse_loss(self.critic(s, a), y)
+            self.critic_opt.zero_grad(); critic_loss.backward()
+            self._clip(self.critic, self.critic_clip, "critic"); self.critic_opt.step()
 
         actor_loss = -self.critic(s, self.actor(s)).mean()
-        self.actor_opt.zero_grad(); actor_loss.backward(); self.actor_opt.step()
+        self.actor_opt.zero_grad(); actor_loss.backward()
+        self._clip(self.actor, self.actor_clip, "actor"); self.actor_opt.step()
 
         soft_update(self.target_actor,  self.actor,  cfg.tau)
         soft_update(self.target_critic, self.critic, cfg.tau)
 
         return actor_loss.item(), critic_loss.item()
+
+    def _clip(self, net: nn.Module, max_norm, key: str) -> None:
+        if max_norm is None:
+            return
+        norm = torch.nn.utils.clip_grad_norm_(net.parameters(), float(max_norm))
+        self.grad_norms[key].append(norm.item())
 
     def save(self, path: str, episode_count: int):
         torch.save({
@@ -281,11 +313,20 @@ class DDPGTrainer(OffPolicyTrainer):
                 self._critic_losses.append(c_loss)
 
     def _episode_metrics(self) -> dict:
-        return {
+        m = {
             "actor_loss":  float(np.mean(self._actor_losses))  if self._actor_losses  else 0.0,
             "critic_loss": float(np.mean(self._critic_losses)) if self._critic_losses else 0.0,
             "buffer_size": len(self.replay),
         }
+        # Pre-clip gradient norms of every update this episode (only when
+        # clipping is configured), so a clip threshold can be read off a pilot.
+        for key, clip in (("actor", self.agent.actor_clip), ("critic", self.agent.critic_clip)):
+            if clip is not None:
+                norms = self.agent.grad_norms[key]
+                m[f"{key}_grad_norms"] = [round(x, 4) for x in norms]
+                m[f"{key}_clip_frac"] = float(np.mean([x > float(clip) for x in norms])) if norms else 0.0
+                self.agent.grad_norms[key] = []
+        return m
 
     def _print_stats(self, ep_return: float, avg100: float, metrics: dict) -> None:
         print(

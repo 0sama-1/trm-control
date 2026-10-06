@@ -194,6 +194,7 @@ class RLTrainer(ABC):
             "augment_obs": bool(self.cfg.augment_obs),
             "total_episodes": self.arch.total_episodes,
             "episode_count": self.episode_count,
+            "total_steps": self.total_steps,
             "final_avg100_return": self._last_avg100,
             "wall_clock_seconds": time.time() - self._start_time,
             "param_count": _count_params(getattr(self, "agent", self)),
@@ -237,9 +238,23 @@ class OffPolicyTrainer(RLTrainer):
     pieces via six abstract methods.
     """
 
+    def _episodes(self):
+        """Episode indices to run. Default: up to arch.total_episodes. With
+        arch.total_steps set (Phase 4, env-step budget for environments whose
+        episode length varies with skill, e.g. InvertedDoublePendulum), no new
+        episode starts once the budget is reached; the last one runs to its end."""
+        budget = self.arch.get("total_steps")
+        if budget is None:
+            yield from range(self.episode_count, self.arch.total_episodes)
+            return
+        ep = self.episode_count
+        while self.total_steps < budget:
+            yield ep
+            ep += 1
+
     def _training_loop(self) -> None:
         track_steps = bool(getattr(self.cfg, "track_step_history", True))
-        for ep in range(self.episode_count, self.arch.total_episodes):
+        for ep in self._episodes():
             obs, _ = self.env.reset(seed=self.cfg.seed + ep)
             self._on_episode_start()
 

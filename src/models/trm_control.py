@@ -189,6 +189,13 @@ class TRMTrunk(nn.Module):
                        backpropped; H_cycles - 1 run under no_grad.
         L_cycles:      inner latent-refinement steps per outer cycle (n).
         rms_norm_eps:  epsilon for the residual RMSNorm.
+        full_grad:     (Phase 4, Stage A) backprop through all H_cycles x
+                       (L_cycles + 1) cell applications instead of the last
+                       outer cycle only. Off by default.
+        deep_sup:      (Phase 4, Stage A) expose every outer cycle's z_H via
+                       ``forward_cycles`` so the caller can supervise each
+                       readout. Requires full_grad (under truncation the
+                       earlier readouts carry no gradient). Off by default.
     """
 
     def __init__(
@@ -200,13 +207,18 @@ class TRMTrunk(nn.Module):
         H_cycles: int = 3,
         L_cycles: int = 6,
         rms_norm_eps: float = 1e-5,
+        full_grad: bool = False,
+        deep_sup: bool = False,
         **_,
     ):
         super().__init__()
         assert H_cycles >= 1 and L_cycles >= 1
+        assert full_grad or not deep_sup, "deep_sup requires full_grad"
 
         self.H_cycles = H_cycles
         self.L_cycles = L_cycles
+        self.full_grad = bool(full_grad)
+        self.deep_sup = bool(deep_sup)
 
         self.input_proj, self.embed_scale = _input_embedding(in_dim, hidden_size)
         self.reasoning = _ReasoningCell(hidden_size, expansion, L_layers, rms_norm_eps)
@@ -220,7 +232,27 @@ class TRMTrunk(nn.Module):
     def out_dim(self) -> int:
         return self._out_dim
 
+    def forward_cycles(self, x: torch.Tensor) -> list[torch.Tensor]:
+        """Full-gradient recursion (``full_grad``): the same cell applications
+        as ``forward``, none under no_grad, returning z_H after every outer cycle."""
+        batch = x.shape[0]
+        input_emb = self.embed_scale * self.input_proj(x)
+
+        z_H = self.H_init.expand(batch, -1)
+        z_L = self.L_init.expand(batch, -1)
+
+        outs = []
+        for _ in range(self.H_cycles):
+            for _ in range(self.L_cycles):
+                z_L = self.reasoning(z_L, injection=z_H + input_emb)
+            z_H = self.reasoning(z_H, injection=z_L)
+            outs.append(z_H)
+        return outs
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.full_grad:
+            return self.forward_cycles(x)[-1]
+
         batch = x.shape[0]
         input_emb = self.embed_scale * self.input_proj(x)
 

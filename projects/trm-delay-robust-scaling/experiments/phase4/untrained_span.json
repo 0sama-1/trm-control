@@ -1,0 +1,23 @@
+{
+ "Pendulum-v1": {
+  "untrained_mean": -1163.84,
+  "sd": 278.63,
+  "episodes": 100,
+  "policy": "uniform random actions",
+  "condition": "fixed d=1 + queue"
+ },
+ "InvertedDoublePendulum-v5": {
+  "untrained_mean": 49.9,
+  "sd": 19.82,
+  "episodes": 100,
+  "policy": "uniform random actions",
+  "condition": "fixed d=1 + queue"
+ },
+ "Hopper-v5": {
+  "untrained_mean": 16.32,
+  "sd": 17.48,
+  "episodes": 100,
+  "policy": "uniform random actions",
+  "condition": "fixed d=1 + queue"
+ }
+}
