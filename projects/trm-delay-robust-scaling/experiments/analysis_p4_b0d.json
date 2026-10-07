@@ -1,0 +1,354 @@
+{
+ "threshold": 8190,
+ "arms": {
+  "C1_1000k": {
+   "seeds": {
+    "1": {
+     "final": 4146.9,
+     "learned": false,
+     "first_cross": null,
+     "best_avg100": 5593.9,
+     "last30_evals_solved": 11,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 2612,
+       "avg100_end": 4434.7,
+       "pct_solved": 2.6
+      },
+      {
+       "to_k": 200,
+       "episodes": 608,
+       "avg100_end": 1007.7,
+       "pct_solved": 10.9
+      },
+      {
+       "to_k": 300,
+       "episodes": 335,
+       "avg100_end": 2250.1,
+       "pct_solved": 22.4
+      },
+      {
+       "to_k": 400,
+       "episodes": 277,
+       "avg100_end": 3794.8,
+       "pct_solved": 34.3
+      },
+      {
+       "to_k": 500,
+       "episodes": 235,
+       "avg100_end": 4558.2,
+       "pct_solved": 41.7
+      },
+      {
+       "to_k": 600,
+       "episodes": 295,
+       "avg100_end": 2896.4,
+       "pct_solved": 29.2
+      },
+      {
+       "to_k": 700,
+       "episodes": 374,
+       "avg100_end": 1726.5,
+       "pct_solved": 19.0
+      },
+      {
+       "to_k": 800,
+       "episodes": 202,
+       "avg100_end": 5130.6,
+       "pct_solved": 48.5
+      },
+      {
+       "to_k": 900,
+       "episodes": 221,
+       "avg100_end": 4306.5,
+       "pct_solved": 42.5
+      },
+      {
+       "to_k": 1000,
+       "episodes": 253,
+       "avg100_end": 4146.8,
+       "pct_solved": 37.2
+      }
+     ],
+     "wall_min": 112.9,
+     "device": "Tesla V100-SXM2-32GB"
+    },
+    "2": {
+     "final": 2590.2,
+     "learned": false,
+     "first_cross": null,
+     "best_avg100": 4940.4,
+     "last30_evals_solved": 9,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 2539,
+       "avg100_end": 4661.9,
+       "pct_solved": 2.5
+      },
+      {
+       "to_k": 200,
+       "episodes": 261,
+       "avg100_end": 3213.7,
+       "pct_solved": 31.4
+      },
+      {
+       "to_k": 300,
+       "episodes": 399,
+       "avg100_end": 3976.3,
+       "pct_solved": 18.8
+      },
+      {
+       "to_k": 400,
+       "episodes": 256,
+       "avg100_end": 2912.1,
+       "pct_solved": 34.8
+      },
+      {
+       "to_k": 500,
+       "episodes": 228,
+       "avg100_end": 3740.1,
+       "pct_solved": 40.8
+      },
+      {
+       "to_k": 600,
+       "episodes": 294,
+       "avg100_end": 3003.9,
+       "pct_solved": 31.3
+      },
+      {
+       "to_k": 700,
+       "episodes": 302,
+       "avg100_end": 2145.5,
+       "pct_solved": 28.1
+      },
+      {
+       "to_k": 800,
+       "episodes": 349,
+       "avg100_end": 3664.7,
+       "pct_solved": 22.9
+      },
+      {
+       "to_k": 900,
+       "episodes": 255,
+       "avg100_end": 3360.8,
+       "pct_solved": 37.3
+      },
+      {
+       "to_k": 1000,
+       "episodes": 260,
+       "avg100_end": 2502.1,
+       "pct_solved": 35.4
+      }
+     ],
+     "wall_min": 104.2,
+     "device": "Tesla V100-SXM2-32GB"
+    },
+    "3": {
+     "final": 1732.8,
+     "learned": false,
+     "first_cross": null,
+     "best_avg100": 5093.4,
+     "last30_evals_solved": 9,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 2666,
+       "avg100_end": 3706.6,
+       "pct_solved": 2.2
+      },
+      {
+       "to_k": 200,
+       "episodes": 246,
+       "avg100_end": 3518.8,
+       "pct_solved": 35.8
+      },
+      {
+       "to_k": 300,
+       "episodes": 593,
+       "avg100_end": 1119.9,
+       "pct_solved": 5.7
+      },
+      {
+       "to_k": 400,
+       "episodes": 345,
+       "avg100_end": 3736.2,
+       "pct_solved": 19.1
+      },
+      {
+       "to_k": 500,
+       "episodes": 207,
+       "avg100_end": 4235.8,
+       "pct_solved": 45.9
+      },
+      {
+       "to_k": 600,
+       "episodes": 246,
+       "avg100_end": 3504.5,
+       "pct_solved": 38.6
+      },
+      {
+       "to_k": 700,
+       "episodes": 255,
+       "avg100_end": 3769.8,
+       "pct_solved": 36.9
+      },
+      {
+       "to_k": 800,
+       "episodes": 242,
+       "avg100_end": 3966.4,
+       "pct_solved": 36.8
+      },
+      {
+       "to_k": 900,
+       "episodes": 215,
+       "avg100_end": 4688.7,
+       "pct_solved": 45.6
+      },
+      {
+       "to_k": 1000,
+       "episodes": 329,
+       "avg100_end": 1640.1,
+       "pct_solved": 24.6
+      }
+     ],
+     "wall_min": 103.2,
+     "device": "Tesla V100-SXM2-32GB"
+    }
+   },
+   "n_learned": 0,
+   "n": 3
+  },
+  "C0_500k": {
+   "seeds": {
+    "1": {
+     "final": 8226.2,
+     "learned": true,
+     "first_cross": 106068,
+     "best_avg100": 9238.6,
+     "last30_evals_solved": 23,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 1781,
+       "avg100_end": 7662.5,
+       "pct_solved": 4.4
+      },
+      {
+       "to_k": 200,
+       "episodes": 204,
+       "avg100_end": 4169.6,
+       "pct_solved": 34.3
+      },
+      {
+       "to_k": 300,
+       "episodes": 113,
+       "avg100_end": 8085.2,
+       "pct_solved": 85.8
+      },
+      {
+       "to_k": 400,
+       "episodes": 189,
+       "avg100_end": 2907.5,
+       "pct_solved": 45.5
+      },
+      {
+       "to_k": 500,
+       "episodes": 122,
+       "avg100_end": 8155.5,
+       "pct_solved": 69.7
+      }
+     ],
+     "wall_min": 55.5,
+     "device": "Tesla V100-SXM2-32GB"
+    },
+    "2": {
+     "final": 5516.8,
+     "learned": false,
+     "first_cross": 105798,
+     "best_avg100": 9144.9,
+     "last30_evals_solved": 26,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 1859,
+       "avg100_end": 7681.0,
+       "pct_solved": 4.2
+      },
+      {
+       "to_k": 200,
+       "episodes": 270,
+       "avg100_end": 2166.4,
+       "pct_solved": 21.9
+      },
+      {
+       "to_k": 300,
+       "episodes": 135,
+       "avg100_end": 6891.2,
+       "pct_solved": 65.9
+      },
+      {
+       "to_k": 400,
+       "episodes": 104,
+       "avg100_end": 9014.7,
+       "pct_solved": 95.2
+      },
+      {
+       "to_k": 500,
+       "episodes": 206,
+       "avg100_end": 5430.9,
+       "pct_solved": 29.1
+      }
+     ],
+     "wall_min": 59.6,
+     "device": "Tesla V100-SXM2-32GB"
+    },
+    "3": {
+     "final": 5779.7,
+     "learned": false,
+     "first_cross": 249276,
+     "best_avg100": 9131.9,
+     "last30_evals_solved": 24,
+     "curve": [
+      {
+       "to_k": 100,
+       "episodes": 1838,
+       "avg100_end": 7711.9,
+       "pct_solved": 4.1
+      },
+      {
+       "to_k": 200,
+       "episodes": 232,
+       "avg100_end": 4230.3,
+       "pct_solved": 30.6
+      },
+      {
+       "to_k": 300,
+       "episodes": 110,
+       "avg100_end": 8450.5,
+       "pct_solved": 87.3
+      },
+      {
+       "to_k": 400,
+       "episodes": 220,
+       "avg100_end": 4215.7,
+       "pct_solved": 29.1
+      },
+      {
+       "to_k": 500,
+       "episodes": 519,
+       "avg100_end": 5689.8,
+       "pct_solved": 10.4
+      }
+     ],
+     "wall_min": 56.0,
+     "device": "Tesla V100-SXM2-32GB"
+    }
+   },
+   "n_learned": 1,
+   "n": 3
+  }
+ },
+ "passes_gb0_rule_at_1M": false
+}

@@ -1,0 +1,389 @@
+{
+ "mlp_source": "results_p3s2 (reuse, amendment R-1)",
+ "arms": {
+  "trm|C1": {
+   "n": 6,
+   "median_final": -208.71,
+   "eval_last5_median": -168.62,
+   "critic_late_median": 18.54,
+   "wall_min_median": 40.33,
+   "devices": [
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "trm|C4": {
+   "n": 6,
+   "median_final": -340.19,
+   "eval_last5_median": -194.1,
+   "critic_late_median": 50.45,
+   "wall_min_median": 22.57,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S"
+   ]
+  },
+  "trm_fullgrad|C1": {
+   "n": 6,
+   "median_final": -218.41,
+   "eval_last5_median": -170.01,
+   "critic_late_median": 19.9,
+   "wall_min_median": 32.93,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S"
+   ]
+  },
+  "trm_fullgrad|C4": {
+   "n": 6,
+   "median_final": -344.59,
+   "eval_last5_median": -209.21,
+   "critic_late_median": 46.42,
+   "wall_min_median": 33.2,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "trm_fullgrad_ds|C1": {
+   "n": 6,
+   "median_final": -200.0,
+   "eval_last5_median": -159.59,
+   "critic_late_median": 16.84,
+   "wall_min_median": 33.04,
+   "devices": [
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "trm_fullgrad_ds|C4": {
+   "n": 6,
+   "median_final": -323.03,
+   "eval_last5_median": -202.06,
+   "critic_late_median": 47.85,
+   "wall_min_median": 55.8,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "dnn|C1": {
+   "n": 6,
+   "median_final": -178.31,
+   "eval_last5_median": -169.46,
+   "critic_late_median": 13.63,
+   "wall_min_median": 3.23,
+   "devices": [
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "dnn|C4": {
+   "n": 6,
+   "median_final": -235.37,
+   "eval_last5_median": -170.44,
+   "critic_late_median": 41.76,
+   "wall_min_median": 3.01,
+   "devices": [
+    "Tesla V100-SXM2-32GB"
+   ]
+  }
+ },
+ "contrasts": {
+  "trm_fullgrad - trm | C1": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    35.95,
+    7.05,
+    -5.85,
+    -2.08,
+    -78.52,
+    13.59
+   ],
+   "median_diff": 2.49,
+   "mean_diff": -4.98,
+   "pooled_sd": 29.9,
+   "sign": {
+    "n": 6,
+    "positive": 3,
+    "p_one_sided_greater": 0.65625,
+    "p_two_sided": 1.0
+   }
+  },
+  "trm_fullgrad - dnn | C1 (secondary)": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -50.87,
+    -31.6,
+    -49.4,
+    1.33,
+    -81.81,
+    -11.35
+   ],
+   "median_diff": -40.5,
+   "mean_diff": -37.28,
+   "pooled_sd": 22.19,
+   "sign": {
+    "n": 6,
+    "positive": 1,
+    "p_one_sided_greater": 0.984375,
+    "p_two_sided": 0.21875
+   }
+  },
+  "critic-late ratio trm_fullgrad/trm | C1": {
+   "median_ratio": 1.04,
+   "n_above_1": 3,
+   "n": 6
+  },
+  "critic-late ratio trm_fullgrad/dnn | C1": {
+   "median_ratio": 1.45,
+   "n_above_1": 6,
+   "n": 6
+  },
+  "trm_fullgrad - trm | C4": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -53.9,
+    15.72,
+    4.42,
+    19.04,
+    -17.98,
+    42.4
+   ],
+   "median_diff": 10.07,
+   "mean_diff": 1.62,
+   "pooled_sd": 30.28,
+   "sign": {
+    "n": 6,
+    "positive": 4,
+    "p_one_sided_greater": 0.34375,
+    "p_two_sided": 0.6875
+   }
+  },
+  "trm_fullgrad - dnn | C4 (secondary)": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -120.8,
+    -42.52,
+    -90.3,
+    -115.8,
+    12.62,
+    -75.03
+   ],
+   "median_diff": -82.66,
+   "mean_diff": -71.97,
+   "pooled_sd": 42.68,
+   "sign": {
+    "n": 6,
+    "positive": 1,
+    "p_one_sided_greater": 0.984375,
+    "p_two_sided": 0.21875
+   }
+  },
+  "critic-late ratio trm_fullgrad/trm | C4": {
+   "median_ratio": 0.88,
+   "n_above_1": 2,
+   "n": 6
+  },
+  "critic-late ratio trm_fullgrad/dnn | C4": {
+   "median_ratio": 1.3,
+   "n_above_1": 4,
+   "n": 6
+  },
+  "trm_fullgrad_ds - trm | C1": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    51.23,
+    16.77,
+    -6.24,
+    -1.21,
+    -1.19,
+    1.89
+   ],
+   "median_diff": 0.35,
+   "mean_diff": 10.21,
+   "pooled_sd": 27.6,
+   "sign": {
+    "n": 6,
+    "positive": 3,
+    "p_one_sided_greater": 0.65625,
+    "p_two_sided": 1.0
+   }
+  },
+  "trm_fullgrad_ds - dnn | C1 (secondary)": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -35.59,
+    -21.87,
+    -49.79,
+    2.2,
+    -4.47,
+    -23.05
+   ],
+   "median_diff": -22.46,
+   "mean_diff": -22.1,
+   "pooled_sd": 18.98,
+   "sign": {
+    "n": 6,
+    "positive": 1,
+    "p_one_sided_greater": 0.984375,
+    "p_two_sided": 0.21875
+   }
+  },
+  "critic-late ratio trm_fullgrad_ds/trm | C1": {
+   "median_ratio": 0.99,
+   "n_above_1": 2,
+   "n": 6
+  },
+  "critic-late ratio trm_fullgrad_ds/dnn | C1": {
+   "median_ratio": 1.35,
+   "n_above_1": 6,
+   "n": 6
+  },
+  "trm_fullgrad_ds - trm | C4": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -36.18,
+    -90.32,
+    44.91,
+    13.94,
+    62.73,
+    42.95
+   ],
+   "median_diff": 28.45,
+   "mean_diff": 6.34,
+   "pooled_sd": 35.12,
+   "sign": {
+    "n": 6,
+    "positive": 4,
+    "p_one_sided_greater": 0.34375,
+    "p_two_sided": 0.6875
+   }
+  },
+  "trm_fullgrad_ds - dnn | C4 (secondary)": {
+   "pairs": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6"
+   ],
+   "diffs": [
+    -103.07,
+    -148.56,
+    -49.81,
+    -120.9,
+    93.33,
+    -74.48
+   ],
+   "median_diff": -88.77,
+   "mean_diff": -67.25,
+   "pooled_sd": 46.24,
+   "sign": {
+    "n": 6,
+    "positive": 1,
+    "p_one_sided_greater": 0.984375,
+    "p_two_sided": 0.21875
+   }
+  },
+  "critic-late ratio trm_fullgrad_ds/trm | C4": {
+   "median_ratio": 0.85,
+   "n_above_1": 2,
+   "n": 6
+  },
+  "critic-late ratio trm_fullgrad_ds/dnn | C4": {
+   "median_ratio": 1.18,
+   "n_above_1": 5,
+   "n": 6
+  }
+ },
+ "complete": true,
+ "passing": [],
+ "GA": "fail",
+ "training_cost_median_min_by_gpu": {
+  "L40S": {
+   "trm": 21.9,
+   "trm_fullgrad": 32.7,
+   "trm_fullgrad_ds": 32.9
+  },
+  "V100": {
+   "dnn": 3.0,
+   "trm": 40.6,
+   "trm_fullgrad": 58.6,
+   "trm_fullgrad_ds": 58.3
+  },
+  "A100": {
+   "trm": 37.3,
+   "trm_fullgrad": 54.0,
+   "trm_fullgrad_ds": 54.2
+  },
+  "note": "Stage A runs (results_p4a) + Phase 3 Stage 2 dnn (results_p3s2, V100 only); wall_clock_seconds/60, median per (model, GPU). A100/V100 full-gradient cells have n=1-4."
+ },
+ "latency_actor_b1_cpu1": {
+  "host": "local workstation (not the Phase 3 Katana Xeon; compare ratios only)",
+  "p50_ms": {
+   "dnn": 0.098,
+   "trm": 7.766,
+   "trm_fullgrad": 7.689,
+   "trm_fullgrad_ds": 7.743
+  },
+  "p99_ms": {
+   "dnn": 0.229,
+   "trm": 9.349,
+   "trm_fullgrad": 8.902,
+   "trm_fullgrad_ds": 9.006
+  },
+  "note": "Actor forward, batch 1, 1 thread, Pendulum C1+prev-action input (5-D), 2000 calls after 200 warmup. full_grad/deep_sup change only training; inference ops are identical, and timing confirms it."
+ }
+}

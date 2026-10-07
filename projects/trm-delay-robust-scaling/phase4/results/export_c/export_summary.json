@@ -1,0 +1,41 @@
+[
+ {
+  "label": "dnn_Pendulum_v1_seed1",
+  "source": "Pendulum-v1_ddpg_dnn_fixed_aug1_seed1.json",
+  "model": "dnn",
+  "actor_params": 67329,
+  "buffer_floats": 0,
+  "fp32_bytes": 269316,
+  "int8_bytes": 67353,
+  "fp32_fits_512KB": true,
+  "int8_fits_512KB": true,
+  "header": "dnn_Pendulum_v1_seed1_actor.h",
+  "ref_vectors": 20
+ },
+ {
+  "label": "trm_small_Pendulum_v1_seed1",
+  "source": "Pendulum-v1_ddpg_trm_small_fixed_aug1_seed1.json",
+  "model": "trm_small",
+  "actor_params": 67805,
+  "buffer_floats": 88,
+  "fp32_bytes": 271572,
+  "int8_bytes": 68185,
+  "fp32_fits_512KB": true,
+  "int8_fits_512KB": true,
+  "header": "trm_small_Pendulum_v1_seed1_actor.h",
+  "ref_vectors": 20
+ },
+ {
+  "label": "trm_h1_Pendulum_v1_seed1",
+  "source": "Pendulum-v1_ddpg_trm_h1_fixed_aug1_seed1.json",
+  "model": "trm_h1",
+  "actor_params": 393857,
+  "buffer_floats": 256,
+  "fp32_bytes": 1576452,
+  "int8_bytes": 394909,
+  "fp32_fits_512KB": false,
+  "int8_fits_512KB": true,
+  "header": "trm_h1_Pendulum_v1_seed1_actor.h",
+  "ref_vectors": 20
+ }
+]

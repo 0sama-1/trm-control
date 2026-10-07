@@ -1,0 +1,6 @@
+# Phase 4 kill switch KB0 (projects/trm-delay-robust-scaling/phase4/plan/plan.md §3):
+# fallback complexity rung if InvertedDoublePendulum-v5 fails GB0. MuJoCo.
+# Gymnasium registry reward_threshold: 3800.
+id: Hopper-v5
+max_steps: 1000
+continuous_action: true

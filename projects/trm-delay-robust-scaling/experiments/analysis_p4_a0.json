@@ -1,0 +1,60 @@
+{
+ "runs": {
+  "trm|C1": {
+   "final": -222.7,
+   "wall_min": 36.4,
+   "device": "NVIDIA A100-SXM4-40GB",
+   "actor_p50": 0.8035,
+   "critic_p50": 324.8705,
+   "actor_p99": 9.6079,
+   "critic_p99": 2922.5854,
+   "actor_max": 309.63,
+   "critic_max": 132068.5625,
+   "actor_would_clip_frac": 0.0046,
+   "critic_would_clip_frac": 0.0116
+  },
+  "trm|C4": {
+   "final": -375.4,
+   "wall_min": 40.5,
+   "device": "Tesla V100-SXM2-32GB",
+   "actor_p50": 2.2505,
+   "critic_p50": 616.2514,
+   "actor_p99": 18.8184,
+   "critic_p99": 2591.5886,
+   "actor_max": 760.3074,
+   "critic_max": 41571.1211,
+   "actor_would_clip_frac": 0.0151,
+   "critic_would_clip_frac": 0.0074
+  },
+  "trm_fullgrad|C1": {
+   "final": -241.7,
+   "wall_min": 60.0,
+   "device": "Tesla V100-SXM2-32GB",
+   "actor_p50": 1.5034,
+   "critic_p50": 257.4627,
+   "actor_p99": 32.0647,
+   "critic_p99": 2113.3384,
+   "actor_max": 1836.6556,
+   "critic_max": 80537.3125,
+   "actor_would_clip_frac": 0.03,
+   "critic_would_clip_frac": 0.0042
+  },
+  "trm_fullgrad_ds|C1": {
+   "final": -267.0,
+   "wall_min": 57.0,
+   "device": "Tesla V100-SXM2-32GB",
+   "actor_p50": 1.4185,
+   "critic_p50": 272.2516,
+   "actor_p99": 31.8513,
+   "critic_p99": 2170.616,
+   "actor_max": 2701.5024,
+   "critic_max": 33370.4023,
+   "actor_would_clip_frac": 0.0282,
+   "critic_would_clip_frac": 0.0036
+  }
+ },
+ "proposed_clip": {
+  "actor": 15.0,
+  "critic": 2800.0
+ }
+}
