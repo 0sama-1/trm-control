@@ -1,0 +1,162 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.95in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\title{Stage E: Actor Lipschitz Constants (Exploratory)}
+\author{}
+\date{trm-delay-robust-scaling $\cdot$ Phase 4 stage note $\cdot$ 2026-10-08\\[2pt]Plan \S{}8. Exploratory throughout: no gate, no pre-registered decision. Analysis in \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}e.\allowbreak{}json}; script \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}experiments/\allowbreak{}phase4/\allowbreak{}lipschitz.\allowbreak{}py}.}
+\begin{document}
+\maketitle
+\section*{1. Question}
+
+
+
+Phase 3's deployment scorecard found two facts about TRM's greedy policies that sit awkwardly together. TRM commands much smoother torque than the MLP (0.4 against 9 direction reversals per second, 11/12 pairs, p = 0.006), yet it loses more return under sensor noise ($-$75.8 against the MLP at $\sigma$ = 0.05, 2/12 favourable, p = 0.039). A natural mechanism for both would be the actor's local gain: a policy whose output changes little with its input should chatter less, and should also pass less sensor noise through to the actuator. Stage E measures that gain directly and asks whether it explains either fact.
+
+
+
+\section*{2. Method}
+
+
+
+\begin{itemize}
+\item \textbf{Checkpoints.} All 72 Phase 3 Stage 1 checkpoints: six trunks (MLP 135k and 788k, TRM 136k, 788k, H = 1 and H = 6) $\times$ \{no delay, fixed d = 1 + queue\} $\times$ seeds 1--6. No training.
+\item \textbf{Local Lipschitz constant.} For each checkpoint, the actor is rebuilt from its results file and rolled out deterministically for 20 episodes on the battery's unseen nominal seeds (2,000,000 + i), under its training condition: 4000 visited states per checkpoint. At every state, the Jacobian $\partial$a/$\partial$s is taken by autograd over the \textbf{plant-observation inputs only}; the pending-action queue is held fixed, because it holds the policy's own past outputs rather than sensor readings. The constant at that state is the Jacobian's spectral norm. Each checkpoint is summarised by the median and 95th percentile over its states.
+\item \textbf{TRM forward pass.} The truncated forward runs all but the last outer cycle under \texttt{no\_grad}, which would hide those cycles from the Jacobian. The script switches on \texttt{full\_grad}, which computes the same function without truncation, so the Jacobian is that of the deployed map.
+\item \textbf{Outcomes} from the Phase 3 battery, joined by \texttt{model\_id} (72 of 72 joined): torque direction reversals per second and the drop in nominal IQM return under sensor noise $\sigma$ = 0.05 (nominal IQM $-$ noisy IQM; positive is a loss).
+\item \textbf{Statistics.} Spearman $\rho$ across all checkpoints and within each family. Two-sided permutation p-values (20,000 permutations) and paired (seed, condition) sign counts were added for this note and are exploratory.
+\end{itemize}
+
+
+
+\section*{3. Results}
+
+
+
+\textbf{Per trunk} (medians over 12 checkpoints, pooling both conditions).
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.162\linewidth}>{\raggedleft\arraybackslash}p{0.173\linewidth}>{\raggedleft\arraybackslash}p{0.142\linewidth}>{\raggedleft\arraybackslash}p{0.132\linewidth}>{\raggedleft\arraybackslash}p{0.101\linewidth}>{\raggedleft\arraybackslash}p{0.112\linewidth}}
+\toprule
+Trunk & Lipschitz, median & Lipschitz, p95 & Reversals / s & Noise drop & Nominal IQM \\
+\midrule
+MLP 135k & 29.11 & 69.36 & 9.32 & 100.1 & $-$120.39 \\
+MLP 788k & 34.05 & 51.94 & 2.76 & 81.0 & $-$121.33 \\
+TRM 136k & 11.00 & 31.54 & 0.59 & 156.74 & $-$123.09 \\
+TRM 788k (H = 3) & 14.61 & 30.47 & 0.43 & 179.09 & $-$126.50 \\
+TRM H = 1 & 16.18 & 50.72 & 0.54 & 256.63 & $-$123.68 \\
+TRM H = 6 & 14.01 & 31.87 & 0.37 & 251.42 & $-$124.79 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}e.\allowbreak{}json} (\texttt{per\_model}). These medians pool both training conditions, so they differ from Phase 3's fixed-delay-only scorecard table.}
+
+
+
+\textbf{Rank correlations with the Lipschitz median.}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.149\linewidth}>{\raggedleft\arraybackslash}p{0.048\linewidth}>{\raggedleft\arraybackslash}p{0.199\linewidth}>{\raggedleft\arraybackslash}p{0.129\linewidth}>{\raggedleft\arraybackslash}p{0.169\linewidth}>{\raggedleft\arraybackslash}p{0.129\linewidth}}
+\toprule
+Scope & n & $\rho$ with reversals / s & permutation p & $\rho$ with noise drop & permutation p \\
+\midrule
+All checkpoints & 72 & $-$0.237 & 0.045 & +0.059 & 0.62 \\
+MLP family & 24 & $-$0.594 & 0.003 & +0.183 & 0.39 \\
+TRM family & 48 & $-$0.395 & 0.006 & +0.233 & 0.11 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: $\rho$ from \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}e.\allowbreak{}json} (\texttt{spearman}); permutation p from \texttt{phase4/\allowbreak{}report/\allowbreak{}figures/\allowbreak{}derived\_\allowbreak{}numbers.\allowbreak{}json} (\texttt{e.\allowbreak{}spearman\_\allowbreak{}permutation\_\allowbreak{}p}).}
+
+
+
+\textbf{Paired by (seed, condition)}, n = 12 each:
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.155\linewidth}>{\raggedleft\arraybackslash}p{0.188\linewidth}>{\raggedleft\arraybackslash}p{0.147\linewidth}>{\raggedleft\arraybackslash}p{0.204\linewidth}>{\raggedleft\arraybackslash}p{0.155\linewidth}}
+\toprule
+Contrast & Lipschitz lower for TRM & Median $\Delta$ Lipschitz & Noise drop larger for TRM & Median $\Delta$ noise drop \\
+\midrule
+TRM 788k $-$ MLP 135k & 8/12 & $-$11.47 & 10/12 & +75.82 \\
+TRM 788k $-$ MLP 788k & 9/12 & $-$14.63 & 8/12 & +66.24 \\
+TRM 136k $-$ MLP 135k & 8/12 & $-$8.00 & 9/12 & +46.72 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{derived\_\allowbreak{}numbers.\allowbreak{}json} (\texttt{e.paired}), computed from the rows of \texttt{analysis\_\allowbreak{}p4\_\allowbreak{}e.\allowbreak{}json}.}
+
+
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{figures/p4_f7_stage_e.pdf}
+\caption{Stage E: actor Lipschitz constant against torque reversals and against the return drop under sensor noise, per checkpoint}
+\end{figure}
+
+
+
+\section*{4. What the numbers show}
+
+
+
+\begin{itemize}
+\item \textbf{TRM actors have lower local gain.} Every TRM variant's median Lipschitz constant (11.0--16.2) is between about a third and a half of the MLPs' (29.1--34.1), and the TRM 95th percentiles are lower too (30.5--50.7 against 51.9--69.4). Paired, TRM is lower in 8--9 of 12 pairs: consistent at the medians, not uniform per checkpoint.
+\item \textbf{Lower gain does not mean less noise sensitivity.} TRM loses more return under sensor noise in 8--10 of 12 pairs, by 47--76 units at the median, despite its lower gain. Across checkpoints the Lipschitz constant has essentially no rank correlation with the noise drop (+0.06 overall; +0.18 and +0.23 within families, permutation p 0.39 and 0.11). \textbf{The local Lipschitz constant does not explain TRM's noise sensitivity.}
+\item \textbf{Gain correlates negatively with reversals, the opposite of the naive expectation.} Higher-gain actors reverse torque \emph{less} often, within both families ($\rho$ = $-$0.59 and $-$0.40). The cause is visible in the low-gain checkpoints: of the 12 checkpoints with a median Lipschitz constant below 5, nine reverse torque more than five times per second, and seven of those have a command rate |$\Delta$u| (as defined in the Phase 3 battery) between 2.61 and 3.32 on a $\pm$2 torque range with a 95th-percentile Lipschitz constant between 12.6 and 246.0 (\texttt{derived\_\allowbreak{}numbers.\allowbreak{}json}, \texttt{e.\allowbreak{}low\_\allowbreak{}lipschitz}). These are bang-bang controllers: saturated, and so locally flat, at most visited states, switching sharply across a narrow boundary. The median local gain is near zero exactly where the policy chatters most. Four of those seven are MLPs, three are TRMs, and six of the seven were trained without delay.
+\end{itemize}
+
+
+
+\section*{5. Competing explanations for TRM's noise sensitivity (untested)}
+
+
+
+Stage E removes one candidate, a large local gain. The others remain open:
+
+
+
+\begin{itemize}
+\item \textbf{Non-local sensitivity.} $\sigma$ = 0.05 of the observation half-range is not infinitesimal. A first-order measure at nominal states can miss the response of the recursive map to finite perturbations, or to states that only noise visits.
+\item \textbf{Closed-loop effects.} A low-gain, smooth policy may correct the drift that noise induces more slowly than a high-gain one, so lower gain could even increase the return lost. Stage E did not measure closed-loop recovery.
+\item \textbf{State distribution.} The constant was measured on the nominal visited states. Under noise the policy visits other states, where its gain was not measured.
+\end{itemize}
+
+
+
+\section*{6. Threats to validity}
+
+
+
+\begin{itemize}
+\item \textbf{Exploratory, post hoc in parts.} The plan fixed the Lipschitz measure and the Spearman correlations. The permutation p-values, the paired counts and the saturation reading were added while writing this note and should be read as hypothesis-generating.
+\item \textbf{The median is a poor summary for saturating policies} (\S{}4). A switching-aware measure (for example the fraction of states in saturation, or the gain at the switching boundary) was not computed.
+\item \textbf{Plant inputs only.} The queue entries were held fixed. Sensitivity to the policy's own past actions, which carries the delay information, was not measured.
+\item \textbf{Execution note.} The first submission (six jobs, \texttt{p4e\_\allowbreak{}lipschitz\_\allowbreak{}00}--\texttt{05}) failed at import: in the frozen \texttt{p4code/e} snapshot the script could not locate the repository's \texttt{src/eval.py} (a snapshot path bug). It was rerun as \texttt{e2} (six jobs), which processed all 72 checkpoints (\texttt{experiments/\allowbreak{}phase4/\allowbreak{}dashboard\_\allowbreak{}state/\allowbreak{}status\_\allowbreak{}latest.\allowbreak{}json}).
+\end{itemize}
+
+
+
+\section*{7. What Stage E does and does not show}
+
+
+
+It shows that TRM's smoother actuation coincides with a lower local gain at the median, and that this lower gain does not protect TRM against sensor noise: the two properties are not linked through local sensitivity. It does not identify what makes TRM noise-sensitive, and its reversal correlation mostly reflects saturating bang-bang policies rather than a smooth relation between gain and chatter.
+\end{document}

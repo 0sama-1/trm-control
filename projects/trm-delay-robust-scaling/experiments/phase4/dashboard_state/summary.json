@@ -1,0 +1,108 @@
+{
+ "status": "Phase 4 complete \u00b7 all gates resolved \u00b7 final documents written \u00b7 2026-10-08",
+ "verdict": "Within the settings tested, TRM's weight-tied recursion brings no consistent benefit as a model-free actor-critic trunk. Capacity, depth, memory, tuning and TRM's own training discipline have each been ruled out as the reason; under TD3's standard settings it is harder still to train. Use the MLP.",
+ "question": "Does weight-tied recursion (TRM), used as the actor-critic trunk of a model-free RL agent, benefit continuous control under action delay \u2014 and if not, why not?",
+ "items": [
+  {
+   "stage": "B0 \u00b7 B0h \u00b7 B0d",
+   "q": "Is there a harder task the MLP learns, where TRM's deficit shrinks?",
+   "gate": "GB0 / KB0",
+   "status": "fail",
+   "finding": "IDP with a 1-step delay: MLP 0/3 learned at 150k\u20131M steps (best final 4312 vs 8190). Hopper: best 2805 vs 3420. Without delay IDP is learnable but not held: the delay is the obstacle."
+  },
+  {
+   "stage": "C",
+   "q": "Was TRM simply never tuned?",
+   "gate": "GC",
+   "status": "insensitive",
+   "finding": "3\u00d73 actor \u00d7 critic LR grid: no cell beats the default (\u2212215) by more than the pooled SD in 3/3 seeds. Higher actor LR hurts."
+  },
+  {
+   "stage": "A",
+   "q": "Does TRM's own training discipline rescue it?",
+   "gate": "GA",
+   "status": "fail",
+   "finding": "Full gradient (21/21 applications) \u00b1 per-cycle critic supervision: best 4/6 vs truncated TRM; 1/6 vs the MLP. 1.45\u20131.5\u00d7 the training cost."
+  },
+  {
+   "stage": "T",
+   "q": "Does the G1 attribution hold under a second algorithm (TD3)?",
+   "gate": "GT",
+   "status": "pass*",
+   "finding": "TRM 788k \u2212 MLP 788k negative 12/12 (p = 0.0005) \u2014 but because TRM 788k fails to train under td3.yaml (2/12 seeds learn; critic diverges). MLPs train as under DDPG."
+  },
+  {
+   "stage": "B1",
+   "q": "Complexity scaling on the harder rung (H1\u2032)",
+   "gate": "H1\u2032",
+   "status": "not run",
+   "finding": "Skipped by the author (K-3): no harder rung learnable by the baseline, and TRM 788k does not train under the same TD3 settings. H1 stays untested \u2014 a limitation, not evidence against TRM."
+  },
+  {
+   "stage": "E",
+   "q": "Is TRM's noise sensitivity a sharper input\u2013output map?",
+   "gate": "exploratory",
+   "status": "no",
+   "finding": "TRM actors have lower local Lipschitz constants than MLPs (11\u201316 vs 29\u201334) yet lose 1.6\u20133\u00d7 more return under sensor noise."
+  },
+  {
+   "stage": "D",
+   "q": "Do the actors fit a 512 KB microcontroller?",
+   "gate": "\u2014",
+   "status": "done",
+   "finding": "MLP 135k and TRM 136k: ~265 KB FP32 (fit). TRM H=1: 1.54 MB FP32, 386 KB INT8 (INT8 only). Headers in phase4/results/export_c/."
+  }
+ ],
+ "changes": [
+  [
+   "The deficit is architectural (DDPG)",
+   "Holds. Not tuning (GC), not the training discipline (GA); direction also holds under TD3 (GT, via optimisation failure)."
+  ],
+  [
+   "Restoring the training discipline is the remaining route to a positive",
+   "Tested: no effect (GA)."
+  ],
+  [
+   "TD3 and an unstable plant are open",
+   "TD3 tested (GT, caveat). The baseline cannot learn the unstable plant reliably with delay."
+  ],
+  [
+   "Complexity scaling is untested",
+   "Still untested: two more rungs failed the baseline."
+  ]
+ ],
+ "documents": [
+  [
+   "Full report, all phases (RQ, hypotheses, per-phase methodology, discussion) \u00b7 55 pp",
+   "phase4/report/full_report.{md,tex,pdf}"
+  ],
+  [
+   "Phase 4 report \u00b7 19 pp",
+   "phase4/report/phase4_report.{md,tex,pdf}"
+  ],
+  [
+   "Stage notes: B0 (+B0h, B0d), C, A (+a0), T, E, D",
+   "phase4/report/stage_*.{md,tex,pdf}"
+  ],
+  [
+   "Project summary \u00b7 3 pp",
+   "phase4/report/project_summary.{md,tex,pdf}"
+  ],
+  [
+   "Per-phase summaries",
+   "phase4/report/phase_summaries/phase0\u20134_summary.{md,tex,pdf}"
+  ],
+  [
+   "Q&A: design considerations, inspirations, 38 questions",
+   "phase4/report/qa_all_phases.{md,tex,pdf}"
+  ],
+  [
+   "Glossary of labels and abbreviations",
+   "phase4/report/glossary.{md,tex,pdf}"
+  ],
+  [
+   "Figures (Phase 4 p4_f1\u2013f9 + Phase 0\u20133)",
+   "phase4/report/figures/"
+  ]
+ ]
+}

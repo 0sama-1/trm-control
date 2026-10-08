@@ -1,0 +1,129 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.95in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\title{Recursion Under Delay: Project Summary, Phases 0--4}
+\author{}
+\date{trm-delay-robust-scaling $\cdot$ summary document $\cdot$ 2026-10-08\\[2pt]A short account of the whole project for a supervisor: the question, what each phase did and found, the answer, and what remains open. The detailed record is \texttt{full\_\allowbreak{}report.\allowbreak{}md}; Phase 4 is reported in \texttt{phase4\_\allowbreak{}report.\allowbreak{}md} and its stage notes; per-phase summaries, a Q\&A and a glossary sit alongside them in \texttt{phase4/\allowbreak{}report/\allowbreak{}}. Decision rules and gate outcomes are in \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates.\allowbreak{}json}.}
+\begin{document}
+\maketitle
+\section*{The short version}
+
+
+
+\begin{itemize}
+\item \textbf{The question.} Does weight-tied recursion (TRM), used as the actor-critic trunk of a model-free RL agent, benefit continuous control under action delay --- and if not, why not?
+\item \textbf{The answer.} No, on every task that was learned. On Pendulum-v1 a TRM trunk trails a plain MLP, and the project removed, one by one, every explanation it could test for why: capacity, the latent reset, the absence of anything to infer, untuned learning rates, the truncated gradient and the missing per-cycle supervision. The recursion behaves like a harder-to-optimise feed-forward block whose extra iterations add nothing.
+\item \textbf{What stays open.} Whether TRM's standing improves on harder tasks (H1). Four candidate rungs above Pendulum were tried, and the MLP baseline learned none of them under the conditions used, so the question was never put at risk.
+\item \textbf{The recommendation.} Use the MLP. If a recursive trunk is required, use one outer cycle.
+\end{itemize}
+
+
+
+\medskip
+
+
+
+\section*{Phase 0 --- Groundwork}
+
+
+
+A pilot on Pendulum-v1 under a one-step delay had TRM and Transformer trunks failing where an MLP converged. The cause was the delay wrapper, not the trunks: the agent was never told which of its own actions was about to land. Appending the pending-action queue to the observation fixed it (verified exact for fixed delays), after which the pilot reported "comparable reward" at about 18$\times$ TRM's training time. The TRM port keeps TRM's shared cell, its two-latent recursion (21 cell applications per call) and its one-step gradient truncation, which trains only 7 of the 21. The project was scoped, reviewed against the literature, and given a pre-registered hypothesis, H1.
+
+
+
+\section*{Phase 1 --- Does TRM catch up as the horizon grows? (48 runs)}
+
+
+
+H1 predicted that TRM's advantage grows with task complexity and becomes measurable on the continuous MountainCar task (MountainCarContinuous-v0: 5$\times$ Pendulum's horizon, sparse reward). Four trunks, two environments, two delay conditions, three seeds. On Pendulum the MLP beat TRM in 6/6 seed pairs (p = 0.016), by about 3\% of the performance span: the pilot's parity did not survive. On MountainCar nothing separated, so the threshold prediction was falsified. TRM cost 6.7--12.8$\times$ the MLP's wall-clock.
+
+
+
+\section*{Phase 2 --- A second complexity axis (54 runs)}
+
+
+
+BipedalWalker-v3, six trunks, with and without the queue, three seeds: no comparison reached significance. A post-hoc analysis of all 102 runs then showed that only Pendulum had been learned (MountainCar and BipedalWalker were floor effects), so H1 was untested, not disconfirmed. It also found TRM fits its value function worse, and named three confounds that could each explain the Pendulum deficit: TRM's 5.8$\times$ larger capacity, a latent reset at every call, and a task with nothing to infer.
+
+
+
+\section*{Phase 3 --- Removing the confounds (198 runs, 300 checkpoint evaluations)}
+
+
+
+A pre-registered, gated design on Pendulum. \textbf{Capacity:} TRM loses to a parameter-matched MLP at both 135k (0/12) and 788k (2/12) parameters (actor + critic, excluding target networks), while a 5.8$\times$ larger MLP changes nothing; the deficit is architectural. \textbf{Depth:} one, three or six outer cycles give the same return. \textbf{Value fit:} TRM's is worse even at matched capacity. \textbf{Memory:} carrying the latent across steps changes nothing, and where memory had something to recover (hiding the queue under a stochastic delay), no trunk recovered it; the residual-uncertainty hypothesis H3 was rejected, as was a capacity account. \textbf{Control quality:} TRM's greedy policy nearly matches the MLP's return and commands much smoother torque, but it is less robust to noise, plant changes and dropout, and costs 65$\times$ the MLP's decision latency.
+
+
+
+\section*{Phase 4 --- Training discipline, tuning, a second algorithm, a harder rung (141 runs)}
+
+
+
+\begin{itemize}
+\item \textbf{A harder rung (Stage B0).} Neither InvertedDoublePendulum-v5 nor Hopper-v5 was learned by the MLP under TD3 with a one-step delay (0/3 at every budget up to 500k; IDP also 0/3 at 1M). Without the delay the same MLP does reach the IDP bar: the delay on an unstable plant is the obstacle. The complexity test (B1, H1$'$) was therefore not run.
+\item \textbf{Tuning (Stage C).} A 3 $\times$ 3 grid of actor and critic learning rates ($\times$0.3--$\times$3) found nothing better than the defaults; raising the actor's rate hurts.
+\item \textbf{Training discipline (Stage A).} Training all 21 cell applications, with or without a value loss at every outer cycle, does not improve TRM (best 4/6 seeds; the gate needed 5/6) and costs 1.45--1.5$\times$ the training time.
+\item \textbf{A second algorithm (Stage T).} Under TD3 as configured, both MLPs reproduce their DDPG results in every run, but the 788k TRM (about 1.18M parameters once TD3's twin critics are counted) fails to train in 10 of 12 runs. The pre-registered capacity contrast passes on sign (12/12), but by optimisation failure, not by replicating Phase 3's deficit.
+\item \textbf{Mechanism (Stage E, exploratory).} TRM actors have a lower local gain than MLPs, yet lose more under sensor noise; gain does not explain the noise sensitivity.
+\item \textbf{Embedded export (Stage D).} At matched size TRM and MLP actors need the same flash (265.2 and 263.0 KiB in FP32); the 788k-configuration TRM fits 512 KiB only in INT8. The on-device test is the author's.
+\end{itemize}
+
+
+
+\medskip
+
+
+
+\section*{The final answer}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.506\linewidth}>{\raggedright\arraybackslash}p{0.428\linewidth}}
+\toprule
+Claim & Status \\
+\midrule
+TRM trails the MLP on Pendulum-v1 & replicated (6/6, then 12/12), and under TD3 \\
+The deficit is architectural, not capacity & established \\
+It is not an untuned learning rate & established within $\times$0.3--$\times$3 \\
+It is not the truncated gradient or missing per-cycle supervision & supported (GA fail) \\
+Recursion depth adds cost, not return & established \\
+Carrying the latent, or memory generally, helps & not supported (H3 rejected) \\
+TRM gives smoother actuation & yes, but with less robustness and 65$\times$ latency \\
+TRM is robust under a second algorithm & no: the 788k TRM does not train under TD3 as configured \\
+TRM's advantage grows with task complexity (H1) & \textbf{untested}: no harder rung was learned by the baseline \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\textbf{Why it fails, as far as the evidence goes.} Each pass of the recursion re-reads the same observation and receives no error signal of its own, so iterating adds depth but no information. In TRM's own domain each pass is anchored to a fixed answer; in model-based Tiny Recursive Control each pass sees the error of the current candidate under known dynamics. That contrast is context, not a proposal: the project asked whether TRM's architecture works as a model-free RL trunk.
+
+
+
+\textbf{For practice.} Use the MLP for delay-conditioned model-free control at this scale. If a recursive trunk is required anyway, use \texttt{H\_cycles = 1}: the same return at a third of the latency. Restoring full gradients is not worth its 1.45--1.5$\times$ training cost.
+
+
+
+\section*{Open questions}
+
+
+
+\begin{enumerate}
+\item \textbf{Complexity scaling (H1).} Still untested. It needs a rung the baseline learns under delay; on IDP the delay, not the budget, is the obstacle.
+\item \textbf{Why TRM fails under TD3.} TD3's actor learning rate (ten times DDPG's) is the likely contributor; a small sweep would test it.
+\item \textbf{What makes TRM noise-sensitive,} now that local gain is excluded.
+\item \textbf{A tuned recurrent baseline,} before any claim about memory in this setting.
+\item \textbf{The on-device test} of the exported actors, and their accuracy after INT8 quantisation.
+\end{enumerate}
+\end{document}

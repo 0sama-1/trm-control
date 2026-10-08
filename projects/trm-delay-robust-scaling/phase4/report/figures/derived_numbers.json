@@ -1,0 +1,574 @@
+{
+ "_note": "Computed by experiments/phase4/make_figures_phase4.py from phase4/results/ raw files. Exploratory/descriptive unless stated; gate outcomes are in gates.json.",
+ "b0": {
+  "idp": {
+   "nested_check": [
+    {
+     "seed": 1,
+     "budget_k": 150,
+     "avg100_in_500k_run": 3775.4295,
+     "final_of_budget_run": 3681.0283,
+     "identical": false,
+     "device_budget_run": "Tesla V100-SXM2-32GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 1,
+     "budget_k": 300,
+     "avg100_in_500k_run": 3878.4123,
+     "final_of_budget_run": 3861.1549,
+     "identical": false,
+     "device_budget_run": "NVIDIA A100-SXM4-40GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 2,
+     "budget_k": 150,
+     "avg100_in_500k_run": 1844.2877,
+     "final_of_budget_run": 2291.1039,
+     "identical": false,
+     "device_budget_run": "NVIDIA A100-SXM4-40GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 2,
+     "budget_k": 300,
+     "avg100_in_500k_run": 3077.6105,
+     "final_of_budget_run": 3077.6105,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 3,
+     "budget_k": 150,
+     "avg100_in_500k_run": 2766.3167,
+     "final_of_budget_run": 2032.3959,
+     "identical": false,
+     "device_budget_run": "NVIDIA A100-SXM4-40GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 3,
+     "budget_k": 300,
+     "avg100_in_500k_run": 4160.0642,
+     "final_of_budget_run": 4160.0642,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    }
+   ],
+   "nested_same_gpu_model_identical": "2/2",
+   "nested_different_gpu_model_identical": "0/4",
+   "params_actor_plus_twin_critics": [
+    207107
+   ],
+   "last100_full_solves_500k": {
+    "seed1": {
+     "return_gt_9000": 45,
+     "length_1000": 45
+    },
+    "seed2": {
+     "return_gt_9000": 39,
+     "length_1000": 39
+    },
+    "seed3": {
+     "return_gt_9000": 32,
+     "length_1000": 32
+    }
+   },
+   "last100_full_solves_by_budget": {
+    "150k_s1": 39,
+    "150k_s2": 10,
+    "150k_s3": 13,
+    "300k_s1": 41,
+    "300k_s2": 26,
+    "300k_s3": 42,
+    "500k_s1": 45,
+    "500k_s2": 39,
+    "500k_s3": 32
+   },
+   "last100_500k_pooled_returns": {
+    "n": 300,
+    "gt_9000": 116,
+    "lt_500": 171,
+    "between": 13
+   },
+   "timing_runs": {
+    "trm": {
+     "params_actor_plus_twin_critics": 1184131,
+     "device": "NVIDIA L40S"
+    },
+    "trm_h1": {
+     "params_actor_plus_twin_critics": 1184131,
+     "device": "NVIDIA L40S"
+    }
+   },
+   "params_no_delay": 206339
+  },
+  "hopper": {
+   "nested_check": [
+    {
+     "seed": 1,
+     "budget_k": 150,
+     "avg100_in_500k_run": 1101.0502,
+     "final_of_budget_run": 1101.0502,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 1,
+     "budget_k": 300,
+     "avg100_in_500k_run": 1729.6075,
+     "final_of_budget_run": 1729.6075,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 2,
+     "budget_k": 150,
+     "avg100_in_500k_run": 1519.1464,
+     "final_of_budget_run": 954.0349,
+     "identical": false,
+     "device_budget_run": "Tesla V100-SXM2-32GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 2,
+     "budget_k": 300,
+     "avg100_in_500k_run": 2367.2322,
+     "final_of_budget_run": 1855.6264,
+     "identical": false,
+     "device_budget_run": "Tesla V100-SXM2-32GB",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 3,
+     "budget_k": 150,
+     "avg100_in_500k_run": 1708.1838,
+     "final_of_budget_run": 1708.1838,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    },
+    {
+     "seed": 3,
+     "budget_k": 300,
+     "avg100_in_500k_run": 1790.4191,
+     "final_of_budget_run": 1790.4191,
+     "identical": true,
+     "device_budget_run": "NVIDIA L40S",
+     "device_500k_run": "NVIDIA L40S"
+    }
+   ],
+   "nested_same_gpu_model_identical": "4/4",
+   "nested_different_gpu_model_identical": "0/2",
+   "params_actor_plus_twin_critics": [
+    211717
+   ]
+  }
+ },
+ "t": {
+  "learned_cut": -1000.0,
+  "learned_cut_note": "post hoc descriptive cut separating learned runs from random-level runs (uniform-random policy -1163.84, gates.json span.untrained); reproduces the counts in gates.json GT detail",
+  "per_trunk": {
+   "dnn": {
+    "finals": {
+     "none_s1": -171.4,
+     "none_s2": -165.6,
+     "none_s3": -165.8,
+     "none_s4": -164.5,
+     "none_s5": -164.8,
+     "none_s6": -168.9,
+     "C1_s1": -173.9,
+     "C1_s2": -183.2,
+     "C1_s3": -172.0,
+     "C1_s4": -175.9,
+     "C1_s5": -177.3,
+     "C1_s6": -172.3
+    },
+    "n_learned": 12,
+    "n": 12,
+    "params_actor_plus_twin_critics": {
+     "none": [
+      201731
+     ],
+     "C1": [
+      202499
+     ]
+    },
+    "critic_loss_median_ep51_75": 46.2,
+    "critic_loss_median_last_quarter": 26.3,
+    "runs_critic_late_gt_early": 0
+   },
+   "dnn_large": {
+    "finals": {
+     "none_s1": -177.2,
+     "none_s2": -169.7,
+     "none_s3": -168.2,
+     "none_s4": -163.5,
+     "none_s5": -175.4,
+     "none_s6": -168.1,
+     "C1_s1": -177.0,
+     "C1_s2": -184.3,
+     "C1_s3": -175.1,
+     "C1_s4": -176.4,
+     "C1_s5": -178.1,
+     "C1_s6": -179.6
+    },
+    "n_learned": 12,
+    "n": 12,
+    "params_actor_plus_twin_critics": {
+     "none": [
+      1180611
+     ],
+     "C1": [
+      1182483
+     ]
+    },
+    "critic_loss_median_ep51_75": 41.2,
+    "critic_loss_median_last_quarter": 23.7,
+    "runs_critic_late_gt_early": 0
+   },
+   "trm_small": {
+    "finals": {
+     "none_s1": -1023.8,
+     "none_s2": -307.6,
+     "none_s3": -1528.0,
+     "none_s4": -237.3,
+     "none_s5": -630.5,
+     "none_s6": -304.0,
+     "C1_s1": -235.9,
+     "C1_s2": -230.0,
+     "C1_s3": -827.2,
+     "C1_s4": -1574.0,
+     "C1_s5": -231.6,
+     "C1_s6": -335.3
+    },
+    "n_learned": 9,
+    "n": 12,
+    "params_actor_plus_twin_critics": {
+     "none": [
+      203371
+     ],
+     "C1": [
+      203503
+     ]
+    },
+    "critic_loss_median_ep51_75": 82.4,
+    "critic_loss_median_last_quarter": 107.7,
+    "runs_critic_late_gt_early": 7
+   },
+   "trm": {
+    "finals": {
+     "none_s1": -1435.4,
+     "none_s2": -1382.5,
+     "none_s3": -1352.4,
+     "none_s4": -1505.3,
+     "none_s5": -1366.7,
+     "none_s6": -1467.8,
+     "C1_s1": -1287.1,
+     "C1_s2": -221.7,
+     "C1_s3": -1429.5,
+     "C1_s4": -1396.0,
+     "C1_s5": -834.3,
+     "C1_s6": -1396.7
+    },
+    "n_learned": 2,
+    "n": 12,
+    "params_actor_plus_twin_critics": {
+     "none": [
+      1181443
+     ],
+     "C1": [
+      1181827
+     ]
+    },
+    "critic_loss_median_ep51_75": 118.6,
+    "critic_loss_median_last_quarter": 560.9,
+    "runs_critic_late_gt_early": 11
+   }
+  }
+ },
+ "a": {
+  "clip_norms": {
+   "actor": 15.0,
+   "critic": 2800.0
+  },
+  "clip_active_fraction": {
+   "trm|C1": {
+    "actor_median": 0.006,
+    "actor_range": [
+     0.0038,
+     0.0078
+    ],
+    "critic_median": 0.0074,
+    "critic_range": [
+     0.0054,
+     0.0186
+    ]
+   },
+   "trm|C4": {
+    "actor_median": 0.0198,
+    "actor_range": [
+     0.009,
+     0.0598
+    ],
+    "critic_median": 0.0064,
+    "critic_range": [
+     0.0034,
+     0.0244
+    ]
+   },
+   "trm_fullgrad|C1": {
+    "actor_median": 0.0409,
+    "actor_range": [
+     0.0283,
+     0.0706
+    ],
+    "critic_median": 0.0102,
+    "critic_range": [
+     0.0036,
+     0.0115
+    ]
+   },
+   "trm_fullgrad|C4": {
+    "actor_median": 0.0867,
+    "actor_range": [
+     0.0628,
+     0.1955
+    ],
+    "critic_median": 0.0059,
+    "critic_range": [
+     0.0051,
+     0.0075
+    ]
+   },
+   "trm_fullgrad_ds|C1": {
+    "actor_median": 0.035,
+    "actor_range": [
+     0.0129,
+     0.0657
+    ],
+    "critic_median": 0.0148,
+    "critic_range": [
+     0.0077,
+     0.0197
+    ]
+   },
+   "trm_fullgrad_ds|C4": {
+    "actor_median": 0.0745,
+    "actor_range": [
+     0.0517,
+     0.1069
+    ],
+    "critic_median": 0.009,
+    "critic_range": [
+     0.0023,
+     0.014
+    ]
+   }
+  },
+  "params": {
+   "trm|C1": [
+    788098
+   ],
+   "trm|C4": [
+    787842
+   ],
+   "trm_fullgrad|C1": [
+    788098
+   ],
+   "trm_fullgrad|C4": [
+    787842
+   ],
+   "trm_fullgrad_ds|C1": [
+    788098
+   ],
+   "trm_fullgrad_ds|C4": [
+    787842
+   ]
+  },
+  "clip_active_note": "fraction of per-update pre-clip gradient norms above the frozen clip norm, per run, over all updates; median and range over seeds 1-6",
+  "stage_c_params": [
+   787842
+  ]
+ },
+ "e": {
+  "label": "exploratory",
+  "paired": {
+   "trm - dnn | lip_median": {
+    "n": 12,
+    "n_positive": 4,
+    "median_diff": -11.47
+   },
+   "trm - dnn | noise_drop": {
+    "n": 12,
+    "n_positive": 10,
+    "median_diff": 75.82
+   },
+   "trm - dnn_large | lip_median": {
+    "n": 12,
+    "n_positive": 3,
+    "median_diff": -14.63
+   },
+   "trm - dnn_large | noise_drop": {
+    "n": 12,
+    "n_positive": 8,
+    "median_diff": 66.24
+   },
+   "trm_small - dnn | lip_median": {
+    "n": 12,
+    "n_positive": 4,
+    "median_diff": -8.0
+   },
+   "trm_small - dnn | noise_drop": {
+    "n": 12,
+    "n_positive": 9,
+    "median_diff": 46.72
+   }
+  },
+  "spearman_permutation_p": {
+   "all": {
+    "n": 72,
+    "lip_vs_reversals": 0.0446,
+    "lip_vs_noise_drop": 0.6217
+   },
+   "MLP": {
+    "n": 24,
+    "lip_vs_reversals": 0.0028,
+    "lip_vs_noise_drop": 0.3945
+   },
+   "TRM": {
+    "n": 48,
+    "lip_vs_reversals": 0.0058,
+    "lip_vs_noise_drop": 0.113
+   }
+  },
+  "spearman_permutation_note": "two-sided permutation test on Spearman rho, 20,000 permutations, numpy seed 0",
+  "low_lipschitz": {
+   "n_lip_median_lt_5": 12,
+   "n_of_those_reversals_gt_5": 9,
+   "those": [
+    {
+     "model": "trm_h6",
+     "seed": 4,
+     "delay": "none",
+     "lip_median": 0.0,
+     "lip_p95": 12.6,
+     "reversals_per_s": 11.2,
+     "abs_du": 2.247
+    },
+    {
+     "model": "trm_h1",
+     "seed": 6,
+     "delay": "fixed",
+     "lip_median": 0.0,
+     "lip_p95": 232.9,
+     "reversals_per_s": 16.95,
+     "abs_du": 3.321
+    },
+    {
+     "model": "trm",
+     "seed": 5,
+     "delay": "none",
+     "lip_median": 0.061,
+     "lip_p95": 246.0,
+     "reversals_per_s": 15.92,
+     "abs_du": 2.922
+    },
+    {
+     "model": "dnn_large",
+     "seed": 3,
+     "delay": "none",
+     "lip_median": 0.647,
+     "lip_p95": 49.9,
+     "reversals_per_s": 14.38,
+     "abs_du": 2.769
+    },
+    {
+     "model": "dnn",
+     "seed": 4,
+     "delay": "none",
+     "lip_median": 1.683,
+     "lip_p95": 180.4,
+     "reversals_per_s": 14.39,
+     "abs_du": 2.626
+    },
+    {
+     "model": "dnn",
+     "seed": 6,
+     "delay": "none",
+     "lip_median": 2.396,
+     "lip_p95": 73.1,
+     "reversals_per_s": 17.5,
+     "abs_du": 2.918
+    },
+    {
+     "model": "dnn",
+     "seed": 5,
+     "delay": "none",
+     "lip_median": 3.053,
+     "lip_p95": 174.3,
+     "reversals_per_s": 15.13,
+     "abs_du": 2.611
+    },
+    {
+     "model": "trm_h1",
+     "seed": 2,
+     "delay": "fixed",
+     "lip_median": 3.273,
+     "lip_p95": 80.5,
+     "reversals_per_s": 5.7,
+     "abs_du": 1.251
+    },
+    {
+     "model": "trm_h6",
+     "seed": 5,
+     "delay": "fixed",
+     "lip_median": 4.676,
+     "lip_p95": 188.8,
+     "reversals_per_s": 5.06,
+     "abs_du": 0.826
+    }
+   ],
+   "n_all_reversals_gt_5": 22
+  }
+ },
+ "result_files": {
+  "results_p4b0": 11,
+  "results_p4b0h": 9,
+  "results_p4b0d": 6,
+  "results_p4c": 27,
+  "results_p4a0": 4,
+  "results_p4a": 36,
+  "results_p4t": 48,
+  "results_p4e": 72,
+  "training_runs_total": 141
+ },
+ "export_c": [
+  {
+   "model": "dnn",
+   "actor_params": 67329,
+   "buffer_floats": 0,
+   "fp32_KiB": 263.0,
+   "int8_KiB": 65.8
+  },
+  {
+   "model": "trm_small",
+   "actor_params": 67805,
+   "buffer_floats": 88,
+   "fp32_KiB": 265.2,
+   "int8_KiB": 66.6
+  },
+  {
+   "model": "trm_h1",
+   "actor_params": 393857,
+   "buffer_floats": 256,
+   "fp32_KiB": 1539.5,
+   "int8_KiB": 385.7
+  }
+ ]
+}

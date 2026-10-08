@@ -1,0 +1,346 @@
+[
+ {
+  "id": "ga",
+  "title": "Stage A \u00b7 training discipline (GA fail)",
+  "note": "Pendulum, DDPG, 6 seeds, clip actor 15 / critic 2800 on TRM arms; MLP reused from Phase 3 (R-1). Final avg-100 medians; \u0394 vs truncated TRM with k/6 positive. Source: analysis_p4_a.json.",
+  "columns": [
+   "Arm",
+   "C1",
+   "C4",
+   "\u0394 vs trunc C1",
+   "\u0394 vs trunc C4",
+   "\u0394 vs MLP C1",
+   "\u0394 vs MLP C4",
+   "Critic late C1/C4",
+   "Eval-5 C1/C4",
+   "Train min (L40S)"
+  ],
+  "rows": [
+   [
+    "MLP 135k",
+    "\u2212178",
+    "\u2212235",
+    "\u2014",
+    "\u2014",
+    "\u2014",
+    "\u2014",
+    "13.6 / 41.8",
+    "\u2212169 / \u2212170",
+    "3.0 (V100)"
+   ],
+   [
+    "TRM truncated",
+    "\u2212209",
+    "\u2212340",
+    "\u2014",
+    "\u2014",
+    "\u221230",
+    "\u2212105",
+    "18.5 / 50.5",
+    "\u2212169 / \u2212194",
+    "21.9"
+   ],
+   [
+    "TRM full gradient",
+    "\u2212218",
+    "\u2212345",
+    "+2.5 (3/6)",
+    "+10.1 (4/6)",
+    "\u221240.5 (1/6)",
+    "\u221282.7 (1/6)",
+    "19.9 / 46.4",
+    "\u2212170 / \u2212209",
+    "32.7"
+   ],
+   [
+    "TRM full grad + deep sup.",
+    "\u2212200",
+    "\u2212323",
+    "+0.3 (3/6)",
+    "+28.4 (4/6)",
+    "\u221222.5 (1/6)",
+    "\u221288.8 (1/6)",
+    "16.8 / 47.9",
+    "\u2212160 / \u2212202",
+    "32.9"
+   ]
+  ]
+ },
+ {
+  "id": "t",
+  "title": "Stage T \u00b7 G1 under TD3 (GT pass, with caveat)",
+  "note": "Pendulum, TD3 (td3.yaml unchanged), {no delay, C1} \u00d7 seeds 1\u20136. Median final avg-100 over 12 runs. TRM 788k stays at random level in 10/12 seeds and its critic loss rises through training (diverges), so the 12/12 pass is an optimisation failure, not a Phase-3-sized deficit. DDPG = Phase 3 Stage 1 for comparison. Source: analysis_p4_t.json.",
+  "columns": [
+   "Trunk",
+   "TD3 median",
+   "DDPG median (Ph3)",
+   "Eval-5",
+   "Late critic loss",
+   "Seeds that learned",
+   "Min/run"
+  ],
+  "rows": [
+   [
+    "MLP 135k",
+    "\u2212172",
+    "\u2212174",
+    "\u2212165",
+    "26.3",
+    "12/12",
+    "3.4"
+   ],
+   [
+    "MLP 788k",
+    "\u2212176",
+    "\u2212177",
+    "\u2212168",
+    "23.7",
+    "12/12",
+    "3.4"
+   ],
+   [
+    "TRM 136k",
+    "\u2212321",
+    "\u2212232",
+    "\u2212218",
+    "108",
+    "9/12",
+    "41.6"
+   ],
+   [
+    "TRM 788k",
+    "\u22121389",
+    "\u2212208",
+    "\u22121415",
+    "561",
+    "2/12",
+    "42.5"
+   ]
+  ]
+ },
+ {
+  "id": "gc",
+  "title": "Stage C \u00b7 LR sweep (GC: insensitive)",
+  "note": "TRM 788k, Pendulum, DDPG, C1, 3 seeds per cell. Median final avg-100; default \u00d71/\u00d71 is \u2212215. No cell beats it by more than the pooled SD in 3/3 seeds. Source: analysis_p4_c.json.",
+  "columns": [
+   "Actor LR \u00d7",
+   "Critic \u00d70.3",
+   "Critic \u00d71",
+   "Critic \u00d73"
+  ],
+  "rows": [
+   [
+    "\u00d70.3",
+    "\u2212224",
+    "\u2212235",
+    "\u2212246"
+   ],
+   [
+    "\u00d71",
+    "\u2212250",
+    "\u2212215 (default)",
+    "\u2212209"
+   ],
+   [
+    "\u00d73",
+    "\u2212261",
+    "\u2212271",
+    "\u2212245"
+   ]
+  ]
+ },
+ {
+  "id": "b0d",
+  "title": "IDP diagnostic (K-2): MLP, TD3",
+  "note": "Final avg-100 per seed (bar 8190); in brackets the best avg-100 reached at any point. C1 plateaus with collapse/recovery cycles (20\u201348% of episodes solved per 100k); without delay every seed reaches the bar at some point (106k\u2013249k steps) but does not hold it. Source: analysis_p4_b0d.json.",
+  "columns": [
+   "Condition",
+   "Seed 1",
+   "Seed 2",
+   "Seed 3",
+   "Learned (final)",
+   "Last-30 evals solved"
+  ],
+  "rows": [
+   [
+    "C1, 1M steps",
+    "4147 (5594)",
+    "2590 (4940)",
+    "1733 (5093)",
+    "0/3",
+    "11, 9, 9 of 30"
+   ],
+   [
+    "No delay, 500k",
+    "8226 (9239)",
+    "5517 (9145)",
+    "5780 (9132)",
+    "1/3",
+    "23, 26, 24 of 30"
+   ]
+  ]
+ },
+ {
+  "id": "b0",
+  "title": "Stage B0 \u00b7 complexity pilots (GB0, KB0 fail)",
+  "note": "MLP, TD3, C1, final avg-100 per seed. IDP bar 8190 (90% of 9100); Hopper bar 3420 (90% of 3800). IDP episodes are bimodal: 32\u201345% full solves at 500k. Hopper rung dropped (K-2). Source: analysis_p4_b0.json, analysis_p4_b0h.json.",
+  "columns": [
+   "Env",
+   "150k",
+   "300k",
+   "500k",
+   "Learned"
+  ],
+  "rows": [
+   [
+    "InvertedDoublePendulum-v5",
+    "3681 / 2291 / 2032",
+    "3861 / 3078 / 4160",
+    "4312 / 3781 / 3592",
+    "0/3 at every budget"
+   ],
+   [
+    "Hopper-v5",
+    "1101 / 954 / 1708",
+    "1730 / 1856 / 1790",
+    "1418 / 2805 / 2201",
+    "0/3 at every budget"
+   ]
+  ]
+ },
+ {
+  "id": "d",
+  "title": "Stage D \u00b7 embedded export",
+  "note": "Seed-1 Stage 1 actors exported to float32 C headers with 20 reference I/O pairs each (phase4/results/export_c/). INT8 = 1 byte per weight + one float32 scale per tensor.",
+  "columns": [
+   "Actor",
+   "Params",
+   "FP32",
+   "INT8",
+   "512 KB flash"
+  ],
+  "rows": [
+   [
+    "MLP 135k",
+    "67,329",
+    "263 KB",
+    "66 KB",
+    "fits both"
+   ],
+   [
+    "TRM 136k (H=3)",
+    "67,805",
+    "265 KB",
+    "67 KB",
+    "fits both"
+   ],
+   [
+    "TRM H=1 (788k trunk)",
+    "393,857",
+    "1,540 KB",
+    "386 KB",
+    "INT8 only"
+   ]
+  ]
+ },
+ {
+  "id": "lat",
+  "title": "Latency and cost (Stage A arms)",
+  "note": "Actor forward, batch 1, 1 CPU thread on the local workstation, which is 2.3\u00d7 (TRM) to 3.6\u00d7 (MLP) slower at p99 than the Phase 3 Katana Xeon; compare ratios only. full_grad / deep_sup change training only.",
+  "columns": [
+   "Arm",
+   "p50 ms",
+   "p99 ms",
+   "Training cost vs truncated (same GPU)"
+  ],
+  "rows": [
+   [
+    "MLP 135k",
+    "0.10",
+    "0.23",
+    "\u2014"
+   ],
+   [
+    "TRM truncated",
+    "7.77",
+    "9.35",
+    "1.0\u00d7"
+   ],
+   [
+    "TRM full gradient",
+    "7.69",
+    "8.90",
+    "\u22481.45\u20131.5\u00d7"
+   ],
+   [
+    "TRM full grad + deep sup.",
+    "7.74",
+    "9.01",
+    "\u22481.45\u20131.5\u00d7"
+   ]
+  ]
+ },
+ {
+  "id": "e",
+  "title": "Stage E \u00b7 actor Lipschitz (exploratory)",
+  "note": "Spectral norm of \u2202a/\u2202s over the plant observation, at the 4000 states of 20 deterministic battery episodes per checkpoint (TRM via its untruncated forward). 72 Phase 3 Stage 1 checkpoints, 12 per trunk; medians per trunk. Noise drop = nominal IQM \u2212 IQM at \u03c3 = 0.05. Spearman \u03c1, Lipschitz vs reversals: \u22120.24 all, \u22120.59 MLP, \u22120.40 TRM; vs noise drop: +0.06, +0.18, +0.23. Source: analysis_p4_e.json.",
+  "columns": [
+   "Trunk",
+   "Lipschitz median",
+   "Lipschitz p95",
+   "Reversals/s",
+   "Noise drop",
+   "Nominal IQM"
+  ],
+  "rows": [
+   [
+    "MLP 135k",
+    "29.1",
+    "69.4",
+    "9.32",
+    "100",
+    "\u2212120"
+   ],
+   [
+    "MLP 788k",
+    "34.1",
+    "51.9",
+    "2.76",
+    "81",
+    "\u2212121"
+   ],
+   [
+    "TRM 136k",
+    "11.0",
+    "31.5",
+    "0.59",
+    "157",
+    "\u2212123"
+   ],
+   [
+    "TRM 788k",
+    "14.6",
+    "30.5",
+    "0.43",
+    "179",
+    "\u2212127"
+   ],
+   [
+    "TRM H=1",
+    "16.2",
+    "50.7",
+    "0.54",
+    "257",
+    "\u2212124"
+   ],
+   [
+    "TRM H=6",
+    "14.0",
+    "31.9",
+    "0.37",
+    "251",
+    "\u2212125"
+   ]
+  ]
+ }
+]

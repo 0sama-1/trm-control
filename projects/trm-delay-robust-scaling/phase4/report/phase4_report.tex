@@ -1,0 +1,718 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.95in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\title{Recursion Under Delay: Phase 4 Report}
+\author{}
+\date{trm-delay-robust-scaling $\cdot$ Phase 4 report $\cdot$ 2026-10-08\\[2pt]Complexity rung, training discipline, learning-rate sweep, the capacity contrast under TD3, and two exploratory stages. Stage notes (\texttt{stage\_B0.md}, \texttt{stage\_C.md}, \texttt{stage\_A.md}, \texttt{stage\_T.md}, \texttt{stage\_E.md}, \texttt{stage\_D.md}) and figures (\texttt{figures/}) sit alongside; analysis files are in \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}experiments/\allowbreak{}}.}
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+
+
+
+\section*{Executive summary}\addcontentsline{toc}{section}{Executive summary}
+
+
+
+\textbf{Why Phase 4.} Phases 0--3 found that a TRM actor-critic trunk trails a plain MLP on Pendulum-v1 under delay, that the deficit is architectural rather than a matter of capacity, that recursion depth is inert, and that carrying the latent across steps adds nothing (the residual-uncertainty hypothesis H3 was rejected). Three things were left open: the complexity-scaling question H1 had never been tested on a rung the baseline could learn; the port had dropped TRM's training discipline (it trains only 7 of 21 cell applications and supervises only the final readout); and every contrast had used one algorithm, DDPG.
+
+
+
+\textbf{What was run.} A pre-registered plan (frozen 2026-10-06, rules in \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates.\allowbreak{}json}), executed on UNSW Katana in 154 PBS jobs: 141 training runs, 12 jobs for a Lipschitz analysis of 72 Phase 3 checkpoints (six of them failed and were rerun) and one smoke job. The C-header export was not a PBS job (\texttt{p4.py} has no export stage). Every rule change was recorded as a dated amendment before the data it affected.
+
+
+
+\textbf{What it found.}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.059\linewidth}>{\raggedright\arraybackslash}p{0.310\linewidth}>{\raggedright\arraybackslash}p{0.538\linewidth}}
+\toprule
+Stage & Question & Outcome (as recorded in \texttt{gates.json}) \\
+\midrule
+B0 & Is InvertedDoublePendulum-v5 learned by the MLP under TD3 + one-step delay? & \textbf{GB0 fail}: 0/3 seeds learned at 150k, 300k and 500k steps \\
+B0h & Kill-switch fallback: is Hopper-v5? & \textbf{KB0 fail}: 0/3 at every budget; Hopper dropped (K-2) \\
+B0d & IDP diagnostic: does 1M steps or removing the delay help? & Not a gate. 1M: 0/3. No delay: all 3 reach 8190 at some point, 1/3 hold it \\
+B1 & Does TRM's normalised deficit shrink on the harder rung (H1$'$)? & \textbf{Not run} (author decision, K-3); H1 remains untested \\
+C & Is TRM's deficit an untuned learning rate? & \textbf{GC insensitive}: no cell of a $\times$0.3--$\times$3 actor $\times$ critic grid is flagged \\
+A & Does restoring full gradients and deep supervision help TRM? & \textbf{GA fail}: best contrasts 4/6 (pass needs 5/6) \\
+T & Does Phase 3's capacity attribution (G1) hold under TD3? & \textbf{GT pass} (12/12), \textbf{with a recorded caveat}: TRM 788k does not train under \texttt{td3.yaml} (2/12 runs learn; its critic diverges), so the pass is an optimisation failure, not a Phase-3-sized deficit \\
+E & Does the actor's local Lipschitz constant explain TRM's smoothness and noise sensitivity? & Exploratory: TRM actors have \emph{lower} local gain yet larger noise drops; the constant does not explain the noise sensitivity \\
+D & Export actors to C headers for an STM32 test & Done; MLP 135k and TRM 136k fit 512 KiB in FP32, the 788k-configuration TRM only in INT8; on-device test not run \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\textbf{What it changes.} Two of the explanations Phase 3 left for TRM's deficit are now removed: it is not an untuned learning rate (Stage C), and it is not the truncated gradient or the missing per-cycle supervision, at least in the forms that have an off-policy analogue (Stage A). Stage T adds that the recursive trunk is fragile under a second algorithm: with TD3's settings it mostly fails to train at all, while the MLP is unaffected. The complexity question H1 could not be put at risk, because neither harder rung was learned by the baseline under the pre-registered conditions; it stays untested, and that is a limitation of the project, not evidence against TRM. \textbf{The practical recommendation is unchanged: use the MLP.}
+
+
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{figures/p4_f1_stage_map.pdf}
+\caption{Phase 4 stages and gate outcomes}
+\end{figure}
+
+
+
+\medskip
+
+
+
+\section*{1. Why Phase 4}\addcontentsline{toc}{section}{1. Why Phase 4}
+
+
+
+Phase 3 removed the three confounds that had made the Phase 1--2 negative ambiguous: capacity, the latent reset, and the absence of anything to infer. Its final report closed with four open questions, in order of value: restore the training discipline; test the contrast under TD3 and on an unstable plant learned at budget; re-test complexity scaling on environments that are actually learned; and build a tuned recurrent baseline. Phase 4 took the first three, re-ordered by what would most change the conclusions (plan \S{}0):
+
+
+
+\begin{enumerate}
+\item \textbf{Stage B (complexity).} Add one rung the MLP learns, then test H1$'$: does TRM's span-normalised deficit shrink from Pendulum to the new rung?
+\item \textbf{Stage A (training discipline).} Backpropagate through every cell application, and supervise every outer cycle's value readout.
+\item \textbf{Stage C (tuning).} Rule out "TRM was never tuned" with a small learning-rate sweep.
+\end{enumerate}
+
+
+
+Stage T (G1 under TD3) was added by amendment T-1 after the plan was frozen and before its data, to address the single-algorithm threat directly. Stage E (Lipschitz mechanism analysis) and Stage D (C-header export) were exploratory and engineering stages without gates.
+
+
+
+The thesis framing is unchanged: the goal is to assess whether TRM's architecture, ported as faithfully as the setting allows, works as a model-free RL trunk. Phase 4 does not redesign the architecture.
+
+
+
+\section*{2. What was pre-registered}\addcontentsline{toc}{section}{2. What was pre-registered}
+
+
+
+The plan (\texttt{phase4/\allowbreak{}plan/\allowbreak{}plan.\allowbreak{}md}) was frozen on 2026-10-06, before any Phase 4 data. Its decision rules are machine-readable in \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates.\allowbreak{}json}, and \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates\_\allowbreak{}eval.\allowbreak{}py} evaluates them; a gate command writes an outcome only when its data are complete and never edits a rule or a frozen value.
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.081\linewidth}>{\raggedright\arraybackslash}p{0.081\linewidth}>{\raggedright\arraybackslash}p{0.744\linewidth}}
+\toprule
+Gate & Stage & Pre-registered rule \\
+\midrule
+GB0 & B0 & IDP-v5, TD3, C1, MLP, seeds 1--3, budgets 150k/300k/500k env steps. A seed is learned at a budget if its final avg-100 $\geq$ 8190 (90\% of the registry's 9100). Passes if $\geq$ 2/3 are learned at some budget; B1 uses the smallest passing budget. \\
+KB0 & B0 & If GB0 has not passed by 2026-10-09, the same pilot on Hopper-v5 (learned $\geq$ 3420, 90\% of 3800). If that fails, Stage B stops and goes to the author. \\
+GC & C & TRM 788k, Pendulum, DDPG, C1, actor $\times$ critic LR multipliers \{0.3, 1, 3\}$^2$, seeds 1--3. A cell is flagged if final(cell, s) $-$ final($\times$1/$\times$1, s) exceeds the two cells' pooled seed SD in all 3 seeds. \\
+GA & A & Pendulum, DDPG, C1 and C4 with the previous action, seeds 1--6. For D $\in$ \{full grad, full grad + deep sup.\} and each condition, per seed D $-$ TRM-trunc. Passes if any of the four contrasts is positive in $\geq$ 5/6 seeds. \\
+GT & T & Pendulum, TD3 (\texttt{td3.yaml} unchanged), \{no delay, C1\} $\times$ seeds 1--6. Passes if TRM 788k $-$ MLP 788k is negative in $\geq$ 10/12 (seed, condition) pairs. \\
+H1$'$ & B1 & Per seed, $\delta$\_E(s) = [final\_MLP135k(s) $-$ final\_TRM788k(s)] / span\_E, span\_E = best\_E $-$ untrained\_E. Supported only if $\delta$\_new(s) < $\delta$\_Pendulum(s) in $\geq$ 5/6 seed pairs. \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates.\allowbreak{}json} (\texttt{gates[].rule}).}
+
+
+
+The plan also fixed, before data: the reference returns and the 90\% rule; the step budgets; the LR grid; the rule for setting the Stage A clip norms from a pilot; the reuse condition for the Stage A MLP arm; and the untrained baseline for the H1$'$ span (a uniform-random policy, amendment R-2).
+
+
+
+\section*{3. Methodology}\addcontentsline{toc}{section}{3. Methodology}
+
+
+
+\subsection*{3.1 Environments and why each was chosen}\addcontentsline{toc}{subsection}{3.1 Environments and why each was chosen}
+
+
+
+\begin{itemize}
+\item \textbf{Pendulum-v1} (3-D observation, 1-D torque in [$-$2, 2], 200-step episodes, dense cost). The one environment every trunk learned in Phases 1--3, and the site of every decisive Phase 3 result. Stages A, C and T use it so that their results connect directly to Phase 3.
+\item \textbf{InvertedDoublePendulum-v5} (MuJoCo, 1000-step limit, alive bonus 10 per step). Chosen in the Phase 3 plan (S3.2) for control-theoretic reasons rather than as a generic "harder" task: it is open-loop unstable with a short time constant, so an action delay consumes stability margin rather than only obscuring the state. Reference return 9100, the \texttt{reward\_\allowbreak{}threshold} Gymnasium 1.3.0 registers; the maximum achievable return is about 9360; Fujimoto et al. (2018) report 9337 for TD3.
+\item \textbf{Hopper-v5} (MuJoCo locomotion, 1000-step limit). The pre-registered kill-switch fallback if IDP failed; reference 3800 (registry), learned $\geq$ 3420.
+\end{itemize}
+
+
+
+\subsection*{3.2 Algorithms and hyperparameters}\addcontentsline{toc}{subsection}{3.2 Algorithms and hyperparameters}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.223\linewidth}>{\raggedright\arraybackslash}p{0.389\linewidth}>{\raggedright\arraybackslash}p{0.294\linewidth}}
+\toprule
+Setting & DDPG (\texttt{conf/\allowbreak{}arch/\allowbreak{}ddpg.\allowbreak{}yaml}) & TD3 (\texttt{conf/\allowbreak{}arch/\allowbreak{}td3.\allowbreak{}yaml}) \\
+\midrule
+Actor / critic learning rate & 1e-4 / 1e-3 & 1e-3 / 1e-3 \\
+Batch size & 128 & 256 \\
+Random-action warmup & 1000 steps & 10,000 steps \\
+Exploration & OU noise, $\theta$ = 0.15, $\sigma$ = 0.2, dt = 0.01 & Gaussian, 0.1 of the action range \\
+Critics & one & twin, minimum used for targets \\
+Actor / target update & every step & every 2 critic steps (policy delay 2) \\
+Target-policy smoothing & --- & noise 0.2, clipped at 0.5 \\
+$\gamma$, $\tau$, buffer & 0.99, 0.005, 200,000 & 0.99, 0.005, 200,000 \\
+Updates & one per env step, once the buffer holds one batch & same \\
+Episode budget (default) & 200 episodes & 200 episodes \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+Stages A and C use DDPG. Stages B0, B0h, B0d and T use TD3. Neither configuration was tuned for any trunk, except for the learning rates in Stage C's grid. IDP and Hopper runs use an env-step budget (\texttt{arch.\allowbreak{}total\_\allowbreak{}steps}): no new episode starts once the budget is reached, and the last episode runs to its end.
+
+
+
+\subsection*{3.3 Trunks and parameter counts}\addcontentsline{toc}{subsection}{3.3 Trunks and parameter counts}
+
+
+
+All trunks are drop-in replacements for the actor's and critic's feature extractor. The MLPs are \texttt{[256, 256]} (\texttt{dnn}, "135k") and \texttt{[624, 624]} (\texttt{dnn\_large}, "788k"), ReLU. The TRM trunks share one SwiGLU/RMSNorm reasoning cell (two layers, expansion 4) applied recursively over two latents: \texttt{trm} ("788k") has hidden size 128, \texttt{trm\_small} ("136k") 44; both use \texttt{H\_cycles = 3} outer and \texttt{L\_cycles = 6} inner cycles, so 21 cell applications per forward pass, of which the one-step truncation trains 7. \texttt{trm\_h1} sets \texttt{H\_cycles = 1} (7 applications, all trained) at identical parameters. \texttt{trm\_fullgrad} and \texttt{trm\_\allowbreak{}fullgrad\_\allowbreak{}ds} are \texttt{trm} with the Phase 4 flags.
+
+
+
+\textbf{Counting basis.} Every parameter count in this report sums the trainable parameters of all networks the agent trains, excluding target networks, as written to each results file's \texttt{param\_count} (\texttt{src/\allowbreak{}trainer.\allowbreak{}py::\_\allowbreak{}count\_\allowbreak{}params}). Under DDPG that is actor + one critic; under TD3 it is actor + twin critics. The labels "135k", "136k" and "788k" always name the DDPG-basis configurations. Counts shift slightly with the observation width (queue and previous-action slots).
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.260\linewidth}>{\raggedleft\arraybackslash}p{0.123\linewidth}>{\raggedleft\arraybackslash}p{0.248\linewidth}>{\raggedleft\arraybackslash}p{0.117\linewidth}>{\raggedleft\arraybackslash}p{0.103\linewidth}}
+\toprule
+Trunk & DDPG, Pendulum C1 & DDPG, Pendulum C1 + previous action & TD3, Pendulum C1 & TD3, IDP C1 \\
+\midrule
+MLP 135k & 134,914 & 135,426 & 202,499 & 207,107 \\
+MLP 788k & 788,114 & --- & 1,182,483 & --- \\
+TRM 136k & 135,654 & --- & 203,503 & --- \\
+TRM 788k (and H = 1, full grad, + DS) & 787,842 & 788,098 & 1,181,827 & 1,184,131 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{param\_count} in the results files: Phase 3 \texttt{results\_p3s1} and \texttt{results\_p3s2}; Phase 4 \texttt{results\_p4t}, \texttt{results\_p4b0} (via \texttt{phase4/\allowbreak{}report/\allowbreak{}figures/\allowbreak{}derived\_\allowbreak{}numbers.\allowbreak{}json}).}
+
+
+
+\subsection*{3.4 Delay conditions}\addcontentsline{toc}{subsection}{3.4 Delay conditions}
+
+
+
+The delay wrapper applies each action \emph{d} steps late. With augmentation, the observation carries the queue of committed but not yet applied actions, which restores a sufficient statistic for a fixed delay.
+
+
+
+\begin{itemize}
+\item \textbf{C0:} no delay.
+\item \textbf{C1:} fixed d = 1, with the one-slot queue in the observation.
+\item \textbf{C4:} d \textasciitilde{} U\{0..4\} resampled every step, queue withheld.
+\end{itemize}
+
+
+
+Stages B0, C and T use C1 without a previous-action input (Phase 3 Stage 1's condition). Stage A uses C1 and C4 \emph{with} the previous action appended (Phase 3 Stage 2's condition, amendment A-6 of Phase 3), so its MLP arm could be reused. Stage T also runs C0.
+
+
+
+\subsection*{3.5 Seeds and budgets}\addcontentsline{toc}{subsection}{3.5 Seeds and budgets}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.095\linewidth}>{\raggedright\arraybackslash}p{0.138\linewidth}>{\raggedright\arraybackslash}p{0.176\linewidth}>{\raggedright\arraybackslash}p{0.115\linewidth}>{\raggedright\arraybackslash}p{0.057\linewidth}>{\raggedright\arraybackslash}p{0.166\linewidth}>{\raggedleft\arraybackslash}p{0.046\linewidth}}
+\toprule
+Stage & Environment, algorithm & Trunks & Conditions & Seeds & Budget & Runs \\
+\midrule
+B0 & IDP, TD3 & MLP 135k (+ TRM, TRM H = 1 timing) & C1 & 1--3 & 150k / 300k / 500k steps (timing 15k) & 9 + 2 \\
+B0h & Hopper, TD3 & MLP 135k & C1 & 1--3 & 150k / 300k / 500k steps & 9 \\
+B0d & IDP, TD3 & MLP 135k & C1; C0 & 1--3 & 1M; 500k steps & 6 \\
+C & Pendulum, DDPG & TRM 788k & C1 & 1--3 & 200 episodes, 9 LR cells & 27 \\
+A (pilot a0) & Pendulum, DDPG & TRM, full grad, + DS & C1, C4 (+ prev. action) & 1 & 200 episodes & 4 \\
+A & Pendulum, DDPG & TRM-trunc, full grad, + DS (MLP reused) & C1, C4 (+ prev. action) & 1--6 & 200 episodes & 36 \\
+T & Pendulum, TD3 & MLP 135k, 788k; TRM 136k, 788k & C0, C1 & 1--6 & 200 episodes & 48 \\
+\textbf{Total training runs} &  &  &  &  &  & \textbf{141} \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: result-file counts in \texttt{derived\_\allowbreak{}numbers.\allowbreak{}json} (\texttt{result\_files}).}
+
+
+
+\subsection*{3.6 Metrics}\addcontentsline{toc}{subsection}{3.6 Metrics}
+
+
+
+\begin{itemize}
+\item \textbf{Primary:} final avg-100 \emph{training} return (mean return over the last 100 training episodes, exploration noise included), as in Phases 1--3.
+\item \textbf{Eval last-5:} the mean of the last five deterministic evaluation episodes (one every 10 training episodes).
+\item \textbf{Late critic loss:} the median per-episode critic loss over the last quarter of episodes with updates. Ratios between arms are computed per seed, then the median is reported.
+\item \textbf{IDP / Hopper:} steps to the first avg-100 $\geq$ the learned bar (counted from episode 100); the share of episodes with return > 9000 (a full solve on IDP); deterministic evaluations solved.
+\item \textbf{Stage E:} the actor's local Lipschitz constant (spectral norm of $\partial$a/$\partial$s over plant inputs) at 4000 visited states per checkpoint, against the Phase 3 battery's reversals per second and sensor-noise return drop (battery IQM with stratified bootstrap CIs, Agarwal et al., 2021).
+\item \textbf{Cost:} wall-clock per run within a GPU model; decision latency (batch 1, one CPU thread).
+\end{itemize}
+
+
+
+\subsection*{3.7 Statistics}\addcontentsline{toc}{subsection}{3.7 Statistics}
+
+
+
+Pairs are matched by seed (and by condition where conditions are pooled). The sign test counts k of n positive paired differences: one-sided where a gate has a direction, with the two-sided p reported alongside. With n = 6, 5/6 gives one-sided p = 0.109; with pooled n = 12, 10/12 gives two-sided p = 0.039. The pooled seed SD of two arms is the square root of the mean of their two seed variances, used by GC's magnitude rule. Spearman correlations in Stage E are descriptive, with permutation p-values added for this report.
+
+
+
+\subsection*{3.8 Pre-registration, gating and frozen code}\addcontentsline{toc}{subsection}{3.8 Pre-registration, gating and frozen code}
+
+
+
+Each stage ran from a frozen code snapshot (\texttt{p4code/\allowbreak{}<stage>} on Katana, made by \texttt{sync.sh}), tracked in a job ledger and a live status JSON (\texttt{p4.py status}) and shown on a run board. The author made every gate decision; execution stopped and reported at each gate, at the kill switch and before every main matrix. New behaviour sits behind new default-off flags (\texttt{arch.\allowbreak{}total\_\allowbreak{}steps}, \texttt{model.\allowbreak{}full\_\allowbreak{}grad}, \texttt{model.\allowbreak{}deep\_\allowbreak{}sup}, \texttt{arch.\allowbreak{}actor\_\allowbreak{}grad\_\allowbreak{}clip}, \texttt{arch.\allowbreak{}critic\_\allowbreak{}grad\_\allowbreak{}clip}), so existing configurations are untouched (\S{}4).
+
+
+
+\subsection*{3.9 Compute}\addcontentsline{toc}{subsection}{3.9 Compute}
+
+
+
+All jobs ran on Katana GPU nodes as PBS batch jobs: one GPU, two CPU cores, 8 GB of memory (Pendulum) or 16 GB (IDP, Hopper), walltime 01:59:00, which routes to the \texttt{mechgpu2} queue and reaches every GPU node, and \texttt{gpu\_\allowbreak{}rp6000=False} to avoid the one node whose GPU the venv's PyTorch build cannot use (Phase 3 incident 1). The 141 training runs landed on Tesla V100-SXM2-32GB (56), NVIDIA L40S (53) and NVIDIA A100-SXM4-40GB (32) GPUs (\texttt{experiments/\allowbreak{}phase4/\allowbreak{}dashboard\_\allowbreak{}state/\allowbreak{}status\_\allowbreak{}latest.\allowbreak{}json}).
+
+
+
+\section*{4. Engineering and verification (amendment V-1)}\addcontentsline{toc}{section}{4. Engineering and verification (amendment V-1)}
+
+
+
+Phase 4 added an env-step budget, the full-gradient and deep-supervision paths in the TRM trunk and the DDPG update, per-network gradient clipping with pre-clip norm logging, and the configs \texttt{trm\_\allowbreak{}fullgrad.\allowbreak{}yaml} and \texttt{trm\_\allowbreak{}fullgrad\_\allowbreak{}ds.\allowbreak{}yaml}. Before any B0, C or A job, \texttt{verify\_\allowbreak{}code.\allowbreak{}py} checked four things (V-1, 2026-10-07):
+
+
+
+\begin{enumerate}
+\item \textbf{Gradient-hook test.} Hooks on every reasoning-cell application count those whose output receives non-zero gradient. Truncated: 7 of 21 at H = 3; with \texttt{full\_grad}: 21 of 21. Also 7/7 at H = 1 and 7/42 against 42/42 at H = 6. This confirms directly the Phase 3 statement that only 7 applications are ever trained, whatever the depth.
+\item \textbf{Bit-identity.} 30 of 30 existing configurations (DDPG and TD3 $\times$ 12 trunks at fixed d = 1 + queue; DDPG $\times$ \{MLP, TRM, Carry-Z\} at no delay and at C4 + previous action) produced identical final-weight hashes and episode histories under the pre-Phase-4 snapshot (identical to Phase 3's \texttt{p3code/s2x}) and the Phase 4 tree, training 2 Pendulum episodes on CPU.
+\item \textbf{New paths.} Clip = inf reproduces the unclipped run exactly; both new TRM configs train; \texttt{total\_steps} ends a run at its budget.
+\item \textbf{GPU smoke job} on a V100 covering IDP + TD3, the step budget, a learning-rate override and \texttt{trm\_\allowbreak{}fullgrad\_\allowbreak{}ds} with clipping at C4.
+\end{enumerate}
+
+
+
+The same check underwrote amendment R-1: DDPG + MLP at C1 and C4 with the previous action trains bit-identically under Phase 3's \texttt{p3code/s2} snapshot and the Phase 4 tree, so Stage A reuses Phase 3 Stage 2's 12 MLP runs.
+
+
+
+\emph{Source: amendments V-1 and R-1 in \texttt{gates.json}; outputs in \texttt{experiments/\allowbreak{}phase4/\allowbreak{}verification/\allowbreak{}} (\texttt{bit\_\allowbreak{}identity.\allowbreak{}txt}: "30/30 configs bit-identical").}
+
+
+
+One reproducibility limit was found during execution rather than verified in advance: \textbf{runs are not bit-reproducible across GPU models.} B0's nested budgets give a free check. Runs on the same GPU model reproduced each other exactly (IDP 2/2 pairs, Hopper 4/4), while every pair on different models diverged (IDP 0/4, Hopper 0/2), sometimes by more than the seed spread (\texttt{analysis\_\allowbreak{}p4\_\allowbreak{}b0.\allowbreak{}json}, \texttt{nested\_check}; devices in \texttt{derived\_\allowbreak{}numbers.\allowbreak{}json}). Every Phase 4 stage mixed GPU models, so hardware variation is part of the seed variation in every comparison.
+
+
+
+\section*{5. Results}\addcontentsline{toc}{section}{5. Results}
+
+
+
+All returns are final avg-100 training returns unless marked otherwise. "k/n" is k of n paired differences positive. Each stage note gives the full tables, per-seed values and figures; this section gives the results against each rule and discusses them.
+
+
+
+\subsection*{5.1 Stage B0: no learnable rung (GB0 fail, KB0 fail)}\addcontentsline{toc}{subsection}{5.1 Stage B0: no learnable rung (GB0 fail, KB0 fail)}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.168\linewidth}>{\raggedright\arraybackslash}p{0.126\linewidth}>{\raggedright\arraybackslash}p{0.503\linewidth}>{\raggedleft\arraybackslash}p{0.081\linewidth}}
+\toprule
+Rung & Budget & Final avg-100, seeds 1 / 2 / 3 & Learned \\
+\midrule
+IDP-v5 (bar 8190) & 150k / 300k / 500k & 3681.0 / 2291.1 / 2032.4 $\cdot$ 3861.2 / 3077.6 / 4160.1 $\cdot$ 4312.4 / 3781.1 / 3591.6 & 0/3 at each \\
+Hopper-v5 (bar 3420) & 150k / 300k / 500k & 1101.1 / 954.0 / 1708.2 $\cdot$ 1729.6 / 1855.6 / 1790.4 $\cdot$ 1418.0 / 2805.3 / 2201.3 & 0/3 at each \\
+IDP diagnostic, C1 & 1M & 4146.9 / 2590.2 / 1732.8 & 0/3 \\
+IDP diagnostic, no delay & 500k & 8226.2 / 5516.8 / 5779.7 (all three crossed 8190 at some point) & 1/3 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}b0.\allowbreak{}json}, \texttt{analysis\_\allowbreak{}p4\_\allowbreak{}b0h.\allowbreak{}json}, \texttt{analysis\_\allowbreak{}p4\_\allowbreak{}b0d.\allowbreak{}json}.}
+
+
+
+\textbf{What the numbers show.} On IDP the MLP plateaued at avg-100 between about 3100 and 4300 from 300k steps on, far above the uniform-random baseline (49.90) and far below the bar. Its episodes are bimodal: in the last 100 episodes of the 500k runs, 32--45\% are full 1000-step solves and the rest mostly early falls (of 300 pooled episodes, 116 solved, 171 below 500, 13 between). The threshold was missed through unreliability, not budget: 1M steps were no better than 300k--500k, and the per-100k solve share moved between 5.7\% and 48.5\% without a trend. Removing the delay changed the picture: every seed crossed 8190 (two by about 106k steps), and the deterministic policy solved 23--26 of the last 30 evaluations against 9--11 of 30 under C1. Hopper's MLP reached at most 2805.3 at 500k (82\% of its bar), a risk the plan had flagged in advance.
+
+
+
+\textbf{Robustness.} The verdict is uniform: none of the 21 C1 runs across B0, B0h and B0d was learned. The no-delay result is less clean: TD3 collapses and recovers there too, and only one seed ends above the bar.
+
+
+
+\textbf{Competing explanations.} (a) \emph{Too little budget:} contradicted by the 1M runs. (b) \emph{The bar is too strict for noisy training return:} partly true (deterministic evaluations are higher), but even greedy policies solve only about a third of episodes under delay. (c) \emph{TD3 as configured is unstable on IDP:} supported in part, since even the no-delay runs do not hold the bar. (d) \emph{The one-step delay on an unstable plant:} the strongest single factor, since removing it moves the same learner from 0/3 to 3/3 crossings and from about a third to about three quarters of greedy episodes solved.
+
+
+
+\textbf{What it constrains.} Nothing about TRM. GB0 and KB0 are pilots of the baseline; their failure means B1 had no pre-registered rung on which to test H1$'$. \textbf{What it does not show:} that TRM's relative standing changes, or does not change, with complexity.
+
+
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{figures/p4_f3_idp_diagnostic.pdf}
+\caption{IDP diagnostic}
+\end{figure}
+
+
+
+\subsection*{5.2 Stage B1 and H1$'$: not run (K-3)}\addcontentsline{toc}{subsection}{5.2 Stage B1 and H1$'$: not run (K-3)}
+
+
+
+Under amendment K-2, if the 1M diagnostic failed GB0's rule, B1 could only run as an exploratory study with a post-hoc "clear of floor" criterion. A draft amendment proposing exactly that (\texttt{phase4/\allowbreak{}plan/\allowbreak{}K-3\_\allowbreak{}draft.\allowbreak{}md}: IDP at 300k, "clear of floor" at $\geq$ 2275, Stage T as the Pendulum reference) went to the author. Before it was approved, Stage T showed that TRM 788k does not train under \texttt{td3.yaml} even on Pendulum. The author decided on 2026-10-08 not to run B1 (amendment K-3): no harder rung was learnable by the baseline under the pre-registered conditions, and a TD3 B1 would most likely have measured TRM's optimisation failure rather than complexity scaling. The draft is superseded, H1$'$ is recorded as not run, and \textbf{H1 remains untested for the whole project}: MountainCarContinuous-v0, BipedalWalker-v3, InvertedDoublePendulum-v5 and Hopper-v5 were all unlearnable by the baseline at the budgets and settings tried. This is a limitation of the study, not evidence against TRM.
+
+
+
+The H1$'$ span would have used a uniform-random untrained baseline (R-2: Pendulum $-$1163.84, IDP 49.90, Hopper 16.32). That differs from the "$\approx$ $-$1460" untrained Pendulum figure Phases 1--3 quoted, which was the return of an actor that learned nothing (the failed Phase 1 LSTM), not of random actions.
+
+
+
+\subsection*{5.3 Stage C: learning-rate sweep (GC insensitive)}\addcontentsline{toc}{subsection}{5.3 Stage C: learning-rate sweep (GC insensitive)}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.209\linewidth}>{\raggedleft\arraybackslash}p{0.230\linewidth}>{\raggedleft\arraybackslash}p{0.220\linewidth}>{\raggedleft\arraybackslash}p{0.220\linewidth}}
+\toprule
+Actor LR \textbackslash{} critic LR & 3e-4 & 1e-3 & 3e-3 \\
+\midrule
+3e-5 & $-$223.85 ($\Delta$ $-$8.73, 0/3) & $-$234.79 ($-$18.51, 0/3) & $-$245.59 ($-$49.57, 1/3) \\
+1e-4 & $-$250.41 ($-$35.29, 0/3) & \textbf{$-$215.12 (default)} & $-$208.79 (+10.95, 2/3) \\
+3e-4 & $-$261.45 ($-$41.72, 0/3) & $-$270.82 ($-$55.71, 0/3) & $-$244.75 ($-$48.73, 0/3) \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Median final avg-100 per cell (median $\Delta$ against the default cell, seeds positive). Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}c.\allowbreak{}json}.}
+
+
+
+\textbf{What the numbers show.} No cell is flagged, so GC records "TRM insensitive to LR within $\times$0.3--$\times$3". The default is among the best cells: seven of eight alternatives have lower medians, six of them in all three seeds. The only cell with a higher median (critic $\times$3) has per-seed differences $-$15.3, +17.3, +11.0 against a pooled SD of 10.2.
+
+
+
+\textbf{Robustness.} n = 3 per cell; a 0/3 cell has two-sided p = 0.25. The rule can detect only large, consistent improvements, and the grid shows none. Deterministic evaluation is nearly flat outside the $\times$3-actor row ($-$179.3 to $-$173.5).
+
+
+
+\textbf{An exploratory pattern with consequences for Stage T.} All three $\times$3-actor-LR cells (3e-4) are below the default in 3/3 seeds, by 41.7--55.7 at the median, and carry the grid's highest late critic losses (24.5--28.2 against 22.6). Raising TRM's actor learning rate hurts it. TD3's actor rate is 1e-3, ten times the DDPG default.
+
+
+
+\textbf{What it constrains.} The "untuned" explanation for TRM's deficit, along the learning-rate axes. The best cell's median ($-$208.8) is about where Phase 3's TRM 788k sat at C1 ($-$208.7 for seeds 1--3) and well below Phase 3's MLP 135k at C1 ($-$176.8), a cross-stage comparison. \textbf{What it does not show:} insensitivity to other optimiser settings (batch size, $\tau$, noise scale), or at other conditions.
+
+
+
+\subsection*{5.4 Stage A: training discipline (GA fail)}\addcontentsline{toc}{subsection}{5.4 Stage A: training discipline (GA fail)}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.404\linewidth}>{\raggedleft\arraybackslash}p{0.142\linewidth}>{\raggedleft\arraybackslash}p{0.092\linewidth}>{\raggedleft\arraybackslash}p{0.106\linewidth}>{\raggedleft\arraybackslash}p{0.106\linewidth}}
+\toprule
+Contrast (n = 6) & Median $\Delta$ & Positive & p one-sided & p two-sided \\
+\midrule
+TRM-fullgrad $-$ TRM-trunc, C1 & +2.49 & 3/6 & 0.656 & 1.00 \\
+TRM-fullgrad $-$ TRM-trunc, C4 & +10.07 & 4/6 & 0.344 & 0.69 \\
+TRM-fullgrad + DS $-$ TRM-trunc, C1 & +0.35 & 3/6 & 0.656 & 1.00 \\
+TRM-fullgrad + DS $-$ TRM-trunc, C4 & +28.45 & 4/6 & 0.344 & 0.69 \\
+\emph{Secondary:} TRM-fullgrad $-$ MLP, C1 / C4 & $-$40.50 / $-$82.66 & 1/6, 1/6 & --- & 0.22, 0.22 \\
+\emph{Secondary:} TRM-fullgrad + DS $-$ MLP, C1 / C4 & $-$22.46 / $-$88.77 & 1/6, 1/6 & --- & 0.22, 0.22 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}a.\allowbreak{}json}. TRM arms clipped at actor 15 / critic 2800 (A-1); MLP reused from Phase 3 Stage 2, unclipped (R-1).}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.185\linewidth}>{\raggedleft\arraybackslash}p{0.098\linewidth}>{\raggedleft\arraybackslash}p{0.098\linewidth}>{\raggedright\arraybackslash}p{0.207\linewidth}>{\raggedright\arraybackslash}p{0.262\linewidth}}
+\toprule
+Arm & C1 median & C4 median & Eval last-5 C1 / C4 & Late critic loss C1 / C4 \\
+\midrule
+MLP 135k & $-$178.31 & $-$235.37 & $-$169.46 / $-$170.44 & 13.63 / 41.76 \\
+TRM-trunc & $-$208.71 & $-$340.19 & $-$168.62 / $-$194.10 & 18.54 / 50.45 \\
+TRM-fullgrad & $-$218.41 & $-$344.59 & $-$170.01 / $-$209.21 & 19.90 / 46.42 \\
+TRM-fullgrad + DS & $-$200.00 & $-$323.03 & $-$159.59 / $-$202.06 & 16.84 / 47.85 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\textbf{What the numbers show.} GA fails: no contrast reaches 5/6. Training all 21 cell applications leaves TRM within 10 reward units of the truncated port at both conditions, sign-inconsistently, at 1.44--1.50$\times$ its training time on every GPU model. Deep supervision's C4 contrast has the largest median (+28.45), but two of its six seeds lose 36 and 90 units. Both restored variants still trail the MLP in 5/6 seeds at each condition, and their late critic loss is still above the MLP's in 6/6 seeds at C1 (1.45$\times$ and 1.35$\times$). Deterministic evaluation tells the same story: at C1 all arms' greedy policies are within about 10 units; at C4 the TRM arms trail the MLP by 24--39 units.
+
+
+
+\textbf{Robustness.} n = 6; the per-seed differences straddle zero with magnitudes comparable to the pooled seed SD (27.6--35.1). Inference latency is unchanged by the flags, as expected (p50 7.69--7.77 ms for all three TRM arms against the MLP's 0.098 ms on the local workstation), so the restored variants buy nothing at deployment either.
+
+
+
+\textbf{Competing explanations for the null.} (a) \emph{The untrained 14 applications never mattered:} consistent with Phase 3's depth result (H = 1, 3, 6 indistinguishable) and with this one. (b) \emph{Clipping restrained the full-gradient arms:} the same actor clip bound them about 4--7 times as often as TRM-trunc (median 3.5--8.7\% of updates against 0.6--2.0\%). This cannot be excluded at the frozen clip. (c) \emph{The wrong kind of supervision:} deep supervision here gives every outer cycle the same bootstrapped TD target. Published TRM supervises successive improvement steps against a fixed, known answer, on a revisitable instance with a carried latent; that has no off-policy analogue here and was not tested.
+
+
+
+\textbf{What it constrains.} The training-discipline explanation, in the forms that port: the deficit is not caused by the gradient truncation or by supervising only the final readout. \textbf{What it does not show:} that no supervision scheme could help.
+
+
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{figures/p4_f5_stage_a.pdf}
+\caption{Stage A}
+\end{figure}
+
+
+
+\subsection*{5.5 Stage T: G1 under TD3 (GT pass, with caveat)}\addcontentsline{toc}{subsection}{5.5 Stage T: G1 under TD3 (GT pass, with caveat)}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.208\linewidth}>{\raggedleft\arraybackslash}p{0.104\linewidth}>{\raggedright\arraybackslash}p{0.226\linewidth}>{\raggedleft\arraybackslash}p{0.199\linewidth}>{\raggedleft\arraybackslash}p{0.113\linewidth}}
+\toprule
+Contrast (n = 12) & TD3 median $\Delta$ & TD3 positive (p two-sided) & DDPG median $\Delta$ (Phase 3) & DDPG positive \\
+\midrule
+\textbf{TRM 788k $-$ MLP 788k (GT)} & \textbf{$-$1214.95} & \textbf{0/12 (0.0005)} & $-$27.1 & 2/12 \\
+TRM 136k $-$ MLP 135k & $-$152.53 & 0/12 (0.0005) & $-$50.2 & 0/12 \\
+MLP 788k $-$ MLP 135k & $-$2.73 & 2/12 (0.039) & $-$3.8 & 5/12 \\
+TRM 788k $-$ TRM 136k & $-$669.48 & 3/12 (0.15) & +20.7 & 7/12 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.084\linewidth}>{\raggedleft\arraybackslash}p{0.105\linewidth}>{\raggedleft\arraybackslash}p{0.220\linewidth}>{\raggedleft\arraybackslash}p{0.231\linewidth}>{\raggedleft\arraybackslash}p{0.210\linewidth}}
+\toprule
+Trunk & TD3 median & DDPG median (Phase 3) & Runs learned under TD3 & Late critic loss TD3 \\
+\midrule
+MLP 135k & $-$171.71 & $-$174.48 & 12/12 & 26.34 \\
+MLP 788k & $-$175.92 & $-$177.32 & 12/12 & 23.69 \\
+TRM 136k & $-$321.44 & $-$232.39 & 9/12 & 107.74 \\
+TRM 788k & $-$1389.27 & $-$207.95 & 2/12 & 560.94 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}t.\allowbreak{}json}; "runs learned" uses a descriptive cut at final avg-100 > $-$1000 that reproduces the counts recorded in the GT caveat (\texttt{derived\_\allowbreak{}numbers.\allowbreak{}json}, \texttt{t}). Under TD3 the totals include twin critics: TRM 788k is 1,181,443--1,181,827 parameters, MLP 788k 1,180,611--1,182,483.}
+
+
+
+\textbf{GT: pass,} with the caveat recorded in \texttt{gates.json}: the pass reflects an optimisation failure, not a Phase-3-sized deficit. TRM 788k stays at random-policy level in 10 of 12 runs, its critic loss rises through training, and every MLP run learns. Phase 3's magnitude ($-$27.1) is \emph{not} replicated, and Stage T does not measure it.
+
+
+
+\textbf{What the numbers show.} Both MLPs reach the same medians under TD3 as under DDPG, in every run. TRM 788k's two learning runs are both at C1; all six no-delay runs end below the uniform-random policy's $-$1163.84. Its median critic loss rises from 118.6 (episodes 51--75) to 560.9 (last quarter), and rises in 11 of 12 runs; both MLPs' fall in every run. TRM 136k learns in 9 of 12 runs but trails the MLP by a median 152.5 (every pair negative, the smallest by 46.8), three times its DDPG deficit. Under TD3 the larger TRM is the worse one, the reverse of DDPG.
+
+
+
+\textbf{Competing explanations} (none tested). The actor learning rate (1e-3, ten times DDPG's; Stage C shows a $\times$3 increase already hurts TRM under DDPG) is the most likely contributor, as \texttt{gates.json} records. Width-dependent instability (hidden 128 fails, 44 mostly learns) is consistent with it. The rising critic loss may be a cause or a consequence: a policy stuck near random visits high-cost states and inflates the TD targets. The other TD3 differences (batch, twin critics, target smoothing, policy delay) apply equally to the MLPs, which are unaffected.
+
+
+
+\textbf{What it constrains.} The single-algorithm threat, partly. "TRM trails a parameter-matched MLP" holds under TD3 at both sizes (0/12 each), and MLP capacity does not rescue a capacity account: the larger MLP is slightly \emph{worse} ($-$2.73, 10/12 negative, "different" by the rule but tiny). \textbf{What it does not show:} the size of an architectural deficit under TD3 among runs that train, or why TRM 788k fails.
+
+
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{figures/p4_f6_stage_t.pdf}
+\caption{Stage T}
+\end{figure}
+
+
+
+\subsection*{5.6 Stage E: Lipschitz constants (exploratory)}\addcontentsline{toc}{subsection}{5.6 Stage E: Lipschitz constants (exploratory)}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.304\linewidth}>{\raggedleft\arraybackslash}p{0.180\linewidth}>{\raggedleft\arraybackslash}p{0.146\linewidth}>{\raggedleft\arraybackslash}p{0.248\linewidth}}
+\toprule
+Trunk (12 checkpoints each) & Lipschitz median & Reversals / s & Noise drop at $\sigma$ = 0.05 \\
+\midrule
+MLP 135k / 788k & 29.11 / 34.05 & 9.32 / 2.76 & 100.1 / 81.0 \\
+TRM 136k / 788k & 11.00 / 14.61 & 0.59 / 0.43 & 156.74 / 179.09 \\
+TRM H = 1 / H = 6 & 16.18 / 14.01 & 0.54 / 0.37 & 256.63 / 251.42 \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\emph{Source: \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}e.\allowbreak{}json}. Spearman $\rho$ of the Lipschitz median with the noise drop: +0.06 overall (n = 72), +0.18 within MLPs, +0.23 within TRMs; with reversals: $-$0.24, $-$0.59, $-$0.40.}
+
+
+
+\textbf{What the numbers show.} TRM actors have about a third to a half of the MLPs' median local gain, yet lose more return under sensor noise in 8--10 of 12 paired comparisons. Across checkpoints, gain and noise drop are essentially uncorrelated (permutation p 0.62 overall; 0.39 and 0.11 within families). The local Lipschitz constant does not explain TRM's noise sensitivity. The negative correlation with reversals is mostly produced by bang-bang policies: of the 12 checkpoints with median gain below 5, nine chatter at more than five reversals per second, saturated (locally flat) at most states and switching sharply at a boundary.
+
+
+
+\textbf{What it does not show:} what does make TRM noise-sensitive. Non-local sensitivity, closed-loop recovery and the noise-visited state distribution remain untested candidates.
+
+
+
+\subsection*{5.7 Stage D: embedded export}\addcontentsline{toc}{subsection}{5.7 Stage D: embedded export}
+
+
+
+The MLP 135k actor (67,329 parameters; 263.0 KiB FP32) and the TRM 136k actor (67,805 parameters plus 88 buffer floats; 265.2 KiB) both fit a 512 KiB flash budget in FP32. The TRM H = 1 actor of the 788k configuration (393,857 parameters) needs 1539.5 KiB in FP32 and fits only in INT8 (385.7 KiB). Headers with 20 reference input/output pairs each are in \texttt{phase4/\allowbreak{}results/\allowbreak{}export\_\allowbreak{}c/\allowbreak{}}. The on-device equivalence test, quantised accuracy and on-device latency were not run. At matched size flash is not TRM's embedded cost; the 21 cell applications per decision are (Phase 3: 2.69 ms against 0.064 ms per decision on one Xeon thread for TRM 136k against the MLP).
+
+
+
+\section*{6. Deviations from the plan}\addcontentsline{toc}{section}{6. Deviations from the plan}
+
+
+
+\textbf{Amendments, in order} (all dated and recorded before the data they affect; \texttt{gates.json}, plan \S{}10):
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.079\linewidth}>{\raggedright\arraybackslash}p{0.115\linewidth}>{\raggedright\arraybackslash}p{0.712\linewidth}}
+\toprule
+ID & Date & Change \\
+\midrule
+R-1 & 2026-10-06 & Stage A MLP reuse check passed (bit-identical to Phase 3's \texttt{p3code/s2}); 12 MLP runs reused from \texttt{results\_p3s2}, not rerun \\
+R-2 & 2026-10-06 & Untrained baselines for the H1$'$ span frozen: uniform-random policy, Pendulum $-$1163.84, IDP 49.90, Hopper 16.32 (differs from the "$\approx$ $-$1460" Phases 1--3 quoted) \\
+V-1 & 2026-10-07 & \S{}5 verification passed (gradient hooks, 30/30 bit-identity, new paths, GPU smoke) before any B0, C or A job \\
+A-1 & 2026-10-07 & Stage A clip norms frozen from the pilot: actor 15, critic 2800, on all three TRM arms; MLP and all earlier runs unclipped \\
+K-1 & 2026-10-07 & GB0 failed; the author fired kill switch KB0 on day 2 (before the 2026-10-09 deadline); Hopper pilot run as pre-registered \\
+K-2 & 2026-10-07 & KB0 also failed; Hopper dropped; IDP diagnostic (C1 at 1M, no delay at 500k) run instead; a K-3 draft to go to the author before any B1 data \\
+T-1 & 2026-10-07 & Stage T added: Phase 3 Stage 1 under TD3, 48 jobs, gate GT \\
+K-3 & 2026-10-08 & B1 not run, H1$'$ recorded as not run; the exploratory K-3 draft superseded; H1 remains untested \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\textbf{Stages that did not run.} B1 (24 planned jobs) and therefore H1$'$, for the reasons in \S{}5.2. The on-device half of Stage D is the author's and was not part of this execution.
+
+
+
+\textbf{Departures in execution.}
+
+
+
+\begin{itemize}
+\item \textbf{The kill switch fired early.} The plan set 2026-10-09 as the deadline; the author fired it on 2026-10-07 once GB0 had failed at every budget.
+\item \textbf{The plan's order changed.} The plan put B1 and A in week 2 and reserved week 3 for analysis. In practice every stage that ran finished between 2026-10-06 and 2026-10-08.
+\item \textbf{Stage E's first submission failed.} Six jobs (\texttt{p4e\_\allowbreak{}lipschitz\_\allowbreak{}00}--\texttt{05}) failed at import because in the frozen \texttt{p4code/e} snapshot \texttt{lipschitz.py} could not locate \texttt{src/eval.py} (a snapshot path bug). They were rerun as stage \texttt{e2} (six jobs), which processed all 72 checkpoints.
+\item \textbf{Two jobs reported PBS exit status $-$19 after completing cleanly}: one in Stage A (\texttt{p4a\_\allowbreak{}trm\_\allowbreak{}fullgrad\_\allowbreak{}ds\_\allowbreak{}C1pa\_\allowbreak{}clip\_\allowbreak{}s4}) and one in B0h (\texttt{p4b0h\_\allowbreak{}dnn\_\allowbreak{}C1\_\allowbreak{}150k\_\allowbreak{}s2}). In both, the job log records \texttt{exit 0} and the results file was written; both were counted done (\texttt{experiments/\allowbreak{}phase4/\allowbreak{}dashboard\_\allowbreak{}state/\allowbreak{}status\_\allowbreak{}latest.\allowbreak{}json}).
+\item \textbf{Job totals.} 154 PBS jobs: 1 smoke, 141 training runs, 6 failed and 6 successful Lipschitz jobs. No training run failed or was resubmitted.
+\end{itemize}
+
+
+
+\section*{7. Threats to validity}\addcontentsline{toc}{section}{7. Threats to validity}
+
+
+
+\begin{itemize}
+\item \textbf{Every decisive result is still on Pendulum-v1.} Stages A, C and T, like Phase 3, test one plant. Phase 4 tried to add a second learned rung and could not.
+\item \textbf{The complexity question is untested.} Neither IDP nor Hopper was learned by the MLP baseline under the pre-registered conditions, so H1$'$ never ran. The IDP diagnostic implicates the one-step delay on an unstable plant, not budget.
+\item \textbf{Stage T's gate cannot separate a deficit from a failure to train.} GT passes on signs; its caveat is part of the result.
+\item \textbf{Clipping.} All Stage A TRM arms are clipped and everything else in the project is not. GA compares clipped arms with each other, but the actor clip bound the full-gradient arms more often.
+\item \textbf{Seeds.} n = 3 in B0 and C, n = 6 in A, pooled n = 12 in T. The gates detect only consistent effects; a null at n = 6 excludes only large consistent effects.
+\item \textbf{GPU heterogeneity.} Runs are not bit-reproducible across GPU models, and every stage mixed V100, A100 and L40S nodes. Costs are compared within a model.
+\item \textbf{Latency was measured on a local workstation,} slower than the Phase 3 Katana Xeon (TRM p99 9.35 ms here against 4.13 ms there). Only ratios are comparable.
+\item \textbf{Stage E is exploratory,} and some of its statistics were added while writing (permutation p, paired counts, the saturation reading).
+\item \textbf{One configuration per algorithm.} \texttt{ddpg.yaml} and \texttt{td3.yaml} were used as they are (Stage C aside). The TD3 failure of TRM 788k shows that configuration can dominate the comparison.
+\end{itemize}
+
+
+
+\section*{8. Discussion: the mechanism after Phase 4}\addcontentsline{toc}{section}{8. Discussion: the mechanism after Phase 4}
+
+
+
+Phase 3 ended with a mechanistic reading: without TRM's supervised training discipline, the recursive computation behaves like an expensive, harder-to-optimise feed-forward block whose extra depth goes unused. Phase 4 tested the two most direct objections to that reading and added two new observations.
+
+
+
+\begin{itemize}
+\item \textbf{"It was never tuned."} Stage C varied both learning rates ninefold. Nothing helped; the default was near the best. Raising the actor's rate hurt.
+\item \textbf{"Its depth was never trained."} Stage A trained all 21 cell applications, and added a value readout and loss at every outer cycle. Neither changed TRM's return, and its value fit stayed worse than the MLP's. Together with Phase 3's depth result (one outer cycle performs as well as six), this says the recursion's extra applications are not a reservoir of unused capacity waiting for gradient; they contribute little whether trained or not.
+\item \textbf{New: fragility under a second algorithm.} Under TD3's settings the 788k TRM mostly fails to train while the MLP is unaffected, and the narrower TRM learns but trails by three times its DDPG gap. Whatever the precise cause, the recursive trunk is the component whose optimisation breaks when the learner changes.
+\item \textbf{New: smooth but not robust, and not through local gain.} TRM's greedy torque is smoother, and its actor has lower local gain, but it still loses more return under sensor noise. The noise sensitivity has some other source.
+\end{itemize}
+
+
+
+\textbf{Why the extra depth goes unused: the Tiny Recursive Control contrast.} Jain \& Linares (2025) apply the same weight-tied recursion to optimal control, and there it works. The difference is what each pass of the recursion receives. In Tiny Recursive Control, each refinement pass simulates the current candidate control sequence through known dynamics and feeds the resulting error back into the shared cell, and training supervises the refinements against solver-generated labels. Every pass therefore sees new information about how wrong the current answer is. In this project's port, every pass re-reads the same observation with no new information, and the only training signal is a bootstrapped value target at the end (or, in Stage A, the same target at every cycle). Iteration without per-pass error feedback has nothing to refine toward, which is consistent with depth being inert, with full gradients not helping, and with deep supervision against a single target not helping. This is offered as context for the result, not as a recommended redesign: the project's question was whether TRM's architecture works as a model-free RL trunk, and the port deliberately did not add a dynamics model. The same reading fits the in-domain analyses that attribute TRM's and HRM's performance to training-time refinement against fixed answers, per-instance conditioning and test-time compute (ARC Prize, 2025; Roye-Azar et al., 2026), and HRM-Agent's success with a carried latent on discrete mazes (Dang \& Rawlinson, 2025), which Phase 3's Carry-Z did not reproduce here.
+
+
+
+\section*{9. What Phase 4 changes about the Phase 0--3 conclusions}\addcontentsline{toc}{section}{9. What Phase 4 changes about the Phase 0--3 conclusions}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.346\linewidth}>{\raggedright\arraybackslash}p{0.588\linewidth}}
+\toprule
+Phase 0--3 conclusion & After Phase 4 \\
+\midrule
+TRM trails the MLP on Pendulum-v1; the deficit is architectural, not capacity (G1) & \textbf{Holds, and extends to TD3 in sign} (0/12 at both sizes). The magnitude did not replicate because TRM 788k mostly failed to train \\
+Recursion depth is inert; only 7 of 21 applications are trained & \textbf{Holds, and training all 21 does not help} (GA fail). The 7-of-21 count is now directly verified by gradient hooks \\
+TRM fits its value function worse & \textbf{Holds} with full gradients and deep supervision (1.35--1.45$\times$ the MLP at C1, 6/6), and worsens under TD3 (3.83$\times$ and 24.91$\times$) \\
+TRM's deficit might reflect the missing training discipline (the open question) & \textbf{Not supported} in the forms that port to off-policy RL \\
+TRM was run at untuned learning rates & \textbf{Ruled out} within $\times$0.3--$\times$3 of both rates (GC insensitive) \\
+TRM commands smoother torque but is less robust & \textbf{Holds}; the lower robustness is not explained by local gain (Stage E) \\
+One learning algorithm (threat) & \textbf{Partly addressed:} the MLP transfers to TD3 unchanged; TRM is fragile under TD3 \\
+Complexity scaling (H1) untested & \textbf{Still untested.} Two further rungs (IDP, Hopper) were not learned by the baseline under the pre-registered conditions \\
+Use the MLP; if a recursive trunk is required, use one outer cycle & \textbf{Unchanged.} Restored training costs 1.45--1.5$\times$ more for no gain; at matched size the TRM and MLP actors cost the same flash, but TRM costs tens of times the decision latency \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\section*{10. Reproducibility}\addcontentsline{toc}{section}{10. Reproducibility}
+
+
+
+\begin{itemize}
+\item \textbf{Code.} New Phase 4 code: \texttt{src/\allowbreak{}trainer.\allowbreak{}py} (step budget), \texttt{src/\allowbreak{}models/\allowbreak{}trm\_\allowbreak{}control.\allowbreak{}py} (\texttt{full\_grad}, \texttt{deep\_sup}), \texttt{src/\allowbreak{}algos/\allowbreak{}ddpg.\allowbreak{}py} (deep-supervision loss, per-network clipping), \texttt{conf/\allowbreak{}model/\allowbreak{}\{trm\_\allowbreak{}fullgrad,\allowbreak{}trm\_\allowbreak{}fullgrad\_\allowbreak{}ds\}.\allowbreak{}yaml}, \texttt{conf/\allowbreak{}env/\allowbreak{}hopper.\allowbreak{}yaml}.
+\item \textbf{Job tooling.} \texttt{experiments/\allowbreak{}phase4/\allowbreak{}p4.\allowbreak{}py} (manifests, submission, status, resubmission), \texttt{sync.sh} (frozen per-stage snapshots on Katana), \texttt{verify\_\allowbreak{}code.\allowbreak{}py}, \texttt{lipschitz.py}, \texttt{export\_c.py}, \texttt{untrained\_\allowbreak{}span.\allowbreak{}py}.
+\item \textbf{Analysis.} \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates\_\allowbreak{}eval.\allowbreak{}py} (rules in \texttt{gates.json}); outputs \texttt{experiments/\allowbreak{}analysis\_\allowbreak{}p4\_\allowbreak{}<stage>.\allowbreak{}json} for stages b0, b0h, b0d, c, a0, a, t and e. Figures and derived numbers: \texttt{experiments/\allowbreak{}phase4/\allowbreak{}make\_\allowbreak{}figures\_\allowbreak{}phase4.\allowbreak{}py} $\rightarrow$ \texttt{phase4/\allowbreak{}report/\allowbreak{}figures/\allowbreak{}} (including \texttt{derived\_\allowbreak{}numbers.\allowbreak{}json}).
+\item \textbf{Data.} Raw per-run results in \texttt{phase4/\allowbreak{}results/\allowbreak{}} (fetched with \texttt{gates\_\allowbreak{}eval.\allowbreak{}py fetch}) and under \texttt{/\allowbreak{}srv/\allowbreak{}scratch/\allowbreak{}z5308482/\allowbreak{}trm-control/\allowbreak{}} on Katana; job ledger \texttt{\textasciitilde{}/\allowbreak{}jobs/\allowbreak{}phase4/\allowbreak{}ledger.\allowbreak{}jsonl}.
+\item \textbf{One training run,} e.g. Stage A full gradient + deep supervision at C4, seed 1 (the overrides \texttt{p4.py} generates, less logging and output-folder fields):
+\end{itemize}
+
+
+
+{\small\begin{verbatim}
+python3 -u main.py arch=ddpg model=trm_fullgrad_ds env=pendulum \
+  delay=stochastic_u4 augment_obs=false prev_action_obs=true \
+  arch.total_episodes=200 seed=1 wandb.enabled=false eval_every=10 \
+  run_tag=pa_clip +arch.actor_grad_clip=15.0 +arch.critic_grad_clip=2800.0
+\end{verbatim}}
+
+
+
+\section*{Appendix A --- Gate outcomes as recorded}\addcontentsline{toc}{section}{Appendix A --- Gate outcomes as recorded}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.079\linewidth}>{\raggedright\arraybackslash}p{0.127\linewidth}>{\raggedright\arraybackslash}p{0.701\linewidth}}
+\toprule
+Gate & Status & Detail (from \texttt{gates.json}) \\
+\midrule
+GB0 & fail & 150k: 0/3 learned (finals 3681.0, 2291.1, 2032.4); 300k: 0/3 (3861.2, 3077.6, 4160.1); 500k: 0/3 (4312.4, 3781.1, 3591.6). No budget passes. \\
+KB0 & fail & 150k: 0/3 (1101.1, 954.0, 1708.2); 300k: 0/3 (1729.6, 1855.6, 1790.4); 500k: 0/3 (1418.0, 2805.3, 2201.3). No budget passes. Hopper rung dropped by the author (K-2). \\
+GC & insensitive & No cell beats $\times$1/$\times$1 by more than the pooled SD in 3/3 seeds: TRM insensitive to LR within $\times$0.3--$\times$3. \\
+GA & fail & full grad $-$ trunc: C1 +2.5 (3/6), C4 +10.1 (4/6); full grad + DS $-$ trunc: C1 +0.3 (3/6), C4 +28.4 (4/6). No contrast reaches 5/6. \\
+GT & pass & TRM 788k $-$ MLP 788k under TD3: median $-$1214.95, negative in 12/12 pairs (two-sided p = 0.00049). Caveat (status unchanged): the pass reflects an optimisation failure, not a Phase-3-sized deficit. \\
+H1$'$ & not run & Author decision 2026-10-08 (K-3). H1 remains untested for the project. \\
+E & not a gate & Exploratory. \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\subsection*{References}\addcontentsline{toc}{subsection}{References}
+
+
+
+Agarwal, R. et al. (2021). \emph{Deep Reinforcement Learning at the Edge of the Statistical Precipice.} NeurIPS $\cdot$ ARC Prize (2025). \emph{The Hidden Drivers of HRM's Performance on ARC-AGI.} $\cdot$ Dang, L. H. \& Rawlinson, D. (2025). \emph{HRM-Agent.} arXiv:2510.22832 $\cdot$ Fujimoto, S., van Hoof, H. \& Meger, D. (2018). \emph{Addressing Function Approximation Error in Actor-Critic Methods.} ICML $\cdot$ Jain, A. \& Linares, R. (2025). \emph{Tiny Recursive Control.} arXiv:2512.16824 $\cdot$ Jolicoeur-Martineau, A. (2025). \emph{Less is More: Recursive Reasoning with Tiny Networks.} arXiv:2510.04871 $\cdot$ Lee, C.-Y. et al. (2015). \emph{Deeply-Supervised Nets.} AISTATS $\cdot$ Roye-Azar, A. et al. (2026). \emph{Tiny Recursive Models on ARC-AGI-1.} arXiv:2512.11847 $\cdot$ Towers, M. et al. (2024). \emph{Gymnasium.} arXiv:2407.17032
+\end{document}

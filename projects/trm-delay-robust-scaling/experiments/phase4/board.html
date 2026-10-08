@@ -1,0 +1,302 @@
+<title>Phase 4 Run Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap">
+<style>
+/* Layout: a control-room ledger — summary strip of stages, gate cards, then dense per-stage job tables. */
+:root {
+  --bg: #f3f5f4; --panel: #ffffff; --fg: #17201d; --muted: #5d6b66; --line: #d9e0dd;
+  --accent: #0f6e63; --accent-soft: #dcefeb;
+  --q: #8a9692; --run: #1f6fd1; --ok: #1b8a4a; --bad: #c7362f; --warn: #b7791f;
+  --q-bg: #eceff0; --run-bg: #e3edfb; --ok-bg: #e2f3e8; --bad-bg: #fbe5e3; --warn-bg: #fbf0dc;
+  --display: "Bricolage Grotesque", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1514; --panel: #161e1c; --fg: #e3ebe8; --muted: #93a39d; --line: #26312e;
+  --accent: #4cc2b0; --accent-soft: #173430;
+  --q: #7d8a86; --run: #6ea8f5; --ok: #5cc98a; --bad: #f07a72; --warn: #e3ad55;
+  --q-bg: #1e2725; --run-bg: #17263a; --ok-bg: #15301f; --bad-bg: #3a1c1a; --warn-bg: #352812;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1514; --panel: #161e1c; --fg: #e3ebe8; --muted: #93a39d; --line: #26312e;
+  --accent: #4cc2b0; --accent-soft: #173430;
+  --q: #7d8a86; --run: #6ea8f5; --ok: #5cc98a; --bad: #f07a72; --warn: #e3ad55;
+  --q-bg: #1e2725; --run-bg: #17263a; --ok-bg: #15301f; --bad-bg: #3a1c1a; --warn-bg: #352812;
+  color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; display: grid; gap: 28px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font: 700 clamp(1.6rem, 3vw, 2.2rem)/1.1 var(--display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.fresh { font: 13px var(--mono); color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.dot.stale { background: var(--warn); }
+h2 { font: 600 1.05rem var(--display); margin: 0 0 10px; letter-spacing: 0.01em; }
+.label { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+.stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.stage[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.stage:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stage .name { font: 600 1rem var(--display); }
+.bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--q-bg); }
+.bar span { display: block; height: 100%; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 12px; font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.counts b { font-weight: 600; }
+
+.gates { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.gate { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.gate .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gate .id { font: 600 13px var(--mono); }
+.gate .gname { font-weight: 700; }
+.gate p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.gate details summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+.gate details p { margin-top: 6px; }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px var(--mono); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.s-queued, .s-pending, .s-armed, .s-unknown, .s-held { color: var(--q); background: var(--q-bg); }
+.s-running { color: var(--run); background: var(--run-bg); }
+.s-done, .s-pass, .s-supported, .s-insensitive { color: var(--ok); background: var(--ok-bg); }
+.s-failed, .s-fail { color: var(--bad); background: var(--bad-bg); }
+.s-flag, .s-not-a-gate { color: var(--warn); background: var(--warn-bg); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tab { font: 600 13px var(--body); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); position: sticky; top: 0; background: var(--panel); }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+th.num { text-align: right; }
+td.mono { font-family: var(--mono); font-size: 12.5px; }
+tr.grp td { background: var(--bg); font: 600 12px var(--mono); color: var(--muted); }
+tr.err td { white-space: pre-wrap; font: 12px var(--mono); color: var(--bad); background: var(--bad-bg); }
+.muted { color: var(--muted); }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+ul.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; max-height: 320px; overflow: auto; }
+ul.log li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 8px; }
+ul.log time { font: 12px var(--mono); color: var(--muted); }
+.amend { display: grid; gap: 8px; font-size: 13px; max-height: 320px; overflow: auto; }
+.amend div { min-width: 0; }
+.amend b { font-family: var(--mono); }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.finding { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.finding h3 { font: 600 0.98rem var(--display); margin: 0; text-wrap: balance; }
+.finding p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.finding .tablewrap { border: 0; border-radius: 0; }
+.finding table { font-size: 12.5px; }
+.finding th, .finding td { padding: 5px 8px; }
+.finding td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.s-not-run { color: var(--q); background: var(--q-bg); }
+.sumwrap { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: grid; gap: 14px; }
+.sumwrap .rq { margin: 0; font-style: italic; color: var(--muted); max-width: 75ch; }
+.sumwrap .verdict { margin: 0; font: 600 1.08rem/1.5 var(--display); max-width: 80ch; text-wrap: pretty; }
+.sumlist { display: grid; border-top: 1px solid var(--line); }
+.sumrow { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 8em; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.sumrow .st { font: 600 12px var(--mono); color: var(--accent); padding-top: 2px; }
+.sumrow .qq { font-weight: 700; }
+.sumrow .ff { color: var(--muted); font-size: 13.5px; grid-column: 2; }
+.sumrow .gg { grid-column: 3; grid-row: 1; justify-self: end; display: grid; gap: 4px; justify-items: end; }
+.sumrow .gg span.gname { font: 11px var(--mono); color: var(--muted); }
+.sub3 { font: 600 0.95rem var(--display); margin: 0 0 8px; }
+.sumwrap table td { white-space: normal; font-size: 13px; }
+@media (max-width: 640px) {
+  .sumrow { grid-template-columns: minmax(0, 1fr); }
+  .sumrow .ff, .sumrow .gg { grid-column: 1; grid-row: auto; justify-self: start; justify-items: start; }
+}
+.empty { padding: 32px 16px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; }
+@media (prefers-reduced-motion: no-preference) { .bar span { transition: width .4s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="label">trm-delay-robust-scaling · Katana PBS</div>
+      <h1>Phase 4 Run Board</h1>
+      <p class="sub">Complexity rung, training discipline, LR sweep, G1 under TD3, Lipschitz analysis and C export. Phase 4 is complete; this board holds its final state.</p>
+    </div>
+    <div class="fresh" id="fresh"><span class="dot" id="dot"></span><span id="polled">Waiting for the first poll</span></div>
+  </header>
+
+  <section id="summary" hidden>
+    <h2>Phase 4 at a glance</h2>
+    <div class="sumwrap">
+      <p class="label" id="sum-status"></p>
+      <p class="rq" id="sum-q"></p>
+      <p class="verdict" id="sum-verdict"></p>
+      <div class="sumlist" id="sum-items"></div>
+      <div class="cols">
+        <div><h3 class="sub3">What Phase 4 changed</h3><div class="tablewrap"><table><thead><tr><th>After Phase 3</th><th>After Phase 4</th></tr></thead><tbody id="sum-changes"></tbody></table></div></div>
+        <div><h3 class="sub3">Documents</h3><div class="tablewrap"><table><thead><tr><th>Document</th><th>Where</th></tr></thead><tbody id="sum-docs"></tbody></table></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Stages</h2>
+    <div class="stages" id="stages"><div class="empty">Stage progress appears here after the first poll writes to this board.</div></div>
+  </section>
+
+  <section>
+    <h2>Gates</h2>
+    <div class="gates" id="gates"></div>
+  </section>
+
+  <section>
+    <h2>Key results</h2>
+    <div class="findings" id="findings"><div class="empty">Result tables appear here as stages report.</div></div>
+  </section>
+
+  <section>
+    <h2>Jobs</h2>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Job</th><th>Seed</th><th>State</th><th>GPU / host</th><th class="num">Walltime</th><th class="num">Episode</th><th class="num">Avg-100</th><th class="num">Final</th><th class="num">Run min</th></tr></thead>
+        <tbody id="jobs"><tr><td colspan="9" class="muted">No jobs yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div><h2>Activity</h2><ul class="log" id="log"><li class="muted">Nothing logged yet.</li></ul></div>
+    <div><h2>Amendments</h2><div class="amend" id="amend"><span class="muted">None recorded.</span></div></div>
+  </section>
+</div>
+
+<script>
+const STATE_COLORS = { done: "var(--ok)", running: "var(--run)", failed: "var(--bad)", queued: "var(--q)" };
+let board = null;
+let tab = "all";
+try { tab = localStorage.getItem("p4tab") || "all"; } catch (e) {}
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pill = s => `<span class="pill s-${esc(String(s).replace(/\s+/g, "-"))}">${esc(s)}</span>`;
+const fmt = (x, d = 1) => x == null ? "–" : Number(x).toFixed(d);
+const hm = s => s ? s.slice(0, 5) : "–";
+
+function counts(jobs) {
+  const c = { done: 0, running: 0, failed: 0, queued: 0 };
+  for (const j of jobs) c[j.state in c ? j.state : "queued"]++;
+  return c;
+}
+
+function render() {
+  if (!board) return;
+  const polled = new Date(board.polled_at);
+  const ageMin = (Date.now() - polled.getTime()) / 60000;
+  document.getElementById("polled").textContent =
+    `Polled ${polled.toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}` + (ageMin > 45 ? ` · ${Math.round(ageMin)} min ago` : "");
+  document.getElementById("dot").classList.toggle("stale", ageMin > 45);
+
+  const jobs = board.jobs || [];
+  const st = document.getElementById("stages");
+  st.innerHTML = (board.stages || []).map(s => {
+    const js = jobs.filter(j => j.stage === s.id), c = counts(js), n = js.length || 1;
+    const seg = ["done", "running", "failed"].map(k => `<span style="width:${100 * c[k] / n}%;background:${STATE_COLORS[k]}"></span>`).join("");
+    return `<button class="stage" aria-pressed="${tab === s.id}" data-tab="${s.id}">
+      <span class="name">${esc(s.label)}</span>
+      <span class="bar" aria-hidden="true">${seg}</span>
+      <span class="counts"><span><b>${c.done}</b>/${js.length} done</span><span><b>${c.running}</b> running</span><span><b>${c.queued}</b> queued</span>${c.failed ? `<span style="color:var(--bad)"><b>${c.failed}</b> failed</span>` : ""}</span>
+    </button>`;
+  }).join("") || `<div class="empty">No Phase 4 jobs in this poll.</div>`;
+
+  document.getElementById("gates").innerHTML = (board.gates || []).map(g => `
+    <div class="gate">
+      <div class="top"><span><span class="id">${esc(g.id)}</span> · <span class="gname">${esc(g.name)}</span></span>${pill(g.status)}</div>
+      <p>${esc(g.detail || "Awaiting data.")}</p>
+      <details><summary>Pre-registered rule</summary><p>${esc(g.rule)}</p></details>
+    </div>`).join("");
+
+  const sm = board.summary;
+  if (sm) {
+    document.getElementById("summary").hidden = false;
+    document.getElementById("sum-status").textContent = sm.status || "";
+    document.getElementById("sum-q").textContent = sm.question ? "Research question: " + sm.question : "";
+    document.getElementById("sum-verdict").textContent = sm.verdict || "";
+    const cls = s => ({ "fail": "fail", "insensitive": "insensitive", "pass*": "flag", "pass": "pass",
+                        "not run": "not-run", "no": "not-run", "done": "done" })[s] || "pending";
+    document.getElementById("sum-items").innerHTML = (sm.items || []).map(it => `
+      <div class="sumrow">
+        <span class="st">${esc(it.stage)}</span>
+        <span class="qq">${esc(it.q)}</span>
+        <span class="gg"><span class="pill s-${cls(it.status)}">${esc(it.status)}</span><span class="gname">${esc(it.gate)}</span></span>
+        <span class="ff">${esc(it.finding)}</span>
+      </div>`).join("");
+    document.getElementById("sum-changes").innerHTML = (sm.changes || []).map(r => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("");
+    document.getElementById("sum-docs").innerHTML = (sm.documents || []).map(r => `<tr><td>${esc(r[0])}</td><td class="mono">${esc(r[1])}</td></tr>`).join("");
+  }
+
+  const fd = board.findings || [];
+  document.getElementById("findings").innerHTML = fd.length ? fd.map(f => `
+    <div class="finding">
+      <h3>${esc(f.title)}</h3>
+      <div class="tablewrap"><table>
+        <thead><tr>${f.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+        <tbody>${f.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table></div>
+      <p>${esc(f.note)}</p>
+    </div>`).join("") : `<div class="empty">Result tables appear here as stages report.</div>`;
+
+  const ids = ["all", ...(board.stages || []).map(s => s.id)];
+  if (!ids.includes(tab)) tab = "all";
+  document.getElementById("tabs").innerHTML = ids.map(id => {
+    const lbl = id === "all" ? "All stages" : (board.stages.find(s => s.id === id).label.split(" · ")[0]);
+    return `<button class="tab" role="tab" aria-selected="${tab === id}" data-tab="${id}">${esc(lbl)}</button>`;
+  }).join("");
+
+  const shown = jobs.filter(j => tab === "all" || j.stage === tab);
+  const order = { failed: 0, running: 1, queued: 2, done: 3 };
+  const groups = {};
+  for (const j of shown) (groups[j.stage + " · " + j.group] ||= []).push(j);
+  let rows = "";
+  for (const [g, js] of Object.entries(groups)) {
+    rows += `<tr class="grp"><td colspan="9">${esc(g)}</td></tr>`;
+    js.sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9) || (a.seed ?? 0) - (b.seed ?? 0) || a.name.localeCompare(b.name));
+    for (const j of js) {
+      rows += `<tr><td class="mono">${esc(j.name)}</td><td class="num">${j.seed ?? "–"}</td><td>${pill(j.state)}</td>
+        <td>${esc(j.gpu || "–")}${j.host ? ` <span class="muted">${esc(j.host)}</span>` : ""}</td>
+        <td class="num">${hm(j.wall_used)} / ${hm(j.wall_req)}</td><td class="num">${j.episode ?? "–"}</td>
+        <td class="num">${fmt(j.avg100)}</td><td class="num">${fmt(j.final)}</td><td class="num">${j.wall_s ? fmt(j.wall_s / 60) : "–"}</td></tr>`;
+      if (j.error) rows += `<tr class="err"><td colspan="9">${esc(j.error)}</td></tr>`;
+    }
+  }
+  document.getElementById("jobs").innerHTML = rows || `<tr><td colspan="9" class="muted">No jobs in this stage.</td></tr>`;
+
+  const log = (board.log || []).slice().reverse();
+  document.getElementById("log").innerHTML = log.length ? log.map(e => `<li><time>${esc(e.t.slice(5, 16).replace("T", " "))}</time><span${e.kind === "failed" ? ' style="color:var(--bad)"' : ""}>${esc(e.text)}</span></li>`).join("") : `<li class="muted">Nothing logged yet.</li>`;
+  const am = (board.amendments || []).slice().reverse();
+  document.getElementById("amend").innerHTML = am.length ? am.map(a => `<div><b>${esc(a.id)}</b> <span class="muted">${esc(a.date)}</span> ${esc(a.text)}</div>`).join("") : `<span class="muted">None recorded.</span>`;
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tab]");
+  if (!t) return;
+  tab = (t.dataset.tab === tab && t.classList.contains("stage")) ? "all" : t.dataset.tab;
+  try { localStorage.setItem("p4tab", tab); } catch (err) {}
+  render();
+});
+setInterval(render, 60000);
+
+(async () => {
+  const db = await window.claude?.use?.("db");
+  if (!db) {
+    document.getElementById("polled").textContent = "Live data unavailable in this view. Sign in to claude.ai to see job status.";
+    document.getElementById("dot").classList.add("stale");
+    return;
+  }
+  db.doc("p4/board").onSnapshot(snap => {
+    if (!snap.exists) return;
+    board = snap.data();
+    render();
+  }, () => {
+    document.getElementById("polled").textContent = "Lost the live connection. Reload the page to reconnect.";
+    document.getElementById("dot").classList.add("stale");
+  });
+})();
+</script>
