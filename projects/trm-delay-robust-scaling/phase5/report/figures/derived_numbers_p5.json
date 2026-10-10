@@ -1,0 +1,281 @@
+{
+ "_note": "Computed by experiments/phase5/make_figures_phase5.py from the raw results files. Exploratory/descriptive; the gate outcome is the one recorded in experiments/phase5/gates.json.",
+ "t2": {
+  "per_arm": {
+   "trm|1e-4": {
+    "actor_lr": [
+     0.0001
+    ],
+    "critic_lr": [
+     0.001
+    ],
+    "params": {
+     "C0": [
+      1181443
+     ],
+     "C1": [
+      1181827
+     ]
+    },
+    "learned_by_condition": {
+     "C0": 6,
+     "C1": 6
+    },
+    "median_final_by_condition": {
+     "C0": -180.78,
+     "C1": -190.31
+    },
+    "critic_loss_median_ep51_75": 59.2,
+    "critic_loss_median_last_quarter": 36.0,
+    "runs_critic_late_gt_early": 0,
+    "devices": {
+     "NVIDIA H100 NVL": 2,
+     "NVIDIA L40S": 9,
+     "Tesla V100-SXM2-32GB": 1
+    },
+    "wall_min_median_L40S": 22.69,
+    "n_L40S": 9
+   },
+   "trm|3e-4": {
+    "actor_lr": [
+     0.0003
+    ],
+    "critic_lr": [
+     0.001
+    ],
+    "params": {
+     "C0": [
+      1181443
+     ],
+     "C1": [
+      1181827
+     ]
+    },
+    "learned_by_condition": {
+     "C0": 5,
+     "C1": 6
+    },
+    "median_final_by_condition": {
+     "C0": -261.53,
+     "C1": -217.82
+    },
+    "critic_loss_median_ep51_75": 68.5,
+    "critic_loss_median_last_quarter": 47.4,
+    "runs_critic_late_gt_early": 2,
+    "devices": {
+     "NVIDIA A100-PCIE-40GB": 2,
+     "NVIDIA H100 NVL": 1,
+     "NVIDIA L40S": 6,
+     "Tesla V100-SXM2-32GB": 3
+    },
+    "wall_min_median_L40S": 23.6,
+    "n_L40S": 6
+   },
+   "trm|1e-3": {
+    "actor_lr": [
+     0.001
+    ],
+    "critic_lr": [
+     0.001
+    ],
+    "params": {
+     "C0": [
+      1181443
+     ],
+     "C1": [
+      1181827
+     ]
+    },
+    "learned_by_condition": {
+     "C0": 0,
+     "C1": 2
+    },
+    "median_final_by_condition": {
+     "C0": -1408.96,
+     "C1": -1341.56
+    },
+    "critic_loss_median_ep51_75": 118.6,
+    "critic_loss_median_last_quarter": 560.9,
+    "runs_critic_late_gt_early": 11,
+    "devices": {
+     "NVIDIA A100-SXM4-40GB": 4,
+     "NVIDIA L40S": 1,
+     "Tesla V100-SXM2-32GB": 7
+    },
+    "wall_min_median_L40S": 23.37,
+    "n_L40S": 1
+   },
+   "dnn_large|1e-4": {
+    "actor_lr": [
+     0.0001
+    ],
+    "critic_lr": [
+     0.001
+    ],
+    "params": {
+     "C0": [
+      1180611
+     ],
+     "C1": [
+      1182483
+     ]
+    },
+    "learned_by_condition": {
+     "C0": 6,
+     "C1": 6
+    },
+    "median_final_by_condition": {
+     "C0": -168.0,
+     "C1": -181.51
+    },
+    "critic_loss_median_ep51_75": 44.0,
+    "critic_loss_median_last_quarter": 25.4,
+    "runs_critic_late_gt_early": 0,
+    "devices": {
+     "NVIDIA L40S": 12
+    },
+    "wall_min_median_L40S": 2.04,
+    "n_L40S": 12
+   },
+   "dnn_large|1e-3 (Stage T)": {
+    "actor_lr": [
+     0.001
+    ],
+    "critic_lr": [
+     0.001
+    ],
+    "params": {
+     "C0": [
+      1180611
+     ],
+     "C1": [
+      1182483
+     ]
+    },
+    "learned_by_condition": {
+     "C0": 6,
+     "C1": 6
+    },
+    "median_final_by_condition": {
+     "C0": -168.94,
+     "C1": -177.51
+    },
+    "critic_loss_median_ep51_75": 41.2,
+    "critic_loss_median_last_quarter": 23.7,
+    "runs_critic_late_gt_early": 0,
+    "devices": {
+     "NVIDIA A100-SXM4-40GB": 3,
+     "NVIDIA L40S": 3,
+     "Tesla V100-SXM2-32GB": 6
+    },
+    "wall_min_median_L40S": 2.14,
+    "n_L40S": 3
+   }
+  },
+  "pairs": {
+   "critic_late_ratio trm@1e-4 / dnn_large@1e-4": {
+    "median_ratio": 1.5,
+    "n_above_1": 12,
+    "n": 12
+   },
+   "critic_late_ratio trm@3e-4 / dnn_large@1e-4": {
+    "median_ratio": 1.75,
+    "n_above_1": 12,
+    "n": 12
+   },
+   "eval_last5 trm@1e-4 - dnn_large@1e-4": {
+    "median_diff": -6.68,
+    "diffs": [
+     6.03,
+     -24.42,
+     -4.95,
+     -11.43,
+     7.65,
+     -2.26,
+     -4.62,
+     -27.52,
+     -11.94,
+     -5.42,
+     -176.48,
+     -7.94
+    ],
+    "n": 12,
+    "positive": 2,
+    "p_two_sided": 0.0386
+   },
+   "eval_last5 trm@3e-4 - dnn_large@1e-4": {
+    "median_diff": -19.06,
+    "diffs": [
+     -1171.54,
+     -28.18,
+     -353.84,
+     -129.23,
+     6.63,
+     -6.44,
+     -3.64,
+     23.13,
+     -5.37,
+     -9.94,
+     -130.52,
+     -34.68
+    ],
+    "n": 12,
+    "positive": 2,
+    "p_two_sided": 0.0386
+   },
+   "final dnn_large@1e-4 - dnn_large@1e-3 (Stage T)": {
+    "median_diff": -0.03,
+    "diffs": [
+     3.42,
+     1.3,
+     2.28,
+     0.15,
+     0.28,
+     0.51,
+     -0.21,
+     -5.73,
+     -3.18,
+     -1.07,
+     -11.6,
+     -5.13
+    ],
+    "n": 12,
+    "positive": 6,
+    "p_two_sided": 1.0
+   },
+   "final trm@1e-4 - trm@3e-4": {
+    "median_diff": 37.89,
+    "diffs": [
+     1219.45,
+     7.91,
+     181.65,
+     79.95,
+     57.0,
+     81.55,
+     42.51,
+     -13.71,
+     20.22,
+     33.28,
+     29.93,
+     -0.24
+    ],
+    "n": 12,
+    "positive": 10,
+    "p_two_sided": 0.0386
+   }
+  },
+  "wall_ratio_L40S trm@1e-4 / dnn_large@1e-4": 11.1,
+  "phase3_G1_reference": {
+   "median_diff": -27.14,
+   "mean_diff": -29.85,
+   "pooled_sd": 14.71,
+   "positive": 2
+  },
+  "stage_t_critic_ratio_trm_dnn_large": {
+   "median_ratio": 24.91,
+   "n_above_1": 12,
+   "n": 12
+  },
+  "result_files_new": 36
+ }
+}

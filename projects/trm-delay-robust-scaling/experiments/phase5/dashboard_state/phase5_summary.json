@@ -1,0 +1,8 @@
+{
+ "status": "Phase 5 complete \u00b7 GT2 evaluated \u00b7 reports written \u00b7 2026-10-10",
+ "question": "Does TD3's 10\u00d7 higher actor learning rate explain why TRM 788k failed to train in Stage T?",
+ "design": "Pendulum-v1, TD3 (td3.yaml, only actor LR overridden), no delay + fixed 1-step delay, seeds 1\u20136. TRM 788k at actor LR 1e-4 and 3e-4 (12 runs each); its 1e-3 arm reuses Stage T's 12 runs (amendment P5-1). Control: MLP 788k at actor LR 1e-4. 36 new jobs, ~42 min per TRM run.",
+ "gate": "GT2: 'LR explains the TD3 failure' if TRM 788k learns (final avg-100 > \u22121000) in \u2265 10/12 runs at some actor LR < 1e-3; then TRM \u2212 MLP at that LR (n = 12, sign test).",
+ "baseline": "Stage T (actor LR 1e-3): TRM 788k learned 2/12; MLP 788k 12/12.",
+ "next": "Reports in phase5/report/ (md/tex/pdf): full_report (Phases 0\u20135, 61 pp), phase5_report, stage_T2, project_summary, phase_summaries/phase0\u20135, qa_all_phases, glossary."
+}

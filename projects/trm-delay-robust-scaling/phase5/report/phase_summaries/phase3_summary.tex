@@ -1,0 +1,103 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.95in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\title{Phase 3 Summary: Removing the Confounds}
+\author{}
+\date{trm-delay-robust-scaling $\cdot$ phase summary $\cdot$ 2026-09-14 to 09-23 $\cdot$ 231 jobs\\[2pt]Labels are defined in \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}glossary.\allowbreak{}md}. Detailed write-ups: \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}.\allowbreak{}.\allowbreak{}/\allowbreak{}phase3/\allowbreak{}report/\allowbreak{}}.}
+\begin{document}
+\maketitle
+\section*{Question and hypothesis}
+
+
+
+\begin{quote}\textbf{H3, residual-uncertainty hypothesis.} Weight-tied recursion earns its cost only where (i) the agent's input leaves uncertainty that iteration could resolve, \textbf{and} (ii) the trunk carries information across decision steps.\end{quote}
+
+
+
+Its load-bearing prediction (H3.2) was an \emph{interaction}: a carried-latent TRM loses to the MLP when there is nothing to infer and wins when there is. No capacity story can flip that sign using identical networks. H3 was tested against H\_cap (it's just parameter count) and H\_null (recursion doesn't transfer).
+
+
+
+\section*{Design}
+
+
+
+\begin{itemize}
+\item Six gated stages, each with a decision rule fixed before its data, run from frozen code snapshots on Katana GPUs.
+\item Six amendments recorded before any data. The key one, A-1: with a delay redrawn every step, the augmented observation is already Markov, so a condition that \emph{hides} the queue (C4) was added.
+\end{itemize}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.176\linewidth}>{\raggedright\arraybackslash}p{0.758\linewidth}}
+\toprule
+Stage & What it asked \\
+\midrule
+S0.1 & Is there headroom for memory to recover? (gate G0) \\
+S0.2 & What do the 102 banked checkpoints say as controllers? Latency. (gate G4) \\
+Stage 1 & Capacity or architecture? \{MLP, TRM\} $\times$ \{135k, 788k\} + depth H = 1, 6 (gate G1) \\
+Stage 2 & Uncertainty $\times$ memory: \{MLP, Reset-Z, Carry-Z, carried LSTM\} $\times$ \{C1, C3, C4\} (gates G2, G3) \\
+Supplementary & Latent per-episode delay C6 (gate G2s), rule fixed before data \\
+Stages 3--4 & TD3, unstable plant, training discipline: \textbf{not run} (gated on G2/G3) \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\section*{Results}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.092\linewidth}>{\raggedright\arraybackslash}p{0.842\linewidth}}
+\toprule
+Gate & Outcome \\
+\midrule
+\textbf{G0} & Pass, memory headroom only: hiding the queue costs the MLP 70.8 (6/6). Revealing the delay \emph{hurt} it (0/6), as A-1 predicted. \\
+\textbf{G1} & \textbf{Architecture, not capacity.} TRM 136k $-$ MLP 135k $-$50.2 (0/12); TRM 788k $-$ MLP 788k $-$27.1 (2/12); MLP 788k $-$ 135k $-$3.8 (5/12). \\
+\textbf{G2} & Fail. The interaction has the wrong sign at C4 ($-$40.0, 1/6). \textbf{H3 rejected.} \\
+\textbf{G3} & Fail. Carry-Z never beats Reset-Z in $\geq$ 5/6 seeds (+4.8, $-$22.0, +16.7). \\
+\textbf{G2s} & Fail. The latent delay gives the same answer (Carry-Z $-$ Reset-Z 2/6). \\
+\textbf{G4} & Weak pass on the literal rule. \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\textbf{Other findings:}
+
+\begin{itemize}
+\item \textbf{The Phase 1 headline reproduced} at higher power: TRM 788k $-$ MLP 135k $-$34.4 (0/12, p = 0.0005).
+\item \textbf{Depth is inert:} H = 1 and H = 6 vs H = 3 give $-$3.3 (5/12) and $-$10.9 (4/12). Only 7 applications are ever trained.
+\item \textbf{TRM's critic fits worse at matched capacity} (1.45$\times$ and 1.89$\times$, 12/12 each), while the bigger MLP fits \emph{better}.
+\item \textbf{The gap is mostly in training, not the final policy:} deterministic battery $-$3.6 (2/12, p = 0.039).
+\item \textbf{Control trade-off:}
+\begin{itemize}
+\item TRM's greedy torque is much smoother (0.4 vs 9 reversals/s, 11/12, p = 0.006).
+\item But it is less robust to sensor noise ($-$75.8 more, 2/12), a heavier plant and actuator dropout.
+\item It costs 65$\times$ the latency per decision (4.13 vs 0.064 ms p99; 242 Hz ceiling) and 11--13$\times$ the training cost.
+\end{itemize}
+\end{itemize}
+
+
+
+\section*{What it established}
+
+
+
+A confound-controlled negative. With capacity matched, the latent carried (with verified stored-state replay), and conditions built to leave something to infer, recursion does not earn its cost. The deficit is architectural and shows up in value fit more than in the final policy. \textbf{Use the MLP.}
+
+
+
+\textbf{What was left open:} TRM's training discipline (full gradient, per-cycle supervision), a second algorithm, an unstable plant, a tuning check, and the complexity question. Phase 4 took all five on.
+\end{document}
