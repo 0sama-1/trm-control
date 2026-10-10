@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 STATE = HERE / "dashboard_state"
 STAGES = {"b0": "B0 · IDP complexity pilot", "b0h": "B0 · Hopper fallback (dropped)", "b0d": "B0 · IDP diagnostic (K-2)",
           "c": "C · LR sweep", "a0": "A pilot · grad norms", "a": "A · training discipline",
-          "t": "T · G1 under TD3", "e": "E · Lipschitz, run 1 (path bug)", "e2": "E · Lipschitz (exploratory)", "b1": "B1 · complexity rung"}
+          "t2": "T2 · TRM actor LR under TD3 (Phase 5)", "t": "T · G1 under TD3", "e": "E · Lipschitz, run 1 (path bug)", "e2": "E · Lipschitz (exploratory)", "b1": "B1 · complexity rung"}
 
 
 def main() -> None:
@@ -27,6 +27,14 @@ def main() -> None:
     a = ap.parse_args()
     status = json.loads((STATE / "status_latest.json").read_text())
     gates = json.loads((HERE / "gates.json").read_text())
+    # Phase 5 shares this board: merge its poll status, gates and amendments when present.
+    P5 = HERE.parent / "phase5"
+    p5_status = json.loads((P5 / "dashboard_state" / "status_latest.json").read_text()) if (P5 / "dashboard_state" / "status_latest.json").exists() else None
+    p5_gates = json.loads((P5 / "gates.json").read_text()) if (P5 / "gates.json").exists() else None
+    if p5_status:
+        status = {"polled_at": max(status["polled_at"], p5_status["polled_at"]), "jobs": status["jobs"] + p5_status["jobs"]}
+    if p5_gates:
+        gates = {**gates, "gates": gates["gates"] + p5_gates["gates"], "amendments": gates.get("amendments", []) + p5_gates.get("amendments", [])}
     log_path, prev_path = STATE / "board_log.json", STATE / "board_prev_states.json"
     log = json.loads(log_path.read_text()) if log_path.exists() else []
     prev = json.loads(prev_path.read_text()) if prev_path.exists() else {}
@@ -68,6 +76,7 @@ def main() -> None:
         "findings": json.loads((STATE / "findings.json").read_text()) if (STATE / "findings.json").exists() else [],
         # Curated phase summary (dashboard_state/summary.json), shown at the top of the board.
         "summary": json.loads((STATE / "summary.json").read_text()) if (STATE / "summary.json").exists() else None,
+        "phase5": json.loads((P5 / "dashboard_state" / "phase5_summary.json").read_text()) if (P5 / "dashboard_state" / "phase5_summary.json").exists() else None,
     }
     (STATE / "board_doc.json").write_text(json.dumps(doc))
     print(f"board doc: {len(jobs)} jobs, {len(log)} log entries, {len(json.dumps(doc)) // 1024} KB")

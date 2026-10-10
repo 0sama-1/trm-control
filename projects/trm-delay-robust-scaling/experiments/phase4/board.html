@@ -60,6 +60,7 @@ h2 { font: 600 1.05rem var(--display); margin: 0 0 10px; letter-spacing: 0.01em;
 .s-running { color: var(--run); background: var(--run-bg); }
 .s-done, .s-pass, .s-supported, .s-insensitive { color: var(--ok); background: var(--ok-bg); }
 .s-failed, .s-fail { color: var(--bad); background: var(--bad-bg); }
+.s-LR-explains, .s-LR-does-not-explain { color: var(--accent); background: var(--accent-soft); }
 .s-flag, .s-not-a-gate { color: var(--warn); background: var(--warn-bg); }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -104,6 +105,10 @@ ul.log time { font: 12px var(--mono); color: var(--muted); }
 .sumrow .gg { grid-column: 3; grid-row: 1; justify-self: end; display: grid; gap: 4px; justify-items: end; }
 .sumrow .gg span.gname { font: 11px var(--mono); color: var(--muted); }
 .sub3 { font: 600 0.95rem var(--display); margin: 0 0 8px; }
+.p5grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.p5grid > div { display: grid; gap: 6px; }
+.sumwrap p.ff { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 90ch; }
+@media (max-width: 640px) { .p5grid { grid-template-columns: 1fr; } }
 .sumwrap table td { white-space: normal; font-size: 13px; }
 @media (max-width: 640px) {
   .sumrow { grid-template-columns: minmax(0, 1fr); }
@@ -118,10 +123,26 @@ ul.log time { font: 12px var(--mono); color: var(--muted); }
     <div>
       <div class="label">trm-delay-robust-scaling · Katana PBS</div>
       <h1>Phase 4 Run Board</h1>
-      <p class="sub">Complexity rung, training discipline, LR sweep, G1 under TD3, Lipschitz analysis and C export. Phase 4 is complete; this board holds its final state.</p>
+      <p class="sub">Complexity rung, training discipline, LR sweep, G1 under TD3, Lipschitz analysis and C export. Phase 4 is complete. Phase 5 (Stage T2) is running and updates here about every 19 minutes.</p>
     </div>
     <div class="fresh" id="fresh"><span class="dot" id="dot"></span><span id="polled">Waiting for the first poll</span></div>
   </header>
+
+  <section id="p5" hidden>
+    <h2>Phase 5 · actor learning rate under TD3</h2>
+    <div class="sumwrap">
+      <p class="label" id="p5-status"></p>
+      <p class="verdict" id="p5-q"></p>
+      <div class="p5grid">
+        <div><span class="label">Progress</span><span class="bar" id="p5-bar" aria-hidden="true"></span><span class="counts" id="p5-counts"></span></div>
+        <div><span class="label">Gate</span><span id="p5-gate"></span></div>
+      </div>
+      <p class="ff" id="p5-design"></p>
+      <p class="ff" id="p5-gaterule"></p>
+      <p class="ff" id="p5-baseline"></p>
+      <p class="ff" id="p5-next"></p>
+    </div>
+  </section>
 
   <section id="summary" hidden>
     <h2>Phase 4 at a glance</h2>
@@ -212,6 +233,23 @@ function render() {
       <p>${esc(g.detail || "Awaiting data.")}</p>
       <details><summary>Pre-registered rule</summary><p>${esc(g.rule)}</p></details>
     </div>`).join("");
+
+  const p5 = board.phase5;
+  if (p5) {
+    document.getElementById("p5").hidden = false;
+    document.getElementById("p5-status").textContent = p5.status || "";
+    document.getElementById("p5-q").textContent = p5.question || "";
+    const js5 = (board.jobs || []).filter(j => j.stage === "t2"), c5 = counts(js5), n5 = js5.length || 1;
+    document.getElementById("p5-bar").innerHTML = ["done", "running", "failed"].map(k =>
+      `<span style="width:${100 * c5[k] / n5}%;background:${STATE_COLORS[k]}"></span>`).join("");
+    document.getElementById("p5-counts").innerHTML = `<span><b>${c5.done}</b>/${js5.length} done</span><span><b>${c5.running}</b> running</span><span><b>${c5.queued}</b> queued</span>` + (c5.failed ? `<span style="color:var(--bad)"><b>${c5.failed}</b> failed</span>` : "");
+    const g5 = (board.gates || []).find(g => g.id === "GT2");
+    document.getElementById("p5-gate").innerHTML = g5 ? `${pill(g5.status)} <span class="gname">GT2</span>` : "";
+    document.getElementById("p5-design").textContent = p5.design || "";
+    document.getElementById("p5-gaterule").textContent = p5.gate || "";
+    document.getElementById("p5-baseline").textContent = p5.baseline || "";
+    document.getElementById("p5-next").textContent = (g5 && g5.detail ? "Outcome: " + g5.detail + " " : "") + (p5.next || "");
+  }
 
   const sm = board.summary;
   if (sm) {
