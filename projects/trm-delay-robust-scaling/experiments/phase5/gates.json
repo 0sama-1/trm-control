@@ -1,0 +1,32 @@
+{
+ "frozen": "2026-10-10",
+ "plan": "projects/trm-delay-robust-scaling/phase5/plan/plan.md",
+ "metric": "final avg-100 training return; 'learned' = final avg-100 > -1000",
+ "frozen_values": {
+  "learned_threshold": -1000,
+  "actor_lrs": [
+   "1e-4",
+   "3e-4",
+   "1e-3"
+  ],
+  "critic_lr": "1e-3 (td3.yaml, unchanged)",
+  "t2_reuse_stage_t_lr1e-3": true
+ },
+ "gates": [
+  {
+   "id": "GT2",
+   "name": "Does actor LR explain TRM's TD3 failure?",
+   "stage": "T2",
+   "status": "pending",
+   "rule": "Pendulum-v1, TD3 (td3.yaml; only arch.actor_lr overridden), conditions C0 (no delay) and C1 (fixed d=1 + queue, no previous action), seeds 1-6, 200 episodes. TRM 788k at actor LR in {1e-4, 3e-4, 1e-3}; MLP 788k (dnn_large) at actor LR 1e-4 as a control. Per LR, report runs learned (final avg-100 > -1000) out of 12. 'LR explains the TD3 failure' if TRM 788k learns in >=10/12 runs at some actor LR < 1e-3. If it does, also report TRM 788k - MLP 788k (actor LR 1e-4) at that LR: n = 12 (seed, condition) pairs, sign test, two-sided p. If both 1e-4 and 3e-4 pass, report both contrasts; the 1e-4 contrast is LR-matched and primary, the 3e-4 one compares unequal actor LRs and is labelled so. Secondary: late critic-loss medians (last quarter), eval last-5, MLP 788k learned count vs Stage T's MLP 788k at actor LR 1e-3."
+  }
+ ],
+ "amendments": [
+  {
+   "date": "2026-10-10",
+   "id": "P5-1",
+   "before_data": true,
+   "text": "Author approved reuse: the TRM 788k arm at actor LR 1e-3 is Phase 4 Stage T's 12 TRM 788k runs (phase4/results/results_p4t), same td3.yaml configuration, code verified byte-identical to the frozen p4code/t snapshot. Caveat: runs are not bit-reproducible across GPU models. Stage T2 therefore submits 36 jobs (TRM at 1e-4 and 3e-4, MLP 788k control at 1e-4)."
+  }
+ ]
+}

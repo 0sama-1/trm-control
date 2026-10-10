@@ -32,6 +32,7 @@ multirun
 # trm-delay-robust-scaling: Phase 3-4 raw run results stay out of git (multi-GB); the analysis
 # JSONs, figures and reports that cite them are tracked. Stage D's C headers are a deliverable.
 projects/trm-delay-robust-scaling/phase3/results/
+projects/trm-delay-robust-scaling/phase5/results/
 projects/trm-delay-robust-scaling/phase4/results/*
 !projects/trm-delay-robust-scaling/phase4/results/export_c/
 # LaTeX build logs
