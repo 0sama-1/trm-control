@@ -1,0 +1,227 @@
+{
+ "threshold": -1000,
+ "arms": {
+  "trm|1e-4": {
+   "n": 12,
+   "learned": 12,
+   "median_final": -187.69,
+   "finals": {
+    "C0|s1": -171.7,
+    "C0|s2": -188.3,
+    "C0|s3": -172.7,
+    "C0|s4": -187.1,
+    "C0|s5": -191.9,
+    "C0|s6": -174.5,
+    "C1|s1": -189.5,
+    "C1|s2": -213.1,
+    "C1|s3": -186.4,
+    "C1|s4": -191.1,
+    "C1|s5": -181.3,
+    "C1|s6": -237.4
+   },
+   "critic_late_median": 36.01,
+   "eval_last5_median": -173.08,
+   "wall_min_median": 22.58,
+   "devices": [
+    "NVIDIA H100 NVL",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "trm|3e-4": {
+   "n": 12,
+   "learned": 11,
+   "median_final": -234.56,
+   "finals": {
+    "C0|s1": -1391.2,
+    "C0|s2": -196.2,
+    "C0|s3": -354.3,
+    "C0|s4": -267.0,
+    "C0|s5": -248.9,
+    "C0|s6": -256.0,
+    "C1|s1": -232.0,
+    "C1|s2": -199.4,
+    "C1|s3": -206.6,
+    "C1|s4": -224.4,
+    "C1|s5": -211.2,
+    "C1|s6": -237.1
+   },
+   "critic_late_median": 47.36,
+   "eval_last5_median": -200.71,
+   "wall_min_median": 23.98,
+   "devices": [
+    "NVIDIA A100-PCIE-40GB",
+    "NVIDIA H100 NVL",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "trm|1e-3": {
+   "n": 12,
+   "learned": 2,
+   "median_final": -1389.27,
+   "finals": {
+    "C0|s1": -1435.4,
+    "C0|s2": -1382.5,
+    "C0|s3": -1352.4,
+    "C0|s4": -1505.3,
+    "C0|s5": -1366.7,
+    "C0|s6": -1467.8,
+    "C1|s1": -1287.1,
+    "C1|s2": -221.7,
+    "C1|s3": -1429.5,
+    "C1|s4": -1396.0,
+    "C1|s5": -834.3,
+    "C1|s6": -1396.7
+   },
+   "critic_late_median": 560.94,
+   "eval_last5_median": -1415.09,
+   "wall_min_median": 42.54,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  },
+  "dnn_large|1e-4": {
+   "n": 12,
+   "learned": 12,
+   "median_final": -176.14,
+   "finals": {
+    "C0|s1": -173.7,
+    "C0|s2": -168.4,
+    "C0|s3": -165.9,
+    "C0|s4": -163.4,
+    "C0|s5": -175.1,
+    "C0|s6": -167.6,
+    "C1|s1": -177.2,
+    "C1|s2": -190.1,
+    "C1|s3": -178.3,
+    "C1|s4": -177.5,
+    "C1|s5": -189.7,
+    "C1|s6": -184.8
+   },
+   "critic_late_median": 25.37,
+   "eval_last5_median": -167.98,
+   "wall_min_median": 2.04,
+   "devices": [
+    "NVIDIA L40S"
+   ]
+  },
+  "dnn_large|1e-3 (Stage T)": {
+   "n": 12,
+   "learned": 12,
+   "median_final": -175.92,
+   "finals": {
+    "C0|s1": -177.2,
+    "C0|s2": -169.7,
+    "C0|s3": -168.2,
+    "C0|s4": -163.5,
+    "C0|s5": -175.4,
+    "C0|s6": -168.1,
+    "C1|s1": -177.0,
+    "C1|s2": -184.3,
+    "C1|s3": -175.1,
+    "C1|s4": -176.4,
+    "C1|s5": -178.1,
+    "C1|s6": -179.6
+   },
+   "critic_late_median": 23.69,
+   "eval_last5_median": -168.25,
+   "wall_min_median": 3.36,
+   "devices": [
+    "NVIDIA A100-SXM4-40GB",
+    "NVIDIA L40S",
+    "Tesla V100-SXM2-32GB"
+   ]
+  }
+ },
+ "contrasts": {
+  "trm@1e-4 - dnn_large@1e-4": {
+   "pairs": [
+    "('C0', 1)",
+    "('C0', 2)",
+    "('C0', 3)",
+    "('C0', 4)",
+    "('C0', 5)",
+    "('C0', 6)",
+    "('C1', 1)",
+    "('C1', 2)",
+    "('C1', 3)",
+    "('C1', 4)",
+    "('C1', 5)",
+    "('C1', 6)"
+   ],
+   "diffs": [
+    2.01,
+    -19.89,
+    -6.8,
+    -23.71,
+    -16.82,
+    -6.9,
+    -12.32,
+    -23.06,
+    -8.12,
+    -13.63,
+    8.38,
+    -52.6
+   ],
+   "median_diff": -12.98,
+   "mean_diff": -14.45,
+   "pooled_sd": 14.5,
+   "sign": {
+    "n": 12,
+    "positive": 2,
+    "p_one_sided_greater": 0.996826171875,
+    "p_two_sided": 0.03857421875
+   },
+   "label": "LR-matched (primary)"
+  },
+  "trm@3e-4 - dnn_large@1e-4": {
+   "pairs": [
+    "('C0', 1)",
+    "('C0', 2)",
+    "('C0', 3)",
+    "('C0', 4)",
+    "('C0', 5)",
+    "('C0', 6)",
+    "('C1', 1)",
+    "('C1', 2)",
+    "('C1', 3)",
+    "('C1', 4)",
+    "('C1', 5)",
+    "('C1', 6)"
+   ],
+   "diffs": [
+    -1217.44,
+    -27.8,
+    -188.45,
+    -103.66,
+    -73.82,
+    -88.45,
+    -54.82,
+    -9.35,
+    -28.33,
+    -46.92,
+    -21.55,
+    -52.37
+   ],
+   "median_diff": -53.6,
+   "mean_diff": -159.41,
+   "pooled_sd": 237.11,
+   "sign": {
+    "n": 12,
+    "positive": 0,
+    "p_one_sided_greater": 1.0,
+    "p_two_sided": 0.00048828125
+   },
+   "label": "unequal actor LRs (TRM 3e-4 vs MLP 1e-4)"
+  }
+ },
+ "complete": true,
+ "passing_lrs": [
+  "1e-4",
+  "3e-4"
+ ],
+ "GT2": "LR explains"
+}
