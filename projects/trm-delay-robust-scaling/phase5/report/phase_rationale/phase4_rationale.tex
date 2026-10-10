@@ -1,0 +1,156 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.95in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+\setlist{itemsep=2pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.15}
+\title{Phase 4 Rationale: Closing the Remaining Doors}
+\author{}
+\date{trm-delay-robust-scaling $\cdot$ phase rationale $\cdot$ 2026-10-06 to 10-08 $\cdot$ 154 Katana jobs\\[2pt]Why the phase existed, what inspired its design, and what it contributed. Results are in \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}phase\_\allowbreak{}summaries/\allowbreak{}phase4\_\allowbreak{}summary.\allowbreak{}md}; labels are in \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}glossary.\allowbreak{}md}.\\[2pt]Research question (the whole project).** Does weight-tied recursion (TRM), used as the actor-critic trunk of a model-free RL agent, benefit continuous control under action delay, and if not, why not?}
+\begin{document}
+\maketitle
+\section*{In one paragraph}
+
+
+
+Phase 3 delivered a confound-controlled negative, but an examiner could still raise five objections: TRM was never trained the way TRM is trained; it was never tuned; everything ran under one algorithm; the complexity question was never tested on a task the baseline learns; and TRM's mix of smoothness and fragility was unexplained. Phase 4 existed to answer each objection with a pre-registered stage, so that the negative result would be robust rather than merely clean. Tuning and training discipline both failed to rescue TRM. A second algorithm reproduced the direction of the deficit, but through an optimisation failure that Phase 5 then resolved. Complexity stayed untested, because no harder task was learnable by the baseline under delay.
+
+
+
+\section*{1. Where the project stood going in}
+
+
+
+\begin{itemize}
+\item G1: the deficit is architectural, not capacity.
+\item Depth inert, because only 7 of 21 cell applications receive gradient, and carrying the latent adds nothing.
+\item Everything under DDPG with default learning rates, on Pendulum-v1.
+\item TRM smoother (0.4 vs 9 reversals/s) but less robust, and 65$\times$ slower per decision.
+\item H1 (complexity) untested since Phase 2: MountainCar and BipedalWalker were floors.
+\end{itemize}
+
+
+
+\section*{2. Why this phase was made}
+
+
+
+The plan (\texttt{phase4/\allowbreak{}plan/\allowbreak{}plan.\allowbreak{}md} \S{}0) set the order by how much each open question could change the conclusion:
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.127\linewidth}>{\raggedright\arraybackslash}p{0.200\linewidth}>{\raggedright\arraybackslash}p{0.579\linewidth}}
+\toprule
+Priority & Stage & Objection it answers \\
+\midrule
+1 & \textbf{B}, complexity & "Pendulum is too easy; TRM's deficit would shrink on a harder task" (H1$'$) \\
+2 & \textbf{A}, training discipline & "You truncated TRM's gradient and supervised only the last readout; that is not TRM" \\
+3 & \textbf{C}, tuning & "TRM was never tuned" \\
+added & \textbf{T}, second algorithm & "The result is a DDPG artefact" \\
+exploratory & \textbf{E}, mechanism & "Why is TRM smoother yet less robust?" \\
+engineering & \textbf{D}, deployment & "Does any of this fit the author's microcontroller?" \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+Stage T was added mid-phase (amendment T-1, before its data) once it was clear that a single-algorithm result was the most obvious remaining threat.
+
+
+
+\section*{3. Design decisions and what inspired them}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.287\linewidth}>{\raggedright\arraybackslash}p{0.291\linewidth}>{\raggedright\arraybackslash}p{0.327\linewidth}}
+\toprule
+Decision & Inspiration & Why it mattered \\
+\midrule
+A budget pilot (B0) before any complexity matrix, with "learned" fixed at 90\% of the registered solved return (8190 on IDP) & Phase 2's floor effects & A complexity contrast on an unlearned task is meaningless. The bar was external and fixed before data, so a failure could not be redefined. \\
+InvertedDoublePendulum-v5 as the rung & Control theory: an open-loop unstable plant, where delay consumes stability margin rather than merely obscuring state & The kind of task where state estimation under delay should matter most. \\
+A kill switch to Hopper-v5 (KB0), written before data & Pre-registration practice & Bounded how long Stage B could run if IDP failed. \\
+Budgets 150k / 300k / 500k steps, nested & TD3 learning curves on IDP (Fujimoto et al., 2018) reach the threshold around 100--200k steps & Covered the published solve point with margin for the delay; nesting gave a free reproducibility check. \\
+A diagnostic run (B0d) after GB0 failed, rather than moving the bar & The author's decision (K-2) & Showed the one-step delay, not the budget, keeps the MLP unreliable on IDP. \\
+Full gradient and deep supervision (Stage A) & TRM's own training; deeply-supervised nets (Lee et al., 2015) as the RL surrogate; DEQ (Bai et al., 2019) noted as an unrun alternative & Tests precondition P1's training half directly: does every cycle getting gradient and supervision make depth useful? \\
+New behaviour behind default-off flags, verified bit-identical & Protecting Phases 1--3 & All 30 existing configurations trained bit-identically with the flags off; a gradient-hook test confirmed 21/21 applications get gradient with \texttt{full\_grad}. \\
+Gradient clipping at the pilot's 99th-percentile norm (15 / 2800) & Unrolled-RNN practice: backpropagating through 21 tied applications risks exploding gradients & Protected the comparison from a blown-up seed while firing on only 0.6--8.6\% of updates. All TRM arms clipped alike. \\
+Reusing Phase 3's MLP runs (R-1) only after an exact code-equivalence check & Compute economy without loss of validity & Saved a matrix while keeping the comparison like for like. \\
+A full 3$\times$3 actor $\times$ critic LR grid at $\times$0.3, $\times$1, $\times$3 (Stage C) & The first objection to any "architecture X loses" result & Cheap, and it answers the objection within a stated range. \\
+TD3 with \texttt{td3.yaml} unchanged for every trunk (Stage T), both conditions, pooled n = 12 & Fujimoto et al. (2018); mirroring G1 exactly & No per-trunk tuning, so the comparison is fair; pooling matches G1's power. \\
+A Lipschitz analysis of 72 banked actors (Stage E) & Control robustness and gain analysis & A low local gain would explain smoothness and predict robustness; testing it needs no new training. \\
+C-header export for a 512 KB STM32 (Stage D) & The embedded-control motivation of TRM and Tiny Recursive Control & Grounds the cost discussion in a real device budget. \\
+Stop at every gate and before every main matrix & The author's ground rules & Every main matrix was approved after seeing its job count and walltime. \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+\section*{4. How it contributed to the research question}
+
+
+
+\begin{center}\small\begin{tabular}{>{\raggedright\arraybackslash}p{0.121\linewidth}>{\raggedright\arraybackslash}p{0.395\linewidth}>{\raggedright\arraybackslash}p{0.391\linewidth}}
+\toprule
+Hypothesis & Outcome & What it means for the question \\
+\midrule
+H1$'$, complexity (B0, KB0) & \textbf{Not run.} GB0 and KB0 fail; B1 skipped (K-3) & Complexity remains a limitation of the evidence, not evidence against TRM. \\
+H\_C, untuned LRs (GC) & \textbf{Not supported.} No cell beats the default; a higher actor LR hurts TRM & The deficit is not a tuning artefact within $\times$0.3--$\times$3. \\
+H\_A, training discipline (GA) & \textbf{Not supported.} Best 4/6 against truncated TRM; still behind the MLP (1/6) at 1.45--1.5$\times$ the cost & Depth is inert not just for lack of gradient: the cell gets no new information between passes. \\
+H\_T, second algorithm (GT) & \textbf{Pass (12/12), with caveat.} TRM 788k fails to train under \texttt{td3.yaml} (2/12 learn) & Direction holds; magnitude not replicated. Cause untested until Phase 5. \\
+Stage E & TRM's local gain is lower (11--16 vs 29--34) yet it loses 1.6--3$\times$ more under noise & Local sensitivity does not explain the robustness gap. \\
+Stage D & MLP 135k and TRM 136k fit 512 KB in FP32; TRM H = 1 fits only in INT8 & Deployment cost made concrete. \\
+\bottomrule
+\end{tabular}\end{center}
+
+
+
+For the "why not" half of the question, Phase 4 removed the last two port-level explanations, tuning and training discipline. Together with Phase 3 that makes five failed rescues: capacity, depth, memory, tuning, training discipline. It also sharpened the explanation: TRM's recursion has nothing new to integrate on each pass, unlike Tiny Recursive Control, which simulates its current answer and feeds the error back.
+
+
+
+\section*{5. How it shaped the experiments that followed}
+
+
+
+\begin{itemize}
+\item \textbf{Stage T's caveat became Phase 5.} TRM 788k failed under TD3's defaults; the obvious suspect was the actor learning rate (1e-3, ten times DDPG's), and Stage C had already shown that raising TRM's actor rate hurts it. Phase 5 tested exactly that.
+\item \textbf{The open list for future work}: complexity on a task the baseline learns (for example delay-free IDP), a tuned recurrent baseline, and why TRM is less robust despite a lower local gain.
+\end{itemize}
+
+
+
+\section*{6. In hindsight}
+
+
+
+\begin{itemize}
+\item \textbf{A one-run pilot of each algorithm's defaults on every trunk} would have surfaced Stage T's failure before the full stage, and Phase 5 would not have been needed.
+\item \textbf{Fixed bars paid off.} When IDP and Hopper failed, the bar stayed put and the honest outcome, "not run", was recorded rather than a post-hoc rescue.
+\item \textbf{The flag-and-verify discipline} let new training modes coexist with Phases 1--3 without any doubt about old results.
+\end{itemize}
+
+
+
+\section*{Sources}
+
+
+
+\begin{itemize}
+\item Fujimoto et al. (2018), TD3; Lee et al. (2015), deeply-supervised nets; Bai et al. (2019), DEQ; Jain \& Linares (2025), Tiny Recursive Control.
+\item Project files:
+\begin{itemize}
+\item \texttt{phase4/\allowbreak{}plan/\allowbreak{}plan.\allowbreak{}md} (\S{}0, stages, \S{}10 amendments)
+\item \texttt{phase4/\allowbreak{}plan/\allowbreak{}K-3\_\allowbreak{}draft.\allowbreak{}md}
+\item \texttt{experiments/\allowbreak{}phase4/\allowbreak{}gates.\allowbreak{}json}
+\item \texttt{.\allowbreak{}.\allowbreak{}/\allowbreak{}full\_\allowbreak{}report.\allowbreak{}md} \S{}10
+\end{itemize}
+\end{itemize}
+\end{document}
